@@ -29,6 +29,7 @@ export default defineConfig({
         'lucide-react',
         'clsx',
         'tailwind-merge',
+        'fuse.js',
       ],
       output: {
         preserveModules: true,

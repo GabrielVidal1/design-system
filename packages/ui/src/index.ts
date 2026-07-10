@@ -7,6 +7,10 @@
 export { cn } from './lib/utils';
 
 export { ImageViewerProvider, useImageViewer, ViewableImage, ProgressiveImage } from './components/image-viewer';
+export { FuzzyList, highlightAll, highlightSnippet } from './components/fuzzy-list';
+export type { FuzzyListProps, FuzzyRenderContext } from './components/fuzzy-list';
+export { PhonePreview, IOSStatusBar } from './components/phone-preview';
+export type { PhonePreviewProps } from './components/phone-preview';
 export { Button } from './components/button';
 export type { ButtonProps, ButtonVariant, ButtonSize } from './components/button';
 export { Input } from './components/input';

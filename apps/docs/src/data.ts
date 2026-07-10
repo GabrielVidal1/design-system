@@ -32,3 +32,29 @@ export const specimens: Specimen[] = [
 
 /** The image URLs in catalogue order — the carousel set the viewer walks. */
 export const specimenFulls = specimens.map((s) => fullUrl(s.id));
+
+// A JSON dataset for the FuzzyList demo — a slice of the homelab, searched by
+// name / kind / description. Any array of plain objects works the same way.
+export interface Node {
+  name: string;
+  kind: 'service' | 'project' | 'box';
+  host: string;
+  desc: string;
+}
+
+export const nodes: Node[] = [
+  { name: 'traefik', kind: 'service', host: 'traefik.lab', desc: 'v3 reverse proxy, TLS, forward-auth entrypoint for every service' },
+  { name: 'authelia', kind: 'service', host: 'auth.lab', desc: 'forward-auth identity provider, the login wall in front of the lab' },
+  { name: 'ai-agent', kind: 'service', host: 'ai-agent.lab', desc: 'Claude Code conversation archive + live viewer, blue-green deployed' },
+  { name: 'gitea', kind: 'service', host: 'gitea.lab', desc: 'self-hosted git forge, scoped-token push behind Authelia' },
+  { name: 'grafana', kind: 'service', host: 'grafana.lab', desc: 'dashboards over Loki logs and Prometheus metrics' },
+  { name: '3d-gen', kind: 'service', host: '3d-gen.lab', desc: 'image to textured glb via TRELLIS.2 on the EVOX2 box' },
+  { name: 'image-gen', kind: 'service', host: 'image-gen.lab', desc: 'prompt to image, Nano Banana or local Ideogram 4' },
+  { name: 'music-dl', kind: 'service', host: 'music-dl.lab', desc: 'paste a Spotify link, spotDL downloads and beets autotags' },
+  { name: 'sherlock-project', kind: 'project', host: 'sherlock-project.dev', desc: 'styles gallery, source of the image viewer this library ships' },
+  { name: 'note-vite', kind: 'project', host: 'note.dev', desc: 'offline-first notes on PocketBase + RxDB, the phone-preview demo' },
+  { name: 'insta-pics', kind: 'project', host: 'pics', desc: 'self-hosted photo profile, direct-PocketBase public read' },
+  { name: 'zine-maker', kind: 'project', host: 'tools.zine.dev', desc: 'browser mini-zine maker, PDF importer + Konva editor' },
+  { name: 'EVOX2', kind: 'box', host: '100.93.171.39', desc: 'Ryzen AI MAX+ 395 Strix Halo, Radeon 8060S iGPU, 96GB unified VRAM' },
+  { name: 'raspy2', kind: 'box', host: '100.74.118.12', desc: 'public-facing edge, zipgo/Caddy serves gabvdl.xyz over Tailscale' },
+];
