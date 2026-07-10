@@ -295,3 +295,21 @@ body::before {
 @media (prefers-reduced-motion: reduce) {
   .anim-svg [class^="a-"] { animation: none !important; }
 }
+
+@keyframes a-vscroll {
+  0%   { transform: translateY(0); }
+  100% { transform: translateY(-32px); }
+}
+.a-vscroll { animation: a-vscroll 4.5s ease-in-out infinite alternate; }
+
+@keyframes a-thumb {
+  0%   { transform: translateY(0); }
+  100% { transform: translateY(46px); }
+}
+.a-thumb { animation: a-thumb 4.5s ease-in-out infinite alternate; }
+
+@keyframes a-pulse {
+  0%, 100% { transform: scale(0.7); opacity: 0.5; }
+  50%      { transform: scale(1.25); opacity: 0; }
+}
+.a-pulse { animation: a-pulse 2.2s ease-out infinite; }

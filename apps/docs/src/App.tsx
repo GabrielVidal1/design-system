@@ -2,26 +2,30 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { ArrowUpRight, Check, Copy, X } from 'lucide-react';
 import {
   Button,
+  Changelog,
   FuzzyList,
   ImageViewerProvider,
   Input,
   PhonePreview,
   ProgressiveImage,
   ViewableImage,
+  VirtualList,
   cn,
 } from '@gabvdl/ui';
 
 import {
   CnIcon,
   ButtonIcon,
+  ChangelogIcon,
   FuzzyListIcon,
   ImageViewerIcon,
   InputIcon,
   PhonePreviewIcon,
   ProgressiveImageIcon,
   ViewableImageIcon,
+  VirtualListIcon,
 } from './icons';
-import { fullUrl, nodes, specimenFulls, specimens, thumbUrl, type Node } from './data';
+import { changelog, fullUrl, nodes, specimenFulls, specimens, thumbUrl, type Node } from './data';
 
 const VERSION = '0.1.0';
 const REPO = 'https://gitea.lab.gabvdl.xyz/gabrielvidal/design-system';
@@ -89,6 +93,38 @@ open(urls, 0) // full-screen: zoom · pan · swipe`,
     </Row>
   )}
 />`,
+  },
+  {
+    id: 'virtual-list',
+    name: 'VirtualList',
+    sig: '<T>(items, renderItem, onEndReached?)',
+    tag: 'data',
+    Icon: VirtualListIcon,
+    Demo: VirtualListDemo,
+    code: `<VirtualList
+  items={rows}
+  className="h-96"        // bounded height
+  estimateSize={56}       // heights are then measured
+  hasMore={hasMore}
+  loading={loading}
+  onEndReached={loadNextPage}   // infinite lazy load
+  renderItem={(row) => <Row {...row} />}
+/>`,
+  },
+  {
+    id: 'changelog',
+    name: 'Changelog',
+    sig: 'entries? · trigger · reload toast',
+    tag: 'feedback',
+    Icon: ChangelogIcon,
+    Demo: ChangelogDemo,
+    code: `// headless SDK, or pass entries directly
+<Changelog
+  entries={page}
+  hasMore={hasMore}
+  loading={loading}
+  onLoadMore={loadOlder}   // list virtualized + paged
+/>  // + a "new version" reload toast`,
   },
   {
     id: 'phone-preview',
@@ -338,7 +374,7 @@ function FuzzyListDemo() {
       renderItem={({ highlight, active, item }) => (
         <div
           className={cn(
-            'mb-1 cursor-pointer rounded-lg border px-3 py-2 transition-colors',
+            'cursor-pointer rounded-lg border px-3 py-2 transition-colors',
             active ? 'border-[color:var(--cyan)]/50 bg-[rgba(94,198,232,0.08)]' : 'border-transparent hover:bg-[rgba(94,198,232,0.05)]',
           )}
         >
@@ -372,6 +408,82 @@ function PhonePreviewDemo() {
           </div>
         </div>
       </PhonePreview>
+    </div>
+  );
+}
+
+function VirtualListDemo() {
+  const TOTAL = 500;
+  const PAGE = 40;
+  const [count, setCount] = useState(80);
+  const [loading, setLoading] = useState(false);
+  const rows = Array.from({ length: count }, (_, i) => i);
+  const hasMore = count < TOTAL;
+  const loadMore = () => {
+    if (loading || !hasMore) return;
+    setLoading(true);
+    setTimeout(() => {
+      setCount((c) => Math.min(c + PAGE, TOTAL));
+      setLoading(false);
+    }, 450);
+  };
+  return (
+    <div>
+      <VirtualList
+        items={rows}
+        className="h-[360px] rounded-lg border border-border"
+        estimateSize={52}
+        hasMore={hasMore}
+        loading={loading}
+        onEndReached={loadMore}
+        getItemKey={(i) => i}
+        renderItem={(i) => (
+          <div className="flex items-center gap-3 px-3" style={{ paddingBottom: 6 }}>
+            <span className="mono text-[11px] tabular-nums text-[color:var(--cyan-deep)]">
+              {String(i).padStart(3, '0')}
+            </span>
+            <div className="flex-1 rounded-md border border-border bg-[rgba(94,198,232,0.04)] px-3 py-2.5">
+              <span className="text-sm text-foreground">Row {i}</span>
+              <span className="mono ml-2 text-[11px] text-muted-foreground">virtualized · lazy</span>
+            </div>
+          </div>
+        )}
+      />
+      <p className="mt-2 mono text-[11px] text-muted-foreground">
+        {count} of {TOTAL} — rows mount on demand · scroll to lazy-load
+      </p>
+    </div>
+  );
+}
+
+function ChangelogDemo() {
+  const PAGE = 8;
+  const [count, setCount] = useState(8);
+  const [loading, setLoading] = useState(false);
+  const entries = changelog.slice(0, count);
+  const hasMore = count < changelog.length;
+  const loadMore = () => {
+    if (loading || !hasMore) return;
+    setLoading(true);
+    setTimeout(() => {
+      setCount((c) => Math.min(c + PAGE, changelog.length));
+      setLoading(false);
+    }, 450);
+  };
+  return (
+    <div className="flex flex-col items-start gap-3">
+      <p className="text-sm text-muted-foreground">
+        Trigger + modal + a "new version" reload toast. The entry list is a{' '}
+        <span className="mono text-foreground">VirtualList</span> that pages in older releases as you
+        scroll.
+      </p>
+      <Changelog
+        entries={entries}
+        hasMore={hasMore}
+        loading={loading}
+        onLoadMore={loadMore}
+        trigger={({ open }) => <Button onClick={open}>Open changelog</Button>}
+      />
     </div>
   );
 }

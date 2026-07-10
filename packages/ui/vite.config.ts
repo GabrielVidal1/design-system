@@ -30,6 +30,7 @@ export default defineConfig({
         'clsx',
         'tailwind-merge',
         'fuse.js',
+        '@tanstack/react-virtual',
       ],
       output: {
         preserveModules: true,

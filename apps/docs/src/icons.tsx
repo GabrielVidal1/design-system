@@ -156,3 +156,47 @@ export function CnIcon() {
     </Svg>
   );
 }
+
+/** VirtualList — a viewport window over a long list, with a moving scrollbar. */
+export function VirtualListIcon() {
+  return (
+    <Svg>
+      <rect x="52" y="24" width="104" height="82" rx="8" stroke={DIM} strokeWidth="2" />
+      <clipPath id="vl">
+        <rect x="58" y="30" width="80" height="70" rx="3" />
+      </clipPath>
+      <g clipPath="url(#vl)">
+        <g className="a-vscroll">
+          {[26, 42, 58, 74, 90, 106].map((y, i) => (
+            <g key={y}>
+              <rect x="64" y={y} width="52" height="6" rx="3" fill={i === 2 || i === 3 ? CY : DIM} opacity={i === 2 || i === 3 ? 0.85 : 0.4} />
+              <rect x="64" y={y + 9} width="34" height="4" rx="2" fill={DIM} opacity="0.3" />
+            </g>
+          ))}
+        </g>
+      </g>
+      <rect x="146" y="30" width="4" height="70" rx="2" fill={DIM} opacity="0.25" />
+      <rect className="a-thumb" x="146" y="30" width="4" height="22" rx="2" fill={CY} />
+      <rect x="164" y="30" width="8" height="70" rx="2" fill={CY} opacity="0.06" />
+    </Svg>
+  );
+}
+
+/** Changelog — a version log with a pulsing "new release" mark. */
+export function ChangelogIcon() {
+  return (
+    <Svg>
+      <rect x="52" y="24" width="104" height="82" rx="8" stroke={DIM} strokeWidth="2" />
+      <rect x="64" y="36" width="22" height="12" rx="6" fill={CY} fillOpacity="0.16" stroke={CY} strokeWidth="1.5" />
+      <rect x="94" y="52" width="50" height="5" rx="2.5" fill={DIM} opacity="0.55" />
+      <rect x="64" y="52" width="22" height="5" rx="2.5" fill={DIM} opacity="0.3" />
+      <rect x="64" y="66" width="80" height="5" rx="2.5" fill={DIM} opacity="0.45" />
+      <rect x="64" y="78" width="64" height="5" rx="2.5" fill={DIM} opacity="0.3" />
+      <g transform="translate(150 30)">
+        <circle className="a-pulse" r="12" fill={CY} fillOpacity="0.18" />
+        <circle r="6" fill={CY} />
+        <path d="M0 -3 L1 -1 L3 0 L1 1 L0 3 L-1 1 L-3 0 L-1 -1 Z" fill="var(--ink-950)" />
+      </g>
+    </Svg>
+  );
+}

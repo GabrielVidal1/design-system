@@ -58,3 +58,37 @@ export const nodes: Node[] = [
   { name: 'EVOX2', kind: 'box', host: '100.93.171.39', desc: 'Ryzen AI MAX+ 395 Strix Halo, Radeon 8060S iGPU, 96GB unified VRAM' },
   { name: 'raspy2', kind: 'box', host: '100.74.118.12', desc: 'public-facing edge, zipgo/Caddy serves gabvdl.xyz over Tailscale' },
 ];
+
+// A generated changelog history for the Changelog demo — enough entries to page
+// through (infinite load) and to virtualize.
+import type { ChangelogEntry } from '@gabvdl/ui';
+
+const CHANGE_POOL = [
+  'Add VirtualList — windowed, infinite lazy loading',
+  'FuzzyList now renders through VirtualList',
+  'Move the Changelog widget into @gabvdl/ui',
+  'PhonePreview: dependency-free iPhone frame',
+  'FuzzyList<T> generic fuzzy search on Fuse.js',
+  'Import the Sherlock image viewer',
+  'Cyanotype specimen-sheet docs identity',
+  'Tree-shakeable ESM build with bundled .d.ts',
+  'Retheme entirely from CSS custom properties',
+  'Keyboard navigation + scroll-into-view',
+  'Reduced-motion respected across animations',
+  'Ship subpath CSS exports (theme, image-viewer)',
+];
+
+const BASE = Date.parse('2026-07-11T00:00:00Z');
+
+export const changelog: ChangelogEntry[] = Array.from({ length: 42 }, (_, i) => {
+  const rel = 42 - i; // release number, newest first
+  const count = (i % 3) + 1;
+  const changes = Array.from({ length: count }, (_, k) => CHANGE_POOL[(i * 3 + k) % CHANGE_POOL.length]);
+  return {
+    version: `0.${Math.floor(rel / 10)}.${rel % 10}`,
+    date: new Date(BASE - i * 86_400_000).toISOString().slice(0, 10),
+    title: i % 4 === 0 ? changes[0] : undefined,
+    changes,
+    sha: (0xabc123 + rel).toString(16).slice(0, 7),
+  };
+});

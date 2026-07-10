@@ -4,6 +4,13 @@ import { Search } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
 import { highlightAll, highlightSnippet } from '../../lib/highlight';
+import { VirtualList, type VirtualListHandle } from '../virtual-list';
+
+interface Result<T> {
+  item: T;
+  refIndex: number;
+  matches: readonly FuseResultMatch[];
+}
 
 /** What `renderItem` receives for each row. */
 export interface FuzzyRenderContext<T> {
@@ -112,16 +119,16 @@ export function FuzzyList<T>({
 }: FuzzyListProps<T>) {
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
-  const listRef = useRef<HTMLDivElement>(null);
+  const apiRef = useRef<VirtualListHandle>(null);
 
   const fuse = useMemo(
     () => new Fuse(items, { ...DEFAULTS, ...fuseOptions, keys }),
     [items, keys, fuseOptions],
   );
 
-  const results = useMemo(() => {
+  const results = useMemo<Result<T>[]>(() => {
     const q = query.trim();
-    if (!q) return items.map((item, refIndex) => ({ item, refIndex, matches: [] as readonly FuseResultMatch[] }));
+    if (!q) return items.map((item, refIndex) => ({ item, refIndex, matches: [] }));
     return fuse
       .search(q, limit ? { limit } : undefined)
       .map((r) => ({ item: r.item, refIndex: r.refIndex, matches: (r.matches ?? []) as readonly FuseResultMatch[] }));
@@ -137,23 +144,24 @@ export function FuzzyList<T>({
     if (r && onSelect) onSelect(r.item, r.refIndex);
   };
 
+  // Move the keyboard cursor and keep it in view (the list is virtualized, so
+  // the active row may not be mounted — ask the virtualizer to scroll to it).
+  const move = (delta: number) => {
+    const next = Math.min(Math.max(active + delta, 0), results.length - 1);
+    setActive(next);
+    apiRef.current?.scrollToIndex(next);
+  };
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setActive((a) => Math.min(a + 1, results.length - 1));
+      move(1);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setActive((a) => Math.max(a - 1, 0));
+      move(-1);
     } else if (e.key === 'Enter') {
       commit(active);
     }
   };
-
-  // Scroll the active row into view.
-  useEffect(() => {
-    const el = listRef.current?.querySelector<HTMLElement>(`[data-fuzzy-row="${active}"]`);
-    el?.scrollIntoView({ block: 'nearest' });
-  }, [active]);
 
   const q = query.trim();
 
@@ -182,41 +190,43 @@ export function FuzzyList<T>({
         </div>
       )}
 
-      <div ref={listRef} className={cn('min-h-0 flex-1 overflow-y-auto pt-1.5', listClassName)}>
-        {results.length === 0 ? (
-          <p className="px-2 py-8 text-center text-sm text-muted-foreground">{emptyState}</p>
-        ) : (
-          results.map(({ item, matches }, index) => {
-            const highlight = (key: string, opts?: { snippet?: boolean; window?: number }): ReactNode => {
-              const value = getPath(item, key);
-              const m = matches.find((mm) => mm.key === key);
-              const indices = (m?.indices ?? []) as [number, number][];
-              if (indices.length === 0) return value;
-              return opts?.snippet
-                ? highlightSnippet(value, indices, opts.window)
-                : highlightAll(value, indices);
-            };
-            return (
-              <div
-                key={getItemKey ? getItemKey(item, index) : index}
-                data-fuzzy-row={index}
-                onMouseMove={() => setActive(index)}
-                onClick={() => commit(index)}
-              >
-                {renderItem({
-                  item,
-                  index,
-                  query: q,
-                  matches,
-                  active: index === active,
-                  highlight,
-                  select: () => commit(index),
-                })}
-              </div>
-            );
-          })
-        )}
-      </div>
+      <VirtualList
+        items={results}
+        apiRef={apiRef}
+        estimateSize={60}
+        overscan={8}
+        getItemKey={getItemKey ? (r, i) => getItemKey(r.item, i) : undefined}
+        className={cn('min-h-0 flex-1 pt-1.5', listClassName)}
+        emptyState={<p className="px-2 py-8 text-center text-sm text-muted-foreground">{emptyState}</p>}
+        renderItem={({ item, matches }, index) => {
+          const highlight = (key: string, opts?: { snippet?: boolean; window?: number }): ReactNode => {
+            const value = getPath(item, key);
+            const m = matches.find((mm) => mm.key === key);
+            const indices = (m?.indices ?? []) as [number, number][];
+            if (indices.length === 0) return value;
+            return opts?.snippet
+              ? highlightSnippet(value, indices, opts.window)
+              : highlightAll(value, indices);
+          };
+          return (
+            <div
+              onMouseMove={() => setActive(index)}
+              onClick={() => commit(index)}
+              style={{ paddingBottom: 4 }}
+            >
+              {renderItem({
+                item,
+                index,
+                query: q,
+                matches,
+                active: index === active,
+                highlight,
+                select: () => commit(index),
+              })}
+            </div>
+          );
+        }}
+      />
     </div>
   );
 }
