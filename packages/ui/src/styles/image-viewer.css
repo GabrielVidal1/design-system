@@ -1,0 +1,152 @@
+/*
+ * Styling for <ImageViewerProvider> / <ViewableImage>.
+ *
+ * Plain CSS — no Tailwind directives — so it works whether or not the consumer
+ * uses Tailwind. Every visual choice reads from a `--ds-viewer-*` custom
+ * property with a sensible fallback, so you can retheme the overlay without
+ * overriding selectors. Defaults assume a dark, glassy overlay.
+ */
+
+:root {
+  --ds-viewer-backdrop: rgba(9, 9, 11, 0.96);
+  --ds-viewer-fg: #f4f4f5;
+  --ds-viewer-muted: #d4d4d8;
+  --ds-viewer-ctl-bg: rgba(24, 24, 27, 0.55);
+  --ds-viewer-ctl-bg-hover: rgba(63, 63, 70, 0.7);
+  --ds-viewer-ctl-border: rgba(255, 255, 255, 0.14);
+  --ds-viewer-accent: rgba(255, 255, 255, 0.4);
+  --ds-viewer-blur: 6px;
+  --ds-viewer-z: 200;
+  --ds-viewer-font-mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", "Space Mono", monospace;
+}
+
+.viewable-image {
+  display: block;
+  height: 100%;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+@keyframes ds-viewer-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes ds-viewer-img-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.viewer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ds-viewer-z);
+  background: var(--ds-viewer-backdrop);
+  backdrop-filter: blur(var(--ds-viewer-blur));
+  overflow: hidden;
+  /* No fill-mode: once the intro ends the animation must release `opacity` so the
+     drag-to-dismiss handler can fade the backdrop via inline style. */
+  animation: ds-viewer-in 0.18s ease;
+  transition: opacity 0.2s ease;
+}
+
+.viewer-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  user-select: none;
+  cursor: zoom-in;
+}
+.viewer-stage.is-zoomed { cursor: grab; }
+.viewer-stage.is-zoomed:active { cursor: grabbing; }
+
+.viewer-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  transform-origin: center center;
+  will-change: transform;
+  -webkit-user-drag: none;
+  animation: ds-viewer-img-in 0.2s ease both;
+}
+
+.viewer-ctl {
+  position: absolute;
+  z-index: calc(var(--ds-viewer-z) + 10);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ds-viewer-fg);
+  background: var(--ds-viewer-ctl-bg);
+  border: 1px solid var(--ds-viewer-ctl-border);
+  border-radius: 999px;
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.viewer-ctl:hover {
+  background: var(--ds-viewer-ctl-bg-hover);
+  color: #fff;
+  border-color: var(--ds-viewer-accent);
+}
+.viewer-ctl:focus-visible {
+  outline: 2px solid var(--ds-viewer-fg);
+  outline-offset: 2px;
+}
+.viewer-ctl svg { width: 1.35rem; height: 1.35rem; }
+
+.viewer-close { top: 1rem; right: 1rem; width: 2.75rem; height: 2.75rem; }
+
+.viewer-nav {
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3rem;
+  height: 3rem;
+}
+.viewer-nav--prev { left: 1rem; }
+.viewer-nav--next { right: 1rem; }
+
+.viewer-zoom {
+  position: absolute;
+  z-index: calc(var(--ds-viewer-z) + 10);
+  bottom: 1.1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.6rem;
+}
+.viewer-zoom .viewer-ctl { position: static; width: 2.6rem; height: 2.6rem; }
+
+.viewer-counter {
+  position: absolute;
+  z-index: calc(var(--ds-viewer-z) + 10);
+  top: 1.15rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.3rem 0.8rem;
+  font-family: var(--ds-viewer-font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.25em;
+  color: var(--ds-viewer-muted);
+  background: var(--ds-viewer-ctl-bg);
+  border: 1px solid var(--ds-viewer-ctl-border);
+  border-radius: 999px;
+  backdrop-filter: blur(8px);
+}
+
+@media (max-width: 640px) {
+  .viewer-nav { width: 2.5rem; height: 2.5rem; }
+  .viewer-nav--prev { left: 0.5rem; }
+  .viewer-nav--next { right: 0.5rem; }
+  .viewer-ctl svg { width: 1.15rem; height: 1.15rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewer-overlay,
+  .viewer-img { animation: none; }
+}

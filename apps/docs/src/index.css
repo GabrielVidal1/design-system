@@ -1,0 +1,194 @@
+@import "tailwindcss";
+@import "@gabvdl/ui/styles.css";
+
+/* Generate utilities for the classes used inside the library source too. */
+@source "../../../packages/ui/src";
+
+/*
+ * ─── Cyanotype specimen sheet ────────────────────────────────────────────────
+ * The docs site commits to one art direction: a cyanotype — the blueprint-blue
+ * photographic print Anna Atkins used to catalogue botanical specimens in 1843.
+ * It ties the two things this library is about: photographs (the image viewer)
+ * and a design spec (a component catalogue). Deep Prussian ink, cyanotype-white
+ * paper, one electric cyan highlight, a lone warm "safelight" amber used once.
+ *
+ * These :root values OVERRIDE the tokens shipped in @gabvdl/ui/theme.css — proof
+ * the library reskins from custom properties alone, no component edits.
+ */
+@theme {
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+:root {
+  --paper: #e9f1f5;
+  --paper-dim: #a9c2d0;
+  --ink-950: #04141f;
+  --ink-900: #071e2e;
+  --ink-850: #0a2739;
+  --ink-800: #0e3148;
+  --cyan: #5ec6e8;
+  --cyan-deep: #3aa6cc;
+  --safelight: #e8a13a;
+  --line: rgba(158, 200, 222, 0.14);
+
+  /* shadcn tokens → cyanotype */
+  --background: var(--ink-900);
+  --foreground: var(--paper);
+  --card: var(--ink-850);
+  --card-foreground: var(--paper);
+  --popover: var(--ink-850);
+  --popover-foreground: var(--paper);
+  --primary: var(--cyan);
+  --primary-foreground: var(--ink-950);
+  --secondary: var(--ink-800);
+  --secondary-foreground: var(--paper);
+  --muted: var(--ink-800);
+  --muted-foreground: var(--paper-dim);
+  --accent: var(--ink-800);
+  --accent-foreground: var(--paper);
+  --destructive: #e8776a;
+  --destructive-foreground: var(--ink-950);
+  --border: var(--line);
+  --input: rgba(158, 200, 222, 0.22);
+  --ring: var(--cyan);
+  --radius: 0.5rem;
+
+  /* image-viewer overlay → cyanotype */
+  --ds-viewer-backdrop: rgba(4, 15, 22, 0.965);
+  --ds-viewer-fg: var(--paper);
+  --ds-viewer-muted: var(--paper-dim);
+  --ds-viewer-ctl-bg: rgba(10, 39, 57, 0.62);
+  --ds-viewer-ctl-bg-hover: rgba(94, 198, 232, 0.22);
+  --ds-viewer-ctl-border: rgba(94, 198, 232, 0.38);
+  --ds-viewer-accent: var(--cyan);
+  --ds-viewer-font-mono: "JetBrains Mono", monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* Blueprint drafting grid — the specimen-sheet backdrop. */
+  background-color: var(--ink-900);
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 46px 46px;
+  background-position: center top;
+}
+
+/* A soft cyan light bleeding from the top, like a print under a safelight. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(120% 60% at 50% -10%, rgba(94, 198, 232, 0.16), transparent 60%),
+    linear-gradient(180deg, transparent 60%, rgba(4, 15, 22, 0.6));
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+::selection {
+  background: var(--cyan);
+  color: var(--ink-950);
+}
+
+:where(a, button):focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+/* ─── Identity primitives ──────────────────────────────────────────────────── */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-optical-sizing: auto;
+  letter-spacing: -0.015em;
+  line-height: 0.98;
+}
+
+.plate-no {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-style: italic;
+  font-variant-numeric: lining-nums;
+  color: var(--cyan-deep);
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+/* Hairline rule with a tick at the left, like a technical drawing edge. */
+.rule {
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+/* Cyanotype photographic treatment for specimen thumbnails. Hover "develops"
+   the print back toward true colour; the full-screen viewer shows it clean. */
+.cyanotype {
+  filter: sepia(0.62) hue-rotate(158deg) saturate(1.7) brightness(0.92) contrast(1.04);
+  transition: filter 0.5s ease, transform 0.5s ease;
+}
+.group:hover .cyanotype {
+  filter: sepia(0.12) hue-rotate(150deg) saturate(1.1) brightness(1);
+}
+
+/* Registration-mark corner brackets for specimen frames. */
+.plate-frame {
+  position: relative;
+  border: 1px solid var(--line);
+  background: rgba(4, 15, 22, 0.35);
+}
+.plate-frame::before,
+.plate-frame::after {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--cyan);
+  opacity: 0.55;
+}
+.plate-frame::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+.plate-frame::after { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.rise { animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .rise { animation: none; }
+  .cyanotype { transition: none; }
+}

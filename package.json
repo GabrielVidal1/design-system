@@ -1,0 +1,25 @@
+{
+  "name": "gabvdl-design-system",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "npm@10.9.7",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @gabvdl/docs",
+    "dev:ui": "npm run dev -w @gabvdl/ui",
+    "build": "turbo run build",
+    "build:ui": "turbo run build --filter=@gabvdl/ui",
+    "build:docs": "turbo run build --filter=@gabvdl/docs",
+    "typecheck": "turbo run typecheck",
+    "deploy": "npm run build && bash scripts/deploy.sh",
+    "preview": "npm run preview -w @gabvdl/docs"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0",
+    "typescript": "~5.8.3"
+  }
+}
