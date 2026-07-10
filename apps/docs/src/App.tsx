@@ -21,7 +21,7 @@ import {
 import { specimenFulls, specimens, thumbUrl } from './data';
 
 const VERSION = '0.1.0';
-const REPO = 'https://github.com/GabrielVidal1/design-system';
+const REPO = 'https://gitea.lab.gabvdl.xyz/gabrielvidal/design-system';
 
 export function App() {
   return (
@@ -68,7 +68,7 @@ function Nav() {
         </nav>
         <a href={REPO} target="_blank" rel="noreferrer">
           <Button variant="outline" size="sm" className="mono text-xs uppercase tracking-[0.14em]">
-            GitHub <ArrowUpRight />
+            Source <ArrowUpRight />
           </Button>
         </a>
       </div>
