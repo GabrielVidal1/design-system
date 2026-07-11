@@ -7,6 +7,9 @@ import {
   FuzzyList,
   ImageViewerProvider,
   Input,
+  Nav2DProvider,
+  Nav2DItem,
+  useNav2D,
   PhonePreview,
   ProgressiveImage,
   ViewableImage,
@@ -21,6 +24,7 @@ import {
   FuzzyListIcon,
   ImageViewerIcon,
   InputIcon,
+  Nav2DIcon,
   PhonePreviewIcon,
   ProgressiveImageIcon,
   ViewableImageIcon,
@@ -51,6 +55,23 @@ const REGISTRY: Entry[] = [
     Demo: ImageViewerDemo,
     code: `const { open } = useImageViewer()
 open(urls, 0) // full-screen: zoom · pan · swipe`,
+  },
+  {
+    id: 'nav-2d',
+    name: 'Nav2D',
+    sig: 'Nav2DProvider · Nav2DItem · useNav2D',
+    tag: 'context',
+    Icon: Nav2DIcon,
+    Demo: Nav2DDemo,
+    code: `<Nav2DProvider>            {/* full-page capture blocker */}
+  <Nav2DItem onActivate={fire}>
+    <button>…</button>       {/* ← ringed when selected */}
+  </Nav2DItem>
+  {/* …more targets… */}
+</Nav2DProvider>
+
+// hold + drag = joystick → 2-D ray → preview → release commits
+// single tap = select · double tap = activate`,
   },
   {
     id: 'viewable-image',
@@ -229,7 +250,7 @@ function ImportLine() {
         <span className="text-[color:var(--cyan-deep)]">import</span>
         <span className="text-muted-foreground"> {'{ '}</span>
         <span className="text-foreground">
-          ImageViewer, ViewableImage, ProgressiveImage, FuzzyList, PhonePreview, Button, Input, cn
+          ImageViewer, Nav2D, ViewableImage, ProgressiveImage, FuzzyList, PhonePreview, Button, Input, cn
         </span>
         <span className="text-muted-foreground">{' }'} </span>
         <span className="text-[color:var(--cyan-deep)]">from</span>
@@ -307,6 +328,117 @@ function DemoModal({ entry, onClose }: { entry: Entry; onClose: () => void }) {
 }
 
 /* ─── Demos ────────────────────────────────────────────────────────────────── */
+function Nav2DDemo() {
+  return (
+    <div>
+      <p className="mb-3 text-sm text-muted-foreground">
+        The stage below is under a capture blocker. <b className="text-foreground">Hold &amp; drag</b>{' '}
+        anywhere to aim the joystick — a ray shoots from the selected tile; release to move the
+        selection to the previewed tile. <b className="text-foreground">Single-tap</b> a tile to select
+        it, <b className="text-foreground">double-tap</b> to activate it. Touch or mouse.
+      </p>
+      <Nav2DProvider bounds="container" defaultSelectedId="save" defaultEnabled>
+        <Nav2DStage />
+      </Nav2DProvider>
+    </div>
+  );
+}
+
+const swatches: { id: string; label: string; color: string }[] = [
+  { id: 'cyan', label: 'Cyan', color: 'var(--cyan)' },
+  { id: 'safe', label: 'Safelight', color: 'var(--safelight)' },
+  { id: 'paper', label: 'Paper', color: 'var(--paper-dim)' },
+];
+
+function Nav2DStage() {
+  const { selectedId, previewId } = useNav2D();
+  const [log, setLog] = useState<string[]>([]);
+  const [count, setCount] = useState(0);
+  const [starred, setStarred] = useState(false);
+  const [accent, setAccent] = useState('var(--cyan)');
+  const fire = (name: string) => setLog((l) => [name, ...l].slice(0, 5));
+
+  const tileClass = (extra?: string) =>
+    cn(
+      'flex h-full min-h-[3.5rem] w-full select-none items-center justify-center rounded-[10px] border border-border bg-[rgba(94,198,232,0.05)] px-3 text-center text-sm text-foreground',
+      extra,
+    );
+
+  return (
+    <div>
+      {/* The play area — a mix of buttons, cards and swatches at varied spots. */}
+      <div
+        className="grid grid-cols-3 gap-3 rounded-xl border border-dashed border-border bg-[rgba(4,15,22,0.35)] p-4"
+        style={{ minHeight: 300 }}
+      >
+        <Nav2DItem id="save" radius={10} onActivate={() => fire('Save')}>
+          <div className={tileClass('font-medium text-[color:var(--cyan)]')}>Save</div>
+        </Nav2DItem>
+        <Nav2DItem id="counter" radius={10} onActivate={() => setCount((c) => c + 1)}>
+          <div className={tileClass('flex-col gap-0.5')}>
+            <span className="mono text-lg tabular-nums text-foreground">{count}</span>
+            <span className="mono text-[10px] text-muted-foreground">2×-tap ++</span>
+          </div>
+        </Nav2DItem>
+        <Nav2DItem id="star" radius={10} onActivate={() => setStarred((s) => !s)}>
+          <div className={tileClass(starred ? 'text-[color:var(--safelight)]' : '')}>
+            {starred ? '★ Starred' : '☆ Star'}
+          </div>
+        </Nav2DItem>
+
+        <Nav2DItem id="note" radius={10} onActivate={() => fire('Open note')}>
+          <div className={cn(tileClass('col-span-1 flex-col items-start gap-1 text-left'))}>
+            <span className="text-foreground">Note</span>
+            <span className="mono text-[10px] leading-tight text-muted-foreground">a plain div target</span>
+          </div>
+        </Nav2DItem>
+        <Nav2DItem id="accent" radius={10} onActivate={() => fire('Recolour')}>
+          <div className={tileClass('gap-2')}>
+            {swatches.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => setAccent(s.color)}
+                aria-label={s.label}
+                className="size-5 rounded-full ring-1 ring-border"
+                style={{ background: s.color, outline: accent === s.color ? '2px solid var(--foreground)' : 'none', outlineOffset: 1 }}
+              />
+            ))}
+          </div>
+        </Nav2DItem>
+        <Nav2DItem id="delete" radius={10} onActivate={() => fire('Delete')}>
+          <div className={tileClass('text-[color:var(--destructive,#e5484d)]')}>Delete</div>
+        </Nav2DItem>
+
+        <Nav2DItem id="wide" radius={10} onActivate={() => fire('Submit')}>
+          <div className={tileClass('col-span-2')} style={{ background: 'color-mix(in srgb, var(--cyan) 14%, transparent)' }}>
+            Submit — a wide button
+          </div>
+        </Nav2DItem>
+        <Nav2DItem id="chip" radius={999} onActivate={() => fire('Tag')}>
+          <div className={cn(tileClass('rounded-full text-xs'), 'min-h-0 py-2')}>#tag</div>
+        </Nav2DItem>
+      </div>
+
+      {/* Live readout — visible through the transparent blocker. */}
+      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 mono text-[11px]">
+        <span className="text-muted-foreground">
+          selected <span className="text-[color:var(--cyan)]">{selectedId ?? '—'}</span>
+        </span>
+        <span className="text-muted-foreground">
+          preview <span className="text-[color:var(--safelight)]">{previewId ?? '—'}</span>
+        </span>
+        <span className="text-muted-foreground">
+          fired{' '}
+          <span className="text-foreground" style={{ color: accent }}>
+            {log[0] ?? '—'}
+          </span>
+          {log.length > 1 && <span className="text-muted-foreground/60"> · {log.slice(1).join(' · ')}</span>}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function ImageViewerDemo() {
   return (
     <div className="grid grid-cols-4 gap-2">

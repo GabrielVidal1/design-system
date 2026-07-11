@@ -15,6 +15,8 @@ export { Changelog } from './components/changelog';
 export type { ChangelogEntry, ChangelogProps } from './components/changelog';
 export { PhonePreview, IOSStatusBar } from './components/phone-preview';
 export type { PhonePreviewProps } from './components/phone-preview';
+export { Nav2DProvider, Nav2DItem, useNav2D } from './components/nav-2d';
+export type { Nav2DProviderProps, Nav2DItemProps, Nav2DContextValue } from './components/nav-2d';
 export { Button } from './components/button';
 export type { ButtonProps, ButtonVariant, ButtonSize } from './components/button';
 export { Input } from './components/input';

@@ -182,6 +182,28 @@ export function VirtualListIcon() {
   );
 }
 
+/** Nav2D — a joystick casting a ray from a selected tile to a preview tile. */
+export function Nav2DIcon() {
+  return (
+    <Svg>
+      {/* candidate targets */}
+      <rect x="96" y="24" width="34" height="24" rx="5" stroke={DIM} strokeWidth="2" />
+      <rect x="150" y="86" width="34" height="24" rx="5" stroke={DIM} strokeWidth="2" />
+      {/* selected (ray origin) */}
+      <rect x="30" y="82" width="34" height="24" rx="5" stroke={CY} strokeWidth="2.5" fill={CY} fillOpacity="0.14" />
+      {/* the 2-D ray */}
+      <line x1="47" y1="94" x2="167" y2="52" stroke={CY} strokeWidth="2" strokeDasharray="2 7" strokeLinecap="round" opacity="0.85" />
+      {/* preview target, pulsing */}
+      <g transform="translate(150 40)">
+        <rect className="a-ring" x="0" y="0" width="34" height="24" rx="5" stroke="var(--safelight, #f5a623)" strokeWidth="2.5" fill="var(--safelight, #f5a623)" fillOpacity="0.16" />
+      </g>
+      {/* invisible joystick at the press point */}
+      <circle cx="47" cy="94" r="17" stroke={DIM} strokeWidth="1.5" opacity="0.5" />
+      <circle className="a-joy" cx="47" cy="94" r="7" fill={CY} />
+    </Svg>
+  );
+}
+
 /** Changelog — a version log with a pulsing "new release" mark. */
 export function ChangelogIcon() {
   return (

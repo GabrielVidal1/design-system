@@ -246,6 +246,12 @@ body::before {
 @keyframes a-ring { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
 .a-ring { animation: a-ring 2.4s ease-in-out infinite; }
 
+@keyframes a-joy {
+  0%, 100% { transform: translate(0, 0); }
+  50%      { transform: translate(9px, -6px); }
+}
+.a-joy { animation: a-joy 2.6s ease-in-out infinite; }
+
 @keyframes a-merge-l {
   0%, 15%  { transform: translateX(0); opacity: 1; }
   45%, 60% { transform: translateX(48px); opacity: 0; }
