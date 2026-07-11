@@ -1,10 +1,13 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { HashRouter, Link, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowUpRight, Check, Copy } from 'lucide-react';
 import {
   Button,
   Changelog,
   type ChangelogEntry,
+  Dock,
+  DockProvider,
+  FloatingPanel,
   FuzzyList,
   ImageViewerProvider,
   Input,
@@ -12,6 +15,9 @@ import {
   Nav2DItem,
   useNav2D,
   PhonePreview,
+  ProgressiveBash,
+  type BashEntry,
+  type ProgressiveBashHandle,
   ProgressiveImage,
   ProgressiveList,
   ProgressiveTable,
@@ -25,11 +31,13 @@ import {
   CnIcon,
   ButtonIcon,
   ChangelogIcon,
+  FloatingPanelIcon,
   FuzzyListIcon,
   ImageViewerIcon,
   InputIcon,
   Nav2DIcon,
   PhonePreviewIcon,
+  ProgressiveBashIcon,
   ProgressiveImageIcon,
   ProgressiveListIcon,
   ProgressiveTableIcon,
@@ -42,7 +50,7 @@ import { SandpackProvider, SandpackCodeEditor, type SandpackTheme } from '@codes
 import { RichInputPage } from './pages/RichInputPage';
 import { changelog, fullUrl, nodes, specimenFulls, specimens, thumbUrl, type Node } from './data';
 
-const VERSION = '0.4.0';
+const VERSION = '0.6.0';
 const REPO = 'https://gitea.lab.gabvdl.xyz/gabrielvidal/design-system';
 
 /* ─── Groups ──────────────────────────────────────────────────────────────── */
@@ -71,8 +79,10 @@ const GROUP_OF: Record<string, Group> = {
   'rich-input': 'Inputs',
   'progressive-text': 'Animation',
   'progressive-list': 'Animation',
+  'progressive-bash': 'Animation',
   changelog: 'Feedback',
   'phone-preview': 'Layout',
+  'floating-panel': 'Layout',
   cn: 'Utilities',
 };
 
@@ -103,8 +113,10 @@ const SOURCE_FILE: Record<string, string> = {
   'progressive-text': 'progressive-text.tsx',
   'progressive-list': 'progressive-list.tsx',
   'progressive-table': 'progressive-table.tsx',
+  'progressive-bash': 'progressive-bash.tsx',
   changelog: 'changelog.tsx',
   'phone-preview': 'phone-preview.tsx',
+  'floating-panel': 'floating-panel.tsx',
   'nav-2d': 'nav-2d.tsx',
   button: 'button.tsx',
   input: 'input.tsx',
@@ -277,6 +289,30 @@ const { active, report, finish } = useProgressiveSlot()`,
 />`,
   },
   {
+    id: 'progressive-bash',
+    name: 'ProgressiveBash',
+    sig: 'entries · typeSpeed · outputSpeed · timestamp gaps',
+    tag: 'animation',
+    Icon: ProgressiveBashIcon,
+    Demo: ProgressiveBashDemo,
+    code: `// an animated terminal: types each command char-by-char,
+// then reveals its output line-by-line, colorized by a
+// shell/pager tokenizer. Sparse timestamps are compressed
+// into a lively, bounded, continuous playback.
+const entries: BashEntry[] = [
+  { id: '1', command: 'git status', output: '…', timestamp: t0 },
+  { id: '2', command: 'npm run build', output: '=== Build ===\\n✓ done',
+    timestamp: t0 + 4000 },
+]
+<ProgressiveBash entries={entries} className="h-80" />
+
+// or stream imperatively via the handle
+const ref = useRef<ProgressiveBashHandle>(null)
+<ProgressiveBash apiRef={ref} />
+ref.current?.push({ id: '3', command: 'ls', output: '…' })
+ref.current?.skipToEnd()`,
+  },
+  {
     id: 'changelog',
     name: 'Changelog',
     sig: 'entries? · trigger · reload toast',
@@ -307,6 +343,26 @@ const { active, report, finish } = useProgressiveSlot()`,
 
 // …or embed a live app, scaled to device width
 <PhonePreview src="https://note.dev.gabvdl.xyz" />`,
+  },
+  {
+    id: 'floating-panel',
+    name: 'FloatingPanel',
+    sig: 'DockProvider · FloatingPanel · Dock — drag · resize · tabs',
+    tag: 'layout',
+    Icon: FloatingPanelIcon,
+    Demo: FloatingPanelDemo,
+    code: `// draggable/resizable windows that snap into a Dock;
+// panels sharing one dock become tabs. Drag a header
+// onto the dock to snap in, drag a tab out to float.
+<DockProvider>
+  <FloatingPanel id="terminal" dockId="d1" defaultDocked title="Terminal">
+    <TerminalBody />
+  </FloatingPanel>
+  <FloatingPanel id="details" dockId="d1" defaultDocked title="Details">
+    <DetailsBody />
+  </FloatingPanel>
+  <Dock id="d1" className="h-64" />
+</DockProvider>`,
   },
   {
     id: 'button',
@@ -1036,6 +1092,125 @@ function ProgressiveListDemo() {
       </div>
       <p className="mono text-[11px] text-muted-foreground">
         timeline context · each row waits for the previous row's ProgressiveText to finish
+      </p>
+    </div>
+  );
+}
+
+function ProgressiveBashDemo() {
+  // Timestamps a few seconds/minutes apart so the timestamp → gap compression
+  // is exercised (a longer real pause reads as a slightly longer beat, but
+  // playback never freezes).
+  const t0 = 1_700_000_000_000;
+  const entries: BashEntry[] = [
+    {
+      id: 'status',
+      description: 'check the worktree before building',
+      command: 'git status --short',
+      output: ' M apps/docs/src/App.tsx\n M apps/docs/src/icons.tsx\n?? data/plans/',
+      cwd: '~/design-system',
+      timestamp: t0,
+    },
+    {
+      id: 'build',
+      command: 'npm run build --workspace @gabvdl/ui',
+      output:
+        '=== Build ===\nvite v6.0.0 building for production...\n✓ 42 modules transformed.\ndist/index.js   18.4 kB │ gzip: 6.1 kB\n✓ built in 1.83s',
+      cwd: '~/design-system',
+      timestamp: t0 + 6_000,
+    },
+    {
+      id: 'test',
+      description: 'a command that fails',
+      command: 'npm test -- --run floating-panel',
+      output:
+        'FAIL  src/floating-panel.test.tsx\n  ✕ docks two panels as tabs (12 ms)\n    Error: expected 2 tabs, received 1\n\nTests: 1 failed, 7 passed',
+      exitCode: 1,
+      isError: true,
+      cwd: '~/design-system',
+      timestamp: t0 + 45_000,
+    },
+    {
+      id: 'deploy',
+      description: 'copy the built configs and cut over',
+      command: 'rsync -az --delete apps/docs/dist/ raspy2:/srv/ui.gabvdl.xyz/',
+      output: 'sent 214 files  ·  3.1 MB  ·  1.4 MB/s',
+      cwd: '~/design-system',
+      timestamp: t0 + 120_000,
+    },
+    {
+      id: 'health',
+      command: 'curl -s -o /dev/null -w "%{http_code}" https://ui.gabvdl.xyz',
+      output: '200',
+      cwd: '~/design-system',
+      timestamp: t0 + 123_000,
+    },
+  ];
+  const [runId, setRunId] = useState(0); // bump the key to remount → replay
+  const ref = useRef<ProgressiveBashHandle>(null);
+  return (
+    <div className="space-y-4">
+      <div className="h-80 overflow-hidden rounded-md border border-border">
+        <ProgressiveBash
+          key={runId}
+          apiRef={ref}
+          entries={entries}
+          className="h-80"
+        />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="outline" onClick={() => setRunId((n) => n + 1)}>
+          Replay
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => ref.current?.skipToEnd()}>
+          Skip
+        </Button>
+      </div>
+      <p className="mono text-[11px] text-muted-foreground">
+        5 entries · real gaps span 2 min, compressed into a continuous replay · types commands, reveals output line-by-line
+      </p>
+    </div>
+  );
+}
+
+function FloatingPanelDemo() {
+  return (
+    <div className="space-y-4">
+      <DockProvider>
+        <FloatingPanel
+          id="fp-terminal"
+          dockId="fp-dock"
+          defaultDocked
+          title="Terminal"
+          defaultGeom={{ width: 340, height: 200 }}
+        >
+          <div className="p-3 mono text-[12px] text-foreground">
+            <div className="text-[color:var(--cyan-deep)]">❯ make up</div>
+            <div className="text-muted-foreground">bringing up dev + auth + logging…</div>
+            <div className="text-[color:var(--cyan)]">✓ all services healthy</div>
+          </div>
+        </FloatingPanel>
+        <FloatingPanel
+          id="fp-details"
+          dockId="fp-dock"
+          defaultDocked
+          title="Details"
+          defaultGeom={{ width: 340, height: 200 }}
+        >
+          <div className="p-3 text-sm text-foreground">
+            <p className="text-muted-foreground">
+              Two panels share one dock, so they show up as tabs. Drag a tab out to float it as a
+              window; drag the header back onto the dock to snap it in.
+            </p>
+          </div>
+        </FloatingPanel>
+        <Dock
+          id="fp-dock"
+          className="h-64 rounded-lg border border-dashed border-border"
+        />
+      </DockProvider>
+      <p className="mono text-[11px] text-muted-foreground">
+        drag a tab out to float · drag a header onto the dock to snap in · panels sharing a dock become tabs · a floating panel portals to document.body (position:fixed), so it escapes this card — expected
       </p>
     </div>
   );

@@ -38,3 +38,22 @@ export { ProgressiveTable } from './components/progressive-table';
 export type { ProgressiveTableProps, ProgressiveTableCellContext } from './components/progressive-table';
 export { useProgressiveSlot, ProgressiveTimelineSlot } from './components/progressive-timeline';
 export type { ProgressiveSlotValue } from './components/progressive-timeline';
+export { ProgressiveBash } from './components/progressive-bash';
+export type { ProgressiveBashProps, ProgressiveBashHandle, BashEntry, PlaybackTuning } from './components/progressive-bash';
+export {
+  computeGapMs as computeBashGapMs,
+  DEFAULT_TUNING as DEFAULT_BASH_TUNING,
+  tokenizeCommand,
+  splitOutput,
+  classifyLine,
+} from './components/progressive-bash';
+export type { CmdToken, CmdKind, OutputLine, OutputSpan, LineKind } from './components/progressive-bash';
+export { FloatingPanel, Dock, DockProvider, useDockContext } from './components/floating-panel';
+export type {
+  FloatingPanelProps,
+  FloatingPanelHandle,
+  DockProps,
+  DockContextValue,
+  PanelPlacement,
+  FloatingGeom,
+} from './components/floating-panel';

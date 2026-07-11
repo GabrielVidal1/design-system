@@ -318,3 +318,50 @@ export function ProgressiveListIcon() {
     </Svg>
   );
 }
+
+/** ProgressiveBash — a terminal typing a command after a prompt, with a caret. */
+export function ProgressiveBashIcon() {
+  return (
+    <Svg>
+      {/* terminal window */}
+      <rect x="40" y="22" width="140" height="86" rx="8" stroke={DIM} strokeWidth="2" />
+      {/* title bar + traffic lights */}
+      <line x1="40" y1="38" x2="180" y2="38" stroke={DIM} strokeWidth="1.5" opacity="0.5" />
+      <circle cx="52" cy="30" r="3" fill={CY} opacity="0.7" />
+      <circle cx="63" cy="30" r="3" fill={DIM} opacity="0.5" />
+      <circle cx="74" cy="30" r="3" fill={DIM} opacity="0.5" />
+      {/* prompt glyph */}
+      <path d="M54 52 l7 6 l-7 6" stroke={CY} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      {/* typed command — grows */}
+      <rect className="a-type" x="70" y="52" width="4" height="10" rx="2" fill={CY} fillOpacity="0.75" />
+      {/* blinking caret */}
+      <line className="a-caret" x1="152" y1="50" x2="152" y2="64" stroke={CY} strokeWidth="2.5" />
+      {/* revealed output lines */}
+      <rect x="54" y="76" width="96" height="6" rx="3" fill={DIM} opacity="0.45" />
+      <rect x="54" y="90" width="70" height="6" rx="3" fill={DIM} opacity="0.3" />
+    </Svg>
+  );
+}
+
+/** FloatingPanel — a floating window offset over a dashed dock outline. */
+export function FloatingPanelIcon() {
+  return (
+    <Svg>
+      {/* dashed dock outline underneath */}
+      <rect x="46" y="56" width="128" height="54" rx="8" stroke={DIM} strokeWidth="2" strokeDasharray="5 5" opacity="0.55" />
+      {/* floating panel, offset up-left */}
+      <g className="a-pop">
+        <rect x="62" y="24" width="104" height="66" rx="8" fill="var(--ink-950)" fillOpacity="0.5" stroke={CY} strokeWidth="2.5" />
+        {/* header bar */}
+        <path d="M62 40 h104" stroke={CY} strokeWidth="1.5" opacity="0.7" />
+        <rect x="72" y="30" width="30" height="6" rx="3" fill={CY} opacity="0.8" />
+        {/* dock/close dots */}
+        <circle cx="152" cy="33" r="3" fill={CY} opacity="0.7" />
+        {/* body content */}
+        <rect x="72" y="50" width="68" height="5" rx="2.5" fill={DIM} opacity="0.5" />
+        <rect x="72" y="62" width="82" height="5" rx="2.5" fill={DIM} opacity="0.4" />
+        <rect x="72" y="74" width="50" height="5" rx="2.5" fill={DIM} opacity="0.3" />
+      </g>
+    </Svg>
+  );
+}
