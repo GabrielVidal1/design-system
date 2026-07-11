@@ -50,9 +50,9 @@ function Section({
 
 function Code({ code }: { code: string }) {
   return (
-    <div className="overflow-hidden rounded-md border border-border bg-[rgba(4,15,22,0.6)]">
+    <div className="overflow-hidden rounded-md border border-border bg-[var(--surface)]">
       <pre className="overflow-x-auto p-3.5 text-[0.72rem] leading-relaxed">
-        <code className="mono text-[color:var(--paper)]">{code}</code>
+        <code className="mono text-foreground">{code}</code>
       </pre>
     </div>
   );
@@ -64,7 +64,7 @@ function Lede({ children }: { children: ReactNode }) {
 
 function Readout({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="rounded-md border border-border bg-[rgba(4,15,22,0.4)] p-3">
+    <div className="rounded-md border border-border bg-[var(--surface)] p-3">
       <div className="eyebrow mb-2 text-[color:var(--cyan-deep)]">{label}</div>
       {children}
     </div>

@@ -38,11 +38,86 @@ import {
   ViewableImageIcon,
   VirtualListIcon,
 } from './icons';
+import { SandpackProvider, SandpackCodeEditor, type SandpackTheme } from '@codesandbox/sandpack-react';
 import { RichInputPage } from './pages/RichInputPage';
 import { changelog, fullUrl, nodes, specimenFulls, specimens, thumbUrl, type Node } from './data';
 
-const VERSION = '0.3.0';
+const VERSION = '0.4.0';
 const REPO = 'https://gitea.lab.gabvdl.xyz/gabrielvidal/design-system';
+
+/* ─── Groups ──────────────────────────────────────────────────────────────── */
+const GROUPS = [
+  'Media',
+  'Data display',
+  'Navigation',
+  'Inputs',
+  'Animation',
+  'Feedback',
+  'Layout',
+  'Utilities',
+] as const;
+type Group = (typeof GROUPS)[number];
+
+const GROUP_OF: Record<string, Group> = {
+  'image-viewer': 'Media',
+  'viewable-image': 'Media',
+  'progressive-image': 'Media',
+  'fuzzy-list': 'Data display',
+  'virtual-list': 'Data display',
+  'progressive-table': 'Data display',
+  'nav-2d': 'Navigation',
+  button: 'Inputs',
+  input: 'Inputs',
+  'rich-input': 'Inputs',
+  'progressive-text': 'Animation',
+  'progressive-list': 'Animation',
+  changelog: 'Feedback',
+  'phone-preview': 'Layout',
+  cn: 'Utilities',
+};
+
+const GROUP_BLURB: Record<Group, string> = {
+  Media: 'Images — a full-screen viewer, click-to-open thumbnails, and lazy blur-up loading.',
+  'Data display': 'Windowed, searchable and reveal-animated lists and tables for large datasets.',
+  Navigation: 'Spatial, joystick-driven selection over a 2-D field of targets.',
+  Inputs: 'Form primitives and the batteries-included composer.',
+  Animation: 'Typewriter text and staggered reveals that share one timeline.',
+  Feedback: 'Release notes, a changelog modal, and an update toast.',
+  Layout: 'Device frames and scaffolding.',
+  Utilities: 'The class-name helper every component is built on.',
+};
+
+/* ─── Library source, imported raw for the "copy full source" IDE tab ──────── */
+const RAW = import.meta.glob('../../../packages/ui/src/**/*.{ts,tsx}', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>;
+
+const SOURCE_FILE: Record<string, string> = {
+  'image-viewer': 'image-viewer.tsx',
+  'viewable-image': 'viewable-image.tsx',
+  'progressive-image': 'progressive-image.tsx',
+  'fuzzy-list': 'fuzzy-list.tsx',
+  'virtual-list': 'virtual-list.tsx',
+  'progressive-text': 'progressive-text.tsx',
+  'progressive-list': 'progressive-list.tsx',
+  'progressive-table': 'progressive-table.tsx',
+  changelog: 'changelog.tsx',
+  'phone-preview': 'phone-preview.tsx',
+  'nav-2d': 'nav-2d.tsx',
+  button: 'button.tsx',
+  input: 'input.tsx',
+  'rich-input': 'rich-input.tsx',
+  cn: 'utils.ts',
+};
+
+function fullSource(id: string): string | undefined {
+  const file = SOURCE_FILE[id];
+  if (!file) return undefined;
+  const key = Object.keys(RAW).find((k) => k.endsWith('/' + file));
+  return key ? RAW[key] : undefined;
+}
 
 interface Entry {
   id: string;
@@ -301,16 +376,61 @@ function Home() {
   return (
     <>
       <Header />
-      <main className="mx-auto max-w-6xl px-5 pb-24">
+      <main className="mx-auto max-w-5xl px-5 pb-24">
+        <Hero />
         <ImportLine />
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {REGISTRY.map((e) => (
-            <ComponentCard key={e.id} entry={e} />
-          ))}
-        </section>
+        <div className="mt-14 space-y-16">
+          {GROUPS.map((group) => {
+            const items = REGISTRY.filter((e) => GROUP_OF[e.id] === group);
+            if (items.length === 0) return null;
+            return (
+              <section key={group}>
+                <div className="mb-5 flex items-baseline justify-between gap-4 border-b border-border pb-3">
+                  <div>
+                    <h2 className="display text-lg text-foreground">{group}</h2>
+                    <p className="mt-1 max-w-xl text-sm text-muted-foreground">{GROUP_BLURB[group]}</p>
+                  </div>
+                  <span className="mono shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                    {String(items.length).padStart(2, '0')}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {items.map((e) => (
+                    <ComponentCard key={e.id} entry={e} />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+        </div>
       </main>
       <Footer />
     </>
+  );
+}
+
+function Hero() {
+  return (
+    <div className="pt-14 pb-4">
+      <p className="eyebrow mb-3">React · TypeScript · Tailwind v4</p>
+      <h1 className="display max-w-2xl text-4xl text-foreground sm:text-5xl">
+        A personal component library, catalogued.
+      </h1>
+      <p className="mt-4 max-w-xl text-base leading-relaxed text-muted-foreground">
+        {REGISTRY.length} tree-shakeable React components built on shadcn primitives — grouped by
+        type, each with a live demo and full source you can copy straight into your project.
+      </p>
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <a href={REPO} target="_blank" rel="noreferrer">
+          <Button className="mono text-xs uppercase tracking-[0.12em]">
+            Source <ArrowUpRight className="size-4" />
+          </Button>
+        </a>
+        <code className="mono rounded-md border border-border bg-[var(--surface)] px-3 py-2 text-[13px] text-foreground">
+          npm i @gabvdl/ui
+        </code>
+      </div>
+    </div>
   );
 }
 
@@ -339,16 +459,17 @@ function ComponentPage() {
         ) : (
           <div className="mx-auto max-w-3xl px-5">
             <div className="py-8">
-              <p className="eyebrow mb-2 text-[color:var(--cyan-deep)]">{entry.tag}</p>
+              <p className="eyebrow mb-2">{GROUP_OF[entry.id] ?? entry.tag}</p>
               <h1 className="display text-3xl text-foreground">{entry.name}</h1>
               <p className="mono mt-2 text-[13px] text-muted-foreground">{entry.sig}</p>
             </div>
-            <div className="rounded-xl border border-border bg-[rgba(4,15,22,0.35)] p-5">
+            <p className="eyebrow mb-2.5 text-muted-foreground">Live demo</p>
+            <div className="rounded-xl border border-border bg-[var(--surface-2)] p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
               {entry.Demo?.()}
             </div>
             {entry.code && (
-              <div className="mt-4">
-                <CodeBlock code={entry.code} />
+              <div className="mt-6">
+                <CodeIDE name={entry.name} usage={entry.code} source={fullSource(entry.id)} />
               </div>
             )}
           </div>
@@ -361,7 +482,7 @@ function ComponentPage() {
 
 function Header({ title }: { title?: string }) {
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-[rgba(7,30,46,0.72)] backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-border bg-[rgba(255,255,255,0.82)] backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-5">
         <div className="flex items-center gap-3">
           {title ? (
@@ -399,7 +520,7 @@ function Header({ title }: { title?: string }) {
 
 function ImportLine() {
   return (
-    <div className="my-8 overflow-x-auto rounded-lg border border-border bg-[rgba(4,15,22,0.5)] px-4 py-3">
+    <div className="my-8 overflow-x-auto rounded-lg border border-border bg-[var(--surface)] px-4 py-3">
       <code className="mono whitespace-pre text-[0.8rem] leading-relaxed">
         <span className="text-[color:var(--cyan-deep)]">import</span>
         <span className="text-muted-foreground"> {'{ '}</span>
@@ -468,7 +589,7 @@ function Nav2DStage() {
 
   const tileClass = (extra?: string) =>
     cn(
-      'flex h-full min-h-[3.5rem] w-full select-none items-center justify-center rounded-[10px] border border-border bg-[rgba(94,198,232,0.05)] px-3 text-center text-sm text-foreground',
+      'flex h-full min-h-[3.5rem] w-full select-none items-center justify-center rounded-[10px] border border-border bg-[var(--tint)] px-3 text-center text-sm text-foreground',
       extra,
     );
 
@@ -476,7 +597,7 @@ function Nav2DStage() {
     <div>
       {/* The play area — a mix of buttons, cards and swatches at varied spots. */}
       <div
-        className="grid grid-cols-3 gap-3 rounded-xl border border-dashed border-border bg-[rgba(4,15,22,0.35)] p-4"
+        className="grid grid-cols-3 gap-3 rounded-xl border border-dashed border-border bg-[var(--surface)] p-4"
         style={{ minHeight: 300 }}
       >
         <Nav2DItem id="save" radius={10} onActivate={() => fire('Save')}>
@@ -621,7 +742,7 @@ function FuzzyListDemo() {
         <div
           className={cn(
             'cursor-pointer rounded-lg border px-3 py-2 transition-colors',
-            active ? 'border-[color:var(--cyan)]/50 bg-[rgba(94,198,232,0.08)]' : 'border-transparent hover:bg-[rgba(94,198,232,0.05)]',
+            active ? 'border-[color:var(--cyan)]/50 bg-[var(--tint-strong)]' : 'border-transparent hover:bg-[var(--tint)]',
           )}
         >
           <div className="flex items-center gap-2">
@@ -645,7 +766,7 @@ function PhonePreviewDemo() {
           <div className="mt-3 space-y-2">
             {['Deploy ui.gabvdl.xyz', 'Cyanotype palette', 'FuzzyList API', 'Phone frame, no deps', 'Ship v0.1.0'].map(
               (t, i) => (
-                <div key={t} className="rounded-lg border border-border bg-[rgba(94,198,232,0.05)] px-3 py-2">
+                <div key={t} className="rounded-lg border border-border bg-[var(--tint)] px-3 py-2">
                   <div className="text-sm text-foreground">{t}</div>
                   <div className="mono text-[10px] text-muted-foreground">{i === 0 ? 'just now' : `${i * 2}h ago`}</div>
                 </div>
@@ -720,7 +841,7 @@ function VirtualListDemo() {
           className={cn(
             'mono rounded-md border px-2.5 py-1.5 text-[11px] transition-colors',
             smooth
-              ? 'border-[color:var(--cyan-deep)] bg-[rgba(94,198,232,0.12)] text-[color:var(--cyan-deep)]'
+              ? 'border-[color:var(--cyan-deep)] bg-[var(--tint-strong)] text-[color:var(--cyan-deep)]'
               : 'border-border text-muted-foreground hover:text-foreground',
           )}
         >
@@ -728,7 +849,7 @@ function VirtualListDemo() {
         </button>
         <button
           onClick={bump}
-          className="mono rounded-md border border-border px-2.5 py-1.5 text-[11px] text-foreground transition-colors hover:bg-[rgba(94,198,232,0.06)]"
+          className="mono rounded-md border border-border px-2.5 py-1.5 text-[11px] text-foreground transition-colors hover:bg-[var(--tint)]"
         >
           bump activity
         </button>
@@ -747,12 +868,12 @@ function VirtualListDemo() {
         getItemKey={(r) => r.id}
         renderItem={(r, i) => (
           <div className="px-2" style={{ paddingBottom: 6 }}>
-            <div className="flex items-center gap-3 rounded-md border border-border bg-[rgba(94,198,232,0.04)] px-3 py-2">
+            <div className="flex items-center gap-3 rounded-md border border-border bg-[var(--tint)] px-3 py-2">
               <span className="mono w-6 shrink-0 text-[11px] tabular-nums text-[color:var(--cyan-deep)]">
                 {String(i + 1).padStart(2, '0')}
               </span>
               <span className="min-w-0 flex-1 truncate text-sm text-foreground">{r.label}</span>
-              <div className="h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-[rgba(94,198,232,0.1)]">
+              <div className="h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-[var(--tint-strong)]">
                 <div
                   className="h-full rounded-full bg-[color:var(--cyan-deep)]"
                   style={{ width: `${r.heat}%` }}
@@ -869,7 +990,7 @@ function ProgressiveTextDemo() {
   const [i, setI] = useState(0);
   return (
     <div className="space-y-4">
-      <div className="min-h-[4rem] rounded-md border border-border bg-[rgba(4,15,22,0.4)] p-3 text-sm leading-relaxed">
+      <div className="min-h-[4rem] rounded-md border border-border bg-[var(--surface)] p-3 text-sm leading-relaxed">
         <ProgressiveText text={phrases[i]} speed={42} deleteSpeed={90} caret />
       </div>
       <Button size="sm" variant="outline" onClick={() => setI((v) => (v + 1) % phrases.length)}>
@@ -897,7 +1018,7 @@ function ProgressiveListDemo() {
           <div
             className={cn(
               'rounded-md border px-3 py-2 text-sm',
-              isNew ? 'border-[color:var(--cyan)]/40 bg-[rgba(4,15,22,0.4)]' : 'border-border bg-[rgba(4,15,22,0.25)]',
+              isNew ? 'border-[color:var(--cyan)]/40 bg-[var(--surface)]' : 'border-border bg-[var(--surface-2)]',
             )}
           >
             <span className="mono text-[color:var(--cyan-deep)]">{i + 1}. </span>
@@ -941,7 +1062,7 @@ function ProgressiveTableDemo() {
         delay={0.1}
         initialReveal={0}
         className="w-full border-collapse text-sm"
-        headCellClassName="border border-[color:var(--cyan)]/30 bg-[rgba(4,15,22,0.5)] px-3 py-2 text-left font-medium text-[color:var(--cyan)]"
+        headCellClassName="border border-[color:var(--cyan)]/30 bg-[var(--surface)] px-3 py-2 text-left font-medium text-[color:var(--cyan)]"
         cellClassName="border border-border px-3 py-2 align-top"
         renderCell={(cell: ReactNode, { header }: { header: boolean }) =>
           typeof cell === 'string' && !header ? (
@@ -970,7 +1091,7 @@ function CnDemo() {
   return (
     <div className="space-y-2 mono text-[12px]">
       {rows.map(([input, output]) => (
-        <div key={input} className="flex flex-col gap-1 rounded-md border border-border bg-[rgba(4,15,22,0.4)] p-2 sm:flex-row sm:items-center sm:gap-3">
+        <div key={input} className="flex flex-col gap-1 rounded-md border border-border bg-[var(--surface)] p-2 sm:flex-row sm:items-center sm:gap-3">
           <code className="text-muted-foreground">{input}</code>
           <span className="text-[color:var(--cyan-deep)]">→</span>
           <code className="text-[color:var(--cyan)]">'{output}'</code>
@@ -980,12 +1101,54 @@ function CnDemo() {
   );
 }
 
-/* ─── Bits ─────────────────────────────────────────────────────────────────── */
-function CodeBlock({ code }: { code: string }) {
+/* ─── Code IDE ─────────────────────────────────────────────────────────────── */
+// A read-only embedded editor (Sandpack's CodeMirror) with two tabs — a usage
+// snippet and the component's full source — plus copy buttons for each.
+const IDE_THEME: SandpackTheme = {
+  colors: {
+    surface1: '#f8fafc',
+    surface2: '#f8fafc',
+    surface3: '#eef2f7',
+    clickable: '#64748b',
+    base: '#0f172a',
+    disabled: '#94a3b8',
+    hover: '#0f172a',
+    accent: '#2563eb',
+    error: '#dc2626',
+    errorSurface: '#fef2f2',
+  },
+  syntax: {
+    plain: '#0f172a',
+    comment: { color: '#94a3b8', fontStyle: 'italic' },
+    keyword: '#2563eb',
+    tag: '#1d4ed8',
+    punctuation: '#475569',
+    definition: '#0f766e',
+    property: '#7c3aed',
+    static: '#c2410c',
+    string: '#15803d',
+  },
+  font: {
+    body: '"Inter", system-ui, sans-serif',
+    mono: '"JetBrains Mono", ui-monospace, monospace',
+    size: '13px',
+    lineHeight: '1.6',
+  },
+};
+
+function IdeCopyButton({
+  label,
+  text,
+  primary,
+}: {
+  label: string;
+  text: string;
+  primary?: boolean;
+}) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(code);
+      await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
     } catch {
@@ -993,17 +1156,49 @@ function CodeBlock({ code }: { code: string }) {
     }
   };
   return (
-    <div className="relative overflow-hidden rounded-md border border-border bg-[rgba(4,15,22,0.6)]">
-      <button
-        onClick={copy}
-        aria-label={copied ? 'Copied' : 'Copy code'}
-        className="absolute right-2.5 top-2.5 z-10 inline-flex size-8 items-center justify-center rounded-md border border-border bg-[rgba(10,39,57,0.7)] text-muted-foreground transition-colors hover:text-foreground"
+    <button
+      onClick={copy}
+      className={cn(
+        'mono inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] transition-colors',
+        primary
+          ? 'border-[color:var(--cyan)] bg-[var(--tint-strong)] text-[color:var(--cyan-deep)] hover:bg-[color:var(--cyan)] hover:text-white'
+          : 'border-border text-muted-foreground hover:text-foreground',
+      )}
+    >
+      {copied ? <Check className="size-3.5 text-[color:var(--cyan)]" /> : <Copy className="size-3.5" />}
+      {copied ? 'Copied' : label}
+    </button>
+  );
+}
+
+function CodeIDE({ name, usage, source }: { name: string; usage: string; source?: string }) {
+  const usageFile = '/Usage.tsx';
+  const sourceFile = `/${name}.tsx`;
+  const files: Record<string, { code: string; readOnly?: boolean; active?: boolean }> = {
+    [usageFile]: { code: usage, active: true },
+  };
+  if (source) files[sourceFile] = { code: source, readOnly: true };
+  const visibleFiles = Object.keys(files);
+
+  return (
+    <div className="ide overflow-hidden rounded-xl border border-border bg-[var(--surface)]">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2">
+        <span className="mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+          {source ? 'Usage · Source' : 'Usage'}
+        </span>
+        <div className="flex items-center gap-1.5">
+          <IdeCopyButton label="Copy usage" text={usage} />
+          {source && <IdeCopyButton label="Copy full source" text={source} primary />}
+        </div>
+      </div>
+      <SandpackProvider
+        theme={IDE_THEME}
+        template="react-ts"
+        files={files}
+        options={{ visibleFiles, activeFile: usageFile }}
       >
-        {copied ? <Check className="size-4 text-[color:var(--cyan)]" /> : <Copy className="size-4" />}
-      </button>
-      <pre className="overflow-x-auto p-4 pr-12 text-[0.8rem] leading-relaxed">
-        <code className="mono text-[color:var(--paper)]">{code}</code>
-      </pre>
+        <SandpackCodeEditor readOnly showLineNumbers showTabs closableTabs={false} />
+      </SandpackProvider>
     </div>
   );
 }
