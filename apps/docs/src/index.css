@@ -220,97 +220,212 @@ body::before {
   .cyanotype { transition: none; }
 }
 
-/* ─── Component-card SVG animations ───────────────────────────────────────── */
-.anim-svg [class^="a-"] {
+/* ─── Component-card SVG animations ─────────────────────────────────────────
+   One shared symmetric ease-in-out curve for every motion. A small set of
+   parametric primitives (drift / breathe / fade / reveal / grow / turn / ping)
+   is tuned per icon through CSS custom properties set inline in icons.tsx
+   (--dx, --dy, --s, --o0, --o1, --g0, --dur), plus a few bespoke story
+   keyframes (toast, modal, theme swap, copy, drop, merge, badges). */
+:root { --ease-io: cubic-bezier(0.65, 0, 0.35, 1); }
+
+.anim-svg [class^="a-"],
+.anim-svg [class*=" a-"] {
   transform-box: fill-box;
   transform-origin: center;
 }
 
-@keyframes a-loupe {
-  0%   { transform: translate(-4px, 8px) scale(1); }
-  50%  { transform: translate(58px, -6px) scale(1.08); }
-  100% { transform: translate(-4px, 8px) scale(1); }
+/* drift — glide to (--dx, --dy) and back */
+@keyframes a-drift {
+  0%, 100% { transform: translate(0, 0); }
+  50%      { transform: translate(var(--dx, 0px), var(--dy, 0px)); }
 }
-.a-loupe { animation: a-loupe 5s ease-in-out infinite; }
+.a-drift { animation: a-drift var(--dur, 4s) var(--ease-io) infinite; }
 
-@keyframes a-pop {
-  0%, 68%, 100% { transform: scale(1); }
-  82%           { transform: scale(1.18); }
+/* breathe — swell to --s and settle */
+@keyframes a-breathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(var(--s, 1.12)); }
 }
-.a-pop { animation: a-pop 3s ease-in-out infinite; }
+.a-breathe { animation: a-breathe var(--dur, 3.2s) var(--ease-io) infinite; }
 
-@keyframes a-resolve {
-  0%   { opacity: 1; }
-  45%  { opacity: 0; }
-  55%  { opacity: 0; }
-  100% { opacity: 1; }
+/* blink — a soft caret */
+@keyframes a-blink {
+  0%, 42%  { opacity: 1; }
+  58%, 92% { opacity: 0; }
+  100%     { opacity: 1; }
 }
-.a-resolve { animation: a-resolve 3.6s ease-in-out infinite; }
+.a-blink { animation: a-blink 1.3s var(--ease-io) infinite; }
 
-@keyframes a-type {
-  0%        { width: 4px; }
-  55%, 100% { width: 88px; }
+/* fade — settle from --o0 to --o1, hold, let go */
+@keyframes a-fade {
+  0%, 100% { opacity: var(--o0, 0); }
+  35%, 70% { opacity: var(--o1, 1); }
 }
-.a-type { animation: a-type 3.2s ease-in-out infinite; }
+.a-fade { animation: a-fade var(--dur, 3.6s) var(--ease-io) infinite; }
 
+/* reveal — rise into place, hold, reset */
 @keyframes a-reveal {
-  0%, 100%  { opacity: 0; transform: translateY(6px); }
-  18%, 90%  { opacity: 1; transform: translateY(0); }
+  0%, 90%, 100% { opacity: 0; transform: translateY(7px); }
+  16%, 80%      { opacity: 1; transform: translateY(0); }
 }
-.a-reveal { animation: a-reveal 3.4s ease-in-out infinite; }
+.a-reveal { animation: a-reveal var(--dur, 3.8s) var(--ease-io) infinite; }
 
-@keyframes a-scan {
-  0%   { transform: translateY(0); }
-  45%  { transform: translateY(30px); }
-  55%  { transform: translateY(30px); }
-  100% { transform: translateY(0); }
+/* grow — a bar typing itself out */
+@keyframes a-grow {
+  0%, 8%   { transform: scaleX(var(--g0, 0.06)); }
+  52%, 84% { transform: scaleX(1); }
+  100%     { transform: scaleX(var(--g0, 0.06)); }
 }
-.a-scan { animation: a-scan 3s ease-in-out infinite; }
-
-@keyframes a-caret { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
-.a-caret { animation: a-caret 1.1s step-end infinite; }
-
-@keyframes a-scroll {
-  0%   { transform: translateY(4px); }
-  100% { transform: translateY(-30px); }
+.a-grow {
+  transform-origin: left center;
+  animation: a-grow var(--dur, 4s) var(--ease-io) infinite;
 }
-.a-scroll { animation: a-scroll 4s ease-in-out infinite alternate; }
 
-@keyframes a-ripple {
-  0%        { transform: scale(0.4); opacity: 0.55; }
-  70%, 100% { transform: scale(3.4); opacity: 0; }
+/* turn — one graceful revolution per cycle (origin set per icon) */
+@keyframes a-turn { to { transform: rotate(360deg); } }
+.a-turn { animation: a-turn var(--dur, 1.6s) var(--ease-io) infinite; }
+
+/* ping — an expanding, dissolving ring */
+@keyframes a-ping {
+  0%, 12%   { transform: scale(0.4); opacity: 0.7; }
+  70%, 100% { transform: scale(2); opacity: 0; }
 }
-.a-ripple { animation: a-ripple 2.4s ease-out infinite; }
+.a-ping { animation: a-ping var(--dur, 2.8s) var(--ease-io) infinite; }
 
-@keyframes a-ring { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
-.a-ring { animation: a-ring 2.4s ease-in-out infinite; }
+/* dash — dashes marching along a ray */
+@keyframes a-dash { to { stroke-dashoffset: -18; } }
+.a-dash { animation: a-dash 1.9s var(--ease-io) infinite; }
 
+/* joy — the knob rolls around its gate */
 @keyframes a-joy {
   0%, 100% { transform: translate(0, 0); }
-  50%      { transform: translate(9px, -6px); }
+  25%      { transform: translate(8px, -5px); }
+  50%      { transform: translate(0, -9px); }
+  75%      { transform: translate(-7px, -4px); }
 }
-.a-joy { animation: a-joy 2.6s ease-in-out infinite; }
+.a-joy { animation: a-joy 3.8s var(--ease-io) infinite; }
 
+/* merge — two tokens fold into one */
 @keyframes a-merge-l {
-  0%, 15%  { transform: translateX(0); opacity: 1; }
-  45%, 60% { transform: translateX(48px); opacity: 0; }
-  90%, 100% { transform: translateX(0); opacity: 1; }
+  0%, 14%   { transform: translateX(0); opacity: 1; }
+  44%, 62%  { transform: translateX(46px); opacity: 0; }
+  88%, 100% { transform: translateX(0); opacity: 1; }
 }
-.a-merge-l { animation: a-merge-l 4.2s ease-in-out infinite; }
+.a-merge-l { animation: a-merge-l 4.4s var(--ease-io) infinite; }
 
 @keyframes a-merge-r {
-  0%, 15%  { transform: translateX(0); opacity: 1; }
-  45%, 60% { transform: translateX(-48px); opacity: 0; }
-  90%, 100% { transform: translateX(0); opacity: 1; }
+  0%, 14%   { transform: translateX(0); opacity: 1; }
+  44%, 62%  { transform: translateX(-46px); opacity: 0; }
+  88%, 100% { transform: translateX(0); opacity: 1; }
 }
-.a-merge-r { animation: a-merge-r 4.2s ease-in-out infinite; }
+.a-merge-r { animation: a-merge-r 4.4s var(--ease-io) infinite; }
 
 @keyframes a-merge-in {
-  0%, 20%  { transform: scale(0.8); opacity: 0; }
-  45%, 65% { transform: scale(1); opacity: 1; }
-  88%, 100% { transform: scale(0.8); opacity: 0; }
+  0%, 20%   { transform: scale(0.82); opacity: 0; }
+  46%, 64%  { transform: scale(1); opacity: 1; }
+  90%, 100% { transform: scale(0.82); opacity: 0; }
 }
-.a-merge-in { animation: a-merge-in 4.2s ease-in-out infinite; }
+.a-merge-in { animation: a-merge-in 4.4s var(--ease-io) infinite; }
+
+/* toast — slide up, hold, slip away */
+@keyframes a-toast {
+  0%, 10%   { opacity: 0; transform: translateY(16px); }
+  22%, 78%  { opacity: 1; transform: translateY(0); }
+  90%, 100% { opacity: 0; transform: translateY(16px); }
+}
+.a-toast { animation: a-toast 4.2s var(--ease-io) infinite; }
+
+/* modal — the scrim settles, the panel scales in */
+@keyframes a-scrim {
+  0%, 8%    { opacity: 0; }
+  26%, 82%  { opacity: 1; }
+  96%, 100% { opacity: 0; }
+}
+.a-scrim { animation: a-scrim 4.2s var(--ease-io) infinite; }
+
+@keyframes a-panel {
+  0%, 12%   { opacity: 0; transform: scale(0.88); }
+  30%, 80%  { opacity: 1; transform: scale(1); }
+  94%, 100% { opacity: 0; transform: scale(0.88); }
+}
+.a-panel { animation: a-panel 4.2s var(--ease-io) infinite; }
+
+/* theme toggle — the knob crosses, sun yields to moon */
+@keyframes a-swap {
+  0%, 38%  { transform: translateX(0); }
+  52%, 90% { transform: translateX(62px); }
+  100%     { transform: translateX(0); }
+}
+.a-swap { animation: a-swap 4.6s var(--ease-io) infinite; }
+
+@keyframes a-sun {
+  0%, 38%  { opacity: 1; }
+  52%, 90% { opacity: 0; }
+  100%     { opacity: 1; }
+}
+.a-sun { animation: a-sun 4.6s var(--ease-io) infinite; }
+
+@keyframes a-moon {
+  0%, 38%  { opacity: 0.25; }
+  52%, 90% { opacity: 1; }
+  100%     { opacity: 0.25; }
+}
+.a-moon { animation: a-moon 4.6s var(--ease-io) infinite; }
+
+/* copy — the sheet peels off, the check lands */
+@keyframes a-copy {
+  0%, 10%   { transform: translate(-26px, -12px); opacity: 0; }
+  32%, 74%  { transform: translate(0, 0); opacity: 1; }
+  92%, 100% { transform: translate(-26px, -12px); opacity: 0; }
+}
+.a-copy { animation: a-copy 3.8s var(--ease-io) infinite; }
+
+@keyframes a-check {
+  0%, 40%  { opacity: 0; transform: scale(0.6); }
+  56%, 84% { opacity: 1; transform: scale(1); }
+  100%     { opacity: 0; transform: scale(0.6); }
+}
+.a-check { animation: a-check 3.8s var(--ease-io) infinite; }
+
+/* drop — the file settles into the zone */
+@keyframes a-drop {
+  0%, 8%    { transform: translateY(-20px); opacity: 0; }
+  36%, 66%  { transform: translateY(18px); opacity: 1; }
+  88%, 100% { transform: translateY(-20px); opacity: 0; }
+}
+.a-drop { animation: a-drop 3.8s var(--ease-io) infinite; }
+
+/* badges — the lifecycle hand-off, then the tick */
+@keyframes a-badge-1 {
+  0%, 100% { opacity: 0.3; }
+  8%, 26%  { opacity: 1; }
+  34%      { opacity: 0.3; }
+}
+.a-badge-1 { animation: a-badge-1 4s var(--ease-io) infinite; }
+@keyframes a-badge-2 {
+  0%, 32%, 100% { opacity: 0.3; }
+  42%, 58%      { opacity: 1; }
+  66%           { opacity: 0.3; }
+}
+.a-badge-2 { animation: a-badge-2 4s var(--ease-io) infinite; }
+@keyframes a-badge-3 {
+  0%, 64%, 100% { opacity: 0.3; }
+  74%, 94%      { opacity: 1; }
+}
+.a-badge-3 { animation: a-badge-3 4s var(--ease-io) infinite; }
+@keyframes a-tick {
+  0%, 62%  { opacity: 0; transform: scale(0.7); }
+  76%, 96% { opacity: 1; transform: scale(1); }
+  100%     { opacity: 0; transform: scale(0.7); }
+}
+.a-tick { animation: a-tick 4s var(--ease-io) infinite; }
+
+/* hands of a clock — full turns around a fixed pivot */
+.a-hand {
+  animation: a-turn var(--dur, 6s) var(--ease-io) infinite;
+  transform-box: view-box !important;
+  transform-origin: var(--pivot, 110px 60px) !important;
+}
 
 /* Component card. */
 .comp-card {
@@ -338,26 +453,9 @@ body::before {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .anim-svg [class^="a-"] { animation: none !important; }
+  .anim-svg [class^="a-"],
+  .anim-svg [class*=" a-"] { animation: none !important; }
 }
-
-@keyframes a-vscroll {
-  0%   { transform: translateY(0); }
-  100% { transform: translateY(-32px); }
-}
-.a-vscroll { animation: a-vscroll 4.5s ease-in-out infinite alternate; }
-
-@keyframes a-thumb {
-  0%   { transform: translateY(0); }
-  100% { transform: translateY(46px); }
-}
-.a-thumb { animation: a-thumb 4.5s ease-in-out infinite alternate; }
-
-@keyframes a-pulse {
-  0%, 100% { transform: scale(0.7); opacity: 0.5; }
-  50%      { transform: scale(1.25); opacity: 0; }
-}
-.a-pulse { animation: a-pulse 2.2s ease-out infinite; }
 
 /* ─── Sandpack IDE — light chrome, flush inside the panel ─────────────────── */
 .ide .sp-wrapper { border: 0 !important; }
@@ -375,82 +473,3 @@ body::before {
 .ide .sp-tabs { border-bottom: 1px solid var(--line) !important; }
 .ide .sp-code-editor,
 .ide .sp-editor { border-radius: 0 !important; }
-
-@keyframes a-toast {
-  0%, 8%    { opacity: 0; transform: translateY(14px); }
-  20%, 80%  { opacity: 1; transform: translateY(0); }
-  95%, 100% { opacity: 0; transform: translateY(14px); }
-}
-.a-toast { animation: a-toast 4s ease-in-out infinite; }
-
-@keyframes a-scrim { 0%, 10% { opacity: 0; } 25%, 100% { opacity: 1; } }
-.a-scrim { animation: a-scrim 3.6s ease-in-out infinite; }
-
-@keyframes a-panel {
-  0%, 12%   { opacity: 0; transform: scale(0.9); }
-  30%, 100% { opacity: 1; transform: scale(1); }
-}
-.a-panel { animation: a-panel 3.6s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
-
-@keyframes a-swap {
-  0%, 40%   { transform: translateX(0); }
-  55%, 95%  { transform: translateX(66px); }
-  100%      { transform: translateX(0); }
-}
-.a-swap { animation: a-swap 4.4s ease-in-out infinite; }
-
-@keyframes a-moon { 0%, 45% { opacity: 0.7; } 60%, 92% { opacity: 0; } 100% { opacity: 0.7; } }
-.a-moon { animation: a-moon 4.4s ease-in-out infinite; }
-
-@keyframes a-spin { to { transform: rotate(360deg); } }
-.a-spin { animation: a-spin 1.4s linear infinite; }
-
-@keyframes a-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
-.a-pulse { animation: a-pulse 2s ease-in-out infinite; }
-
-@keyframes a-float {
-  0%, 100% { transform: translateY(0); opacity: 0.7; }
-  50%      { transform: translateY(-6px); opacity: 1; }
-}
-.a-float { animation: a-float 3s ease-in-out infinite; }
-
-@keyframes a-badge-1 { 0%, 100% { opacity: 0.35; } 12%, 30% { opacity: 1; } }
-.a-badge-1 { animation: a-badge-1 3.6s ease-in-out infinite; }
-@keyframes a-badge-2 { 0%, 30%, 100% { opacity: 0.35; } 45%, 62% { opacity: 1; } }
-.a-badge-2 { animation: a-badge-2 3.6s ease-in-out infinite; }
-@keyframes a-badge-3 { 0%, 62%, 100% { opacity: 0.35; } 75%, 92% { opacity: 1; } }
-.a-badge-3 { animation: a-badge-3 3.6s ease-in-out infinite; }
-@keyframes a-tick { 0%, 62% { opacity: 0; } 78%, 100% { opacity: 1; } }
-.a-tick { animation: a-tick 3.6s ease-in-out infinite; }
-
-@keyframes a-copy {
-  0%, 10%   { transform: translate(-30px, -12px); opacity: 0; }
-  30%, 70%  { transform: translate(0, 0); opacity: 1; }
-  90%, 100% { transform: translate(-30px, -12px); opacity: 0; }
-}
-.a-copy { animation: a-copy 3.4s ease-in-out infinite; }
-@keyframes a-check { 0%, 40% { opacity: 0; } 55%, 85% { opacity: 1; } 100% { opacity: 0; } }
-.a-check { animation: a-check 3.4s ease-in-out infinite; }
-
-@keyframes a-drop {
-  0%       { transform: translateY(-16px); opacity: 0; }
-  30%, 60% { transform: translateY(22px); opacity: 1; }
-  85%, 100% { transform: translateY(-16px); opacity: 0; }
-}
-.a-drop { animation: a-drop 3.2s ease-in-out infinite; }
-
-@keyframes a-hand { to { transform: rotate(360deg); } }
-.a-hand { animation: a-hand 6s linear infinite; transform-origin: 110px 60px !important; transform-box: view-box !important; }
-
-@keyframes a-plug {
-  0%, 100% { transform: translateX(-14px); }
-  50%      { transform: translateX(0); }
-}
-.a-plug { animation: a-plug 3s ease-in-out infinite; }
-
-@keyframes a-format {
-  0%, 20%  { opacity: 0; transform: scale(0.85); }
-  40%, 85% { opacity: 1; transform: scale(1); }
-  100%     { opacity: 0; transform: scale(0.85); }
-}
-.a-format { animation: a-format 3.4s ease-in-out infinite; }
