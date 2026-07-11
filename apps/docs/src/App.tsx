@@ -291,10 +291,10 @@ const { active, report, finish } = useProgressiveSlot()`,
   {
     id: 'progressive-bash',
     name: 'ProgressiveBash',
-    sig: 'entries · typeSpeed · outputSpeed · timestamp gaps',
+    sig: 'entries · timestamp gaps · catchUp · stickyPrompt · subparts',
     tag: 'animation',
     Icon: ProgressiveBashIcon,
-    Demo: ProgressiveBashDemo,
+    Demo: ProgressiveBashSection,
     code: `// an animated terminal: types each command char-by-char,
 // then reveals its output line-by-line, colorized by a
 // shell/pager tokenizer. Sparse timestamps are compressed
@@ -310,7 +310,24 @@ const entries: BashEntry[] = [
 const ref = useRef<ProgressiveBashHandle>(null)
 <ProgressiveBash apiRef={ref} />
 ref.current?.push({ id: '3', command: 'ls', output: '…' })
-ref.current?.skipToEnd()`,
+ref.current?.skipToEnd()
+
+// catchUp: entries already in the past mount fully-written
+// (a reload never re-types a finished session)
+<ProgressiveBash entries={entries} catchUp={Date.now()} />
+
+// stickyPrompt: pin each command's prompt to the top while
+// its output scrolls past
+<ProgressiveBash entries={entries} stickyPrompt />
+
+// [experimental] hoist echo "Title..[value]" step markers in a
+// chained command into titled sub-parts
+<ProgressiveBash
+  entries={[{ id: '1',
+    command: 'echo "Build..[vite]" && vite build',
+    output: 'Build..[vite]\\n✓ built in 1.8s' }]}
+  experimentalSubparts
+/>`,
   },
   {
     id: 'changelog',
@@ -1097,6 +1114,20 @@ function ProgressiveListDemo() {
   );
 }
 
+function ProgressiveBashSection() {
+  return (
+    <div className="space-y-8">
+      <ProgressiveBashDemo />
+      <div className="space-y-3 border-t border-border pt-6">
+        <div className="text-[12px] font-semibold text-foreground">
+          Sub-parts <span className="rounded bg-muted px-1.5 py-px text-[10px] text-muted-foreground">experimental</span>
+        </div>
+        <ProgressiveBashSubpartsDemo />
+      </div>
+    </div>
+  );
+}
+
 function ProgressiveBashDemo() {
   // Timestamps a few seconds/minutes apart so the timestamp → gap compression
   // is exercised (a longer real pause reads as a slightly longer beat, but
@@ -1147,27 +1178,100 @@ function ProgressiveBashDemo() {
     },
   ];
   const [runId, setRunId] = useState(0); // bump the key to remount → replay
+  const [stickyPrompt, setStickyPrompt] = useState(false);
+  const [resumeMid, setResumeMid] = useState(false); // catch-up demo toggle
   const ref = useRef<ProgressiveBashHandle>(null);
+  const replay = () => setRunId((n) => n + 1);
   return (
     <div className="space-y-4">
       <div className="h-80 overflow-hidden rounded-md border border-border">
         <ProgressiveBash
-          key={runId}
+          key={`${runId}-${stickyPrompt}-${resumeMid}`}
           apiRef={ref}
           entries={entries}
+          stickyPrompt={stickyPrompt}
+          // Catch-up: pretend "now" is 1 min into the session, so the first
+          // three entries mount fully-written and only the last two type live.
+          catchUp={resumeMid ? t0 + 60_000 : undefined}
           className="h-80"
+        />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="outline" onClick={replay}>
+          Replay
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => ref.current?.skipToEnd()}>
+          Skip
+        </Button>
+        <Button
+          size="sm"
+          variant={stickyPrompt ? 'default' : 'ghost'}
+          onClick={() => setStickyPrompt((v) => !v)}
+        >
+          Sticky prompt {stickyPrompt ? 'on' : 'off'}
+        </Button>
+        <Button
+          size="sm"
+          variant={resumeMid ? 'default' : 'ghost'}
+          onClick={() => setResumeMid((v) => !v)}
+        >
+          Catch-up {resumeMid ? 'on' : 'off'}
+        </Button>
+      </div>
+      <p className="mono text-[11px] text-muted-foreground">
+        5 entries · real gaps span 2 min, compressed into a continuous replay · types commands, reveals output line-by-line ·
+        {' '}<b>Sticky prompt</b>: pins each command to the top while its output scrolls ·{' '}
+        <b>Catch-up</b>: mounts past entries fully-written (a reload never re-types a finished session)
+      </p>
+    </div>
+  );
+}
+
+function ProgressiveBashSubpartsDemo() {
+  // [EXPERIMENTAL] A single chained command whose `echo "Title..[value]"` steps
+  // print headers into the output; `experimentalSubparts` hoists each matching
+  // output line into a titled sub-part header.
+  const t0 = 1_700_000_000_000;
+  const entries: BashEntry[] = [
+    {
+      id: 'deploy',
+      description: 'one chained command, split into labelled steps',
+      command:
+        'echo "Install..[npm ci]" && npm ci && echo "Typecheck..[tsc]" && tsc --noEmit && ' +
+        'echo "Build..[vite]" && vite build && echo "Deploy..[rsync]" && rsync -az dist/ raspy2:/srv/',
+      output:
+        'Install..[npm ci]\nadded 214 packages in 3.2s\n' +
+        'Typecheck..[tsc]\nNo type errors.\n' +
+        'Build..[vite]\nvite v6.0.0 building for production...\n✓ 42 modules transformed.\ndist/index.js  18.4 kB │ gzip: 6.1 kB\n✓ built in 1.83s\n' +
+        'Deploy..[rsync]\nsent 214 files  ·  3.1 MB  ·  1.4 MB/s\n✓ live at https://ui.gabvdl.xyz',
+      cwd: '~/design-system',
+      timestamp: t0,
+    },
+  ];
+  const [runId, setRunId] = useState(0);
+  const [on, setOn] = useState(true);
+  return (
+    <div className="space-y-4">
+      <div className="h-72 overflow-hidden rounded-md border border-border">
+        <ProgressiveBash
+          key={`${runId}-${on}`}
+          entries={entries}
+          experimentalSubparts={on}
+          stickyPrompt
+          className="h-72"
         />
       </div>
       <div className="flex flex-wrap gap-2">
         <Button size="sm" variant="outline" onClick={() => setRunId((n) => n + 1)}>
           Replay
         </Button>
-        <Button size="sm" variant="ghost" onClick={() => ref.current?.skipToEnd()}>
-          Skip
+        <Button size="sm" variant={on ? 'default' : 'ghost'} onClick={() => setOn((v) => !v)}>
+          Subparts {on ? 'on' : 'off'}
         </Button>
       </div>
       <p className="mono text-[11px] text-muted-foreground">
-        5 entries · real gaps span 2 min, compressed into a continuous replay · types commands, reveals output line-by-line
+        [experimental] one <code>{'echo "Title..[value]" && …'}</code> chain · each marker becomes a titled step header ·
+        toggle off to see the raw echoed lines
       </p>
     </div>
   );

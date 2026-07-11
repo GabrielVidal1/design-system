@@ -10,7 +10,15 @@ import {
 } from 'react';
 
 import { cn } from '../../lib/utils';
-import { tokenizeCommand, splitOutput, type CmdToken, type OutputLine, type OutputSpan } from './parse';
+import {
+  tokenizeCommand,
+  splitOutput,
+  parseEchoMarkers,
+  type CmdToken,
+  type OutputLine,
+  type OutputSpan,
+  type SubMarker,
+} from './parse';
 import { computeGapMs, DEFAULT_TUNING, type BashEntry, type PlaybackTuning } from './playback';
 
 export type { BashEntry, PlaybackTuning } from './playback';
@@ -53,6 +61,28 @@ export interface ProgressiveBashProps {
   think?: number;
   /** Reveal everything immediately (or honors `prefers-reduced-motion`). */
   instant?: boolean;
+  /**
+   * "Join in progress" — when the terminal mounts, every entry whose
+   * `timestamp` is already in the past relative to this reference is rendered
+   * fully-written (no replay), and live typing resumes at the first entry
+   * at/after it. Pass a wall-clock ms reference, or `true` for `Date.now()`.
+   * This is what stops a page reload from re-typing a whole finished session.
+   */
+  catchUp?: number | boolean;
+  /**
+   * Pin each command's prompt line to the top of the scroll viewport, so while
+   * a long output scrolls by you can still see which command produced it (the
+   * next command's prompt pushes the previous one up, like sticky table
+   * headers). @default false
+   */
+  stickyPrompt?: boolean;
+  /**
+   * [EXPERIMENTAL] Parse each command for `echo "Title..[value]"` step markers
+   * (see {@link parseEchoMarkers}) and hoist the matching output lines into
+   * titled sub-part headers — turning one chained command into a labelled,
+   * multi-step block. @default false
+   */
+  experimentalSubparts?: boolean;
   /** Prompt glyph shown before each command. @default '❯' */
   prompt?: string;
   /** Show each entry's `description` as a `# comment` line. @default true */
@@ -171,6 +201,12 @@ interface Cursor {
  * bounded inter-command delay so replay stays continuous no matter how sparse
  * the real timing was. The view auto-scrolls to the newest line but releases
  * that lock the moment you scroll up (like a chat log).
+ *
+ * Extras: `catchUp` renders already-past entries fully-written on mount (a
+ * reload doesn't re-type a finished session); `stickyPrompt` pins each
+ * command's prompt line to the top while its output scrolls; and
+ * `experimentalSubparts` hoists `echo "Title..[value]"` step markers inside a
+ * chained command into titled sub-part headers.
  */
 export function ProgressiveBash({
   entries,
@@ -182,6 +218,9 @@ export function ProgressiveBash({
   gapReference = DEFAULT_TUNING.gapReferenceMs,
   think = DEFAULT_TUNING.thinkMs,
   instant = false,
+  catchUp,
+  stickyPrompt = false,
+  experimentalSubparts = false,
   prompt = '❯',
   showDescriptions = true,
   onIdle,
@@ -213,14 +252,15 @@ export function ProgressiveBash({
   const parsed = useMemo(() => {
     const map = new Map<string, Parsed>();
     for (const e of list) {
+      const markers = experimentalSubparts ? parseEchoMarkers(e.command ?? '') : undefined;
       map.set(e.id, {
         tokens: tokenizeCommand(e.command ?? ''),
         cmdLen: (e.command ?? '').length,
-        lines: e.output ? splitOutput(e.output) : [],
+        lines: e.output ? splitOutput(e.output, markers) : [],
       });
     }
     return map;
-  }, [list]);
+  }, [list, experimentalSubparts]);
   const parsedRef = useRef(parsed);
   parsedRef.current = parsed;
 
@@ -381,6 +421,28 @@ export function ProgressiveBash({
     setRender({ ...cursor.current });
   }, [skip, list.length]);
 
+  // Catch-up: on first paint, fast-forward past every entry already in the past
+  // relative to the `catchUp` reference so a reload doesn't re-type finished
+  // history — only entries at/after "now" animate live. Runs once.
+  const caughtUp = useRef(false);
+  useEffect(() => {
+    if (caughtUp.current || skip || !catchUp || list.length === 0) return;
+    caughtUp.current = true;
+    const ref = typeof catchUp === 'number' ? catchUp : Date.now();
+    let idx = 0;
+    while (idx < list.length && list[idx].timestamp != null && (list[idx].timestamp as number) <= ref) idx++;
+    if (idx <= 0) return; // nothing is in the past — play normally
+    cursor.current = {
+      index: idx,
+      phase: idx >= list.length ? 'idle' : 'gap',
+      typed: 0,
+      outLines: 0,
+      acc: 0,
+      gapMs: 0,
+    };
+    setRender({ ...cursor.current });
+  }, [catchUp, list, skip]);
+
   // React to list growth: (re)start the loop unless skipping.
   useEffect(() => {
     if (skip) return;
@@ -464,6 +526,7 @@ export function ProgressiveBash({
               parsed={parsed.get(entry.id)!}
               prompt={prompt}
               showDescriptions={showDescriptions}
+              stickyPrompt={stickyPrompt}
               state={blockState(i, render)}
             />
           ))
@@ -505,12 +568,14 @@ function BashBlock({
   parsed,
   prompt,
   showDescriptions,
+  stickyPrompt,
   state,
 }: {
   entry: BashEntry;
   parsed: Parsed;
   prompt: string;
   showDescriptions: boolean;
+  stickyPrompt: boolean;
   state: BlockState;
 }) {
   if (!state.revealed) return null;
@@ -519,31 +584,42 @@ function BashBlock({
   const lines = state.full ? parsed.lines : parsed.lines.slice(0, state.outLines);
   const failed = entry.isError || (entry.exitCode != null && entry.exitCode !== 0);
 
+  const cmdRowStyle: CSSProperties | undefined = stickyPrompt
+    ? { position: 'sticky', top: 0, zIndex: 2, background: 'var(--tb-bg)' }
+    : undefined;
+
   return (
     <div className="mb-1.5">
-      {showDescriptions && entry.description && cmdDone && (
-        <div className="whitespace-pre-wrap" style={{ color: 'var(--tb-dim)' }}>
-          # {entry.description}
+      <div className="flex flex-col" style={cmdRowStyle}>
+        {showDescriptions && entry.description && cmdDone && (
+          <div className="whitespace-pre-wrap" style={{ color: 'var(--tb-dim)' }}>
+            # {entry.description}
+          </div>
+        )}
+        <div className="flex whitespace-pre-wrap break-all">
+          <span
+            className="mr-1.5 shrink-0 select-none"
+            style={{ color: failed ? 'var(--tb-red)' : 'var(--tb-prompt)' }}
+          >
+            {entry.cwd ? <span style={{ color: 'var(--tb-blue)' }}>{entry.cwd} </span> : null}
+            {prompt}
+          </span>
+          <span className="min-w-0">
+            {typedTokens.map((t, idx) => (
+              <span key={idx} style={{ color: CMD_COLOR[t.kind], fontWeight: t.kind === 'program' ? 600 : undefined }}>
+                {t.text}
+              </span>
+            ))}
+            {state.caret === 'cmd' && <Caret />}
+          </span>
         </div>
-      )}
-      <div className="flex whitespace-pre-wrap break-all">
-        <span className="mr-1.5 shrink-0 select-none" style={{ color: failed ? 'var(--tb-red)' : 'var(--tb-prompt)' }}>
-          {entry.cwd ? <span style={{ color: 'var(--tb-blue)' }}>{entry.cwd} </span> : null}
-          {prompt}
-        </span>
-        <span className="min-w-0">
-          {typedTokens.map((t, idx) => (
-            <span key={idx} style={{ color: CMD_COLOR[t.kind], fontWeight: t.kind === 'program' ? 600 : undefined }}>
-              {t.text}
-            </span>
-          ))}
-          {state.caret === 'cmd' && <Caret />}
-        </span>
       </div>
       {lines.length > 0 && (
         <div className="mt-0.5">
           {lines.map((ln, idx) =>
-            ln.divider ? (
+            ln.sub ? (
+              <SubHeader key={idx} sub={ln.sub} />
+            ) : ln.divider ? (
               <div
                 key={idx}
                 className="my-1 flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-wider"
@@ -566,6 +642,29 @@ function BashBlock({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/** A hoisted `echo "Title..[value]"` step marker, rendered as a titled header. */
+function SubHeader({ sub }: { sub: SubMarker }) {
+  return (
+    <div className="mb-0.5 mt-1.5 flex items-center gap-2">
+      <span
+        className="rounded-sm px-1.5 py-px text-[11px] font-semibold"
+        style={{ background: 'var(--tb-header)', color: 'var(--tb-cyan)', border: '1px solid var(--tb-border)' }}
+      >
+        {sub.title}
+      </span>
+      {sub.value && (
+        <span
+          className="rounded-sm px-1.5 py-px text-[10.5px] font-medium"
+          style={{ color: 'var(--tb-magenta)', border: '1px solid var(--tb-border)' }}
+        >
+          {sub.value}
+        </span>
+      )}
+      <span className="h-px flex-1" style={{ background: 'var(--tb-border)' }} />
     </div>
   );
 }

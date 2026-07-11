@@ -106,8 +106,56 @@ export interface OutputLine {
   kind: LineKind;
   /** `true` for `===.*===` / `--- … ---` divider lines (rendered as a bar). */
   divider: boolean;
+  /**
+   * Set when this line is an `echo "Title..[value]"` sub-part marker (see
+   * {@link parseEchoMarkers}). The raw echo line is swallowed and rendered as a
+   * titled step header instead of plain output.
+   */
+  sub?: SubMarker;
   spans: OutputSpan[];
   raw: string;
+}
+
+/** A `Title..[value]` step marker echoed inside a compound command. */
+export interface SubMarker {
+  /** The human title (text before `..[`). */
+  title: string;
+  /** The bracketed tag/value (text inside `[...]`), if any. */
+  value?: string;
+  /** The exact echoed string, used to match the marker line in the output. */
+  raw: string;
+}
+
+// `echo "Title..[value]"` / `echo 'Title..[value]'` inside a command.
+const ECHO_RE = /\becho\s+(?:"([^"]*)"|'([^']*)'|([^\s|&;<>()]+))/g;
+const MARKER_RE = /^(.*?)\.\.\[([^\]]*)\]\s*$/;
+
+/** Parse `Title..[value]` from a bare echoed string, or `null` if it isn't one. */
+export function parseMarkerText(text: string): SubMarker | null {
+  const m = text.match(MARKER_RE);
+  if (!m) return null;
+  return { title: m[1].trim(), value: m[2].trim() || undefined, raw: text };
+}
+
+/**
+ * [EXPERIMENTAL] Pull `echo "Title..[value]"` step markers out of a compound
+ * command. Agents often chain steps like
+ * `echo "Install..[deps]" && npm i && echo "Build..[vite]" && npm run build`;
+ * each specially-formatted echo prints a heading into the output that we can
+ * then hoist into a titled sub-part (see {@link splitOutput}'s `markers` arg).
+ * Only echoes using the `..[...]` syntax are treated as markers — ordinary
+ * `echo "hello"` lines are left untouched.
+ */
+export function parseEchoMarkers(command: string): SubMarker[] {
+  const markers: SubMarker[] = [];
+  let m: RegExpExecArray | null;
+  ECHO_RE.lastIndex = 0;
+  while ((m = ECHO_RE.exec(command))) {
+    const text = m[1] ?? m[2] ?? m[3] ?? '';
+    const marker = parseMarkerText(text);
+    if (marker) markers.push(marker);
+  }
+  return markers;
 }
 
 const SECTION_RE = /^\s*(={2,}|-{2,}|#{2,})\s*(.*?)\s*(={2,}|-{2,}|#{2,})?\s*$/;
@@ -161,7 +209,20 @@ export function classifyLine(line: string): OutputLine {
  * lines are kept as their own section markers — this mirrors how test runners
  * (`=== RUN`, `--- PASS`) and check scripts group their output, and lets the
  * player reveal one section at a time.
+ *
+ * Pass `markers` (from {@link parseEchoMarkers}) to hoist matching
+ * `echo "Title..[value]"` output lines into titled sub-part headers.
  */
-export function splitOutput(output: string): OutputLine[] {
-  return output.replace(/\r\n?/g, '\n').split('\n').map(classifyLine);
+export function splitOutput(output: string, markers?: SubMarker[]): OutputLine[] {
+  const byRaw = markers && markers.length ? new Map(markers.map((m) => [m.raw, m])) : null;
+  return output
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => {
+      if (byRaw) {
+        const hit = byRaw.get(line.trim());
+        if (hit) return { kind: 'section' as LineKind, divider: false, sub: hit, spans: [{ text: line }], raw: line };
+      }
+      return classifyLine(line);
+    });
 }
