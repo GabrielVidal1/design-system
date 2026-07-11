@@ -30,6 +30,11 @@ built on shadcn primitives. Ships today:
 - **`Input`** — the shadcn-style basic, styled from shared tokens.
 - **`cn`** — the `clsx` + `tailwind-merge` class helper.
 
+- **`IframePreview`** — a trigger (button, card, thumbnail…) that opens any page
+  full-screen in an iframe: editable address bar, a reload that really re-fetches
+  (`cacheBust`), phone/desktop tiers, a slot for your own controls. Built for
+  phones (`100dvh`, safe areas). `IframePreviewOverlay` is the controlled half.
+
 …plus `FuzzyList`, `VirtualList`, `Nav2D`, `RichInput`, `PhonePreview`,
 `FloatingPanel`, `ResizableLayout`, `Changelog` and the `Progressive*` family.
 The full catalogue, with a live demo per component, is the docs site.

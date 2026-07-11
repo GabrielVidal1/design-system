@@ -13,6 +13,7 @@ import {
   EmptyState,
   FloatingPanel,
   FuzzyList,
+  IframePreview,
   ImageViewerProvider,
   Input,
   Modal,
@@ -66,6 +67,7 @@ import {
   FormatIcon,
   FuzzyListIcon,
   HooksIcon,
+  IframePreviewIcon,
   ImageViewerIcon,
   InputIcon,
   ModalIcon,
@@ -91,7 +93,7 @@ import { SandpackProvider, SandpackCodeEditor, type SandpackTheme } from '@codes
 import { RichInputPage } from './pages/RichInputPage';
 import { changelog, fullUrl, nodes, specimenFulls, specimens, thumbUrl, type Node } from './data';
 
-const VERSION = '0.8.0';
+const VERSION = '0.10.0';
 const REPO = 'https://gitea.lab.gabvdl.xyz/gabrielvidal/design-system';
 
 /* ─── Groups ──────────────────────────────────────────────────────────────── */
@@ -133,6 +135,7 @@ const GROUP_OF: Record<string, Group> = {
   skeleton: 'Feedback',
   'empty-state': 'Feedback',
   'phone-preview': 'Layout',
+  'iframe-preview': 'Layout',
   'floating-panel': 'Layout',
   modal: 'Layout',
   hooks: 'Hooks',
@@ -172,6 +175,7 @@ const SOURCE_FILE: Record<string, string> = {
   'progressive-bash': 'progressive-bash.tsx',
   changelog: 'changelog.tsx',
   'phone-preview': 'phone-preview.tsx',
+  'iframe-preview': 'iframe-preview.tsx',
   'floating-panel': 'floating-panel.tsx',
   'nav-2d': 'nav-2d.tsx',
   button: 'button.tsx',
@@ -429,6 +433,31 @@ ref.current?.skipToEnd()
 
 // …or embed a live app, scaled to device width
 <PhonePreview src="https://note.dev.gabvdl.xyz" />`,
+  },
+  {
+    id: 'iframe-preview',
+    name: 'IframePreview',
+    sig: 'trigger · url field · actions · full-screen iframe',
+    tag: 'layout',
+    Icon: IframePreviewIcon,
+    Demo: IframePreviewDemo,
+    code: `// a trigger (button, card, thumbnail…) that opens the page
+// full-screen: editable address bar, a reload that really
+// re-fetches, phone/desktop tiers, your own controls.
+<IframePreview
+  url="https://note.dev.gabvdl.xyz"
+  label="Open preview"
+  cacheBust                       // fresh fetch, never the cache
+  actions={<Button size="sm" variant="ghost">Deploy log</Button>}
+/>
+
+// or drive the overlay yourself — trigger lives elsewhere
+<IframePreviewOverlay
+  open={open}
+  onClose={() => setOpen(false)}
+  url={deployedUrl}
+  onUrlChange={setDeployedUrl}
+/>`,
   },
   {
     id: 'floating-panel',
@@ -1147,6 +1176,46 @@ function PhonePreviewDemo() {
           </div>
         </div>
       </PhonePreview>
+    </div>
+  );
+}
+
+function IframePreviewDemo() {
+  const [url, setUrl] = useState('https://ui.gabvdl.xyz');
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <IframePreview
+        url={url}
+        onUrlChange={setUrl}
+        title="Live preview"
+        label="Open preview"
+        cacheBust
+        actions={
+          <>
+            <Badge>deployed</Badge>
+            <span className="mono truncate text-[11px] text-muted-foreground">{url}</span>
+          </>
+        }
+      >
+        {({ open }) => (
+          <button
+            type="button"
+            onClick={open}
+            className="group w-64 overflow-hidden rounded-xl border border-border bg-[var(--tint)] text-left transition-colors hover:border-[var(--cyan)]"
+          >
+            <div className="flex items-center gap-1.5 border-b border-border px-3 py-2">
+              <span className="size-2 rounded-full bg-[var(--cyan)] opacity-70" />
+              <span className="mono truncate text-[11px] text-muted-foreground">{url}</span>
+            </div>
+            <div className="px-3 py-6 text-center text-sm text-foreground">
+              Click to preview full-screen
+              <div className="mt-1 text-[11px] text-muted-foreground">
+                editable URL · reload · phone / desktop
+              </div>
+            </div>
+          </button>
+        )}
+      </IframePreview>
     </div>
   );
 }

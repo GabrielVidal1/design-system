@@ -70,6 +70,12 @@ export { Changelog } from './components/changelog';
 export type { ChangelogEntry, ChangelogProps } from './components/changelog';
 export { PhonePreview, IOSStatusBar } from './components/phone-preview';
 export type { PhonePreviewProps } from './components/phone-preview';
+export { IframePreview, IframePreviewOverlay } from './components/iframe-preview';
+export type {
+  IframePreviewProps,
+  IframePreviewOverlayProps,
+  IframePreviewDevice,
+} from './components/iframe-preview';
 export { Nav2DProvider, Nav2DItem, useNav2D } from './components/nav-2d';
 export type { Nav2DProviderProps, Nav2DItemProps, Nav2DContextValue } from './components/nav-2d';
 export { Button, Tooltip } from './components/button';

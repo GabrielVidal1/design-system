@@ -559,3 +559,23 @@ export function FormatIcon() {
     </Svg>
   );
 }
+
+/** IframePreview — a small trigger blooming into a full-screen browser frame. */
+export function IframePreviewIcon() {
+  return (
+    <Svg>
+      <rect x="30" y="52" width="44" height="26" rx="6" stroke={DIM} strokeWidth="2" />
+      <rect x="40" y="62" width="24" height="6" rx="3" fill={DIM} opacity="0.55" />
+      <g className="a-panel">
+        <rect x="86" y="26" width="104" height="78" rx="8" fill={CY} fillOpacity="0.08" stroke={CY} strokeWidth="2.5" />
+        <line x1="86" y1="46" x2="190" y2="46" stroke={CY} strokeWidth="2" opacity="0.7" />
+        <rect x="104" y="32" width="56" height="8" rx="4" fill={CY} opacity="0.45" />
+        <circle cx="95" cy="36" r="3" fill={CY} opacity="0.8" />
+        <path d="M172 32 l10 0 l0 10" stroke={CY} strokeWidth="2" strokeLinecap="round" />
+        <rect x="96" y="56" width="84" height="8" rx="4" fill={CY} opacity="0.5" />
+        <rect x="96" y="72" width="60" height="6" rx="3" fill={DIM} opacity="0.6" />
+        <rect x="96" y="86" width="72" height="6" rx="3" fill={DIM} opacity="0.6" />
+      </g>
+    </Svg>
+  );
+}
