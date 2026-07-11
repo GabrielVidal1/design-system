@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ElementType, type ReactNode } from 'react';
 
 import { cn } from '../../lib/utils';
+import { useProgressiveSlot } from '../progressive-timeline';
 
 export interface ProgressiveTextMeta {
   /** The visible text has fully caught up to `text`. */
@@ -86,6 +87,14 @@ export function ProgressiveText({
 }: ProgressiveTextProps) {
   const skip = instant || reducedMotion();
   const [visible, setVisible] = useState(() => (skip ? text : ''));
+
+  // Timeline slot (a no-op when not inside a ProgressiveList): hold the reveal
+  // until it's this slot's turn, and report how long the reveal takes so the
+  // next list element is delayed by exactly this inner animation.
+  const slot = useProgressiveSlot();
+  const active = slot.active;
+  const slotRef = useRef(slot);
+  slotRef.current = slot;
 
   // Latest values read by the rAF loop, so prop changes never restart it.
   const targetRef = useRef(text);
@@ -176,15 +185,23 @@ export function ProgressiveText({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // React to text / skip changes: jump when instant, else (re)start the loop.
+  // React to text / skip / activation: jump when instant, else — once it's this
+  // slot's turn — report the reveal duration and (re)start the loop.
   useEffect(() => {
     if (skip) {
       visibleRef.current = text;
       setVisible(text);
+      slotRef.current.finish(); // instant content hands the timeline off at once
       return;
     }
+    if (!active) return; // wait until this slot is the head of the timeline
+    // Constant rate ⇒ the reveal takes delay + (length / speed). Reporting it
+    // lets ProgressiveList delay the next item until this text finishes typing.
+    const interval = 1000 / Math.max(1, speed);
+    const durationMs = Math.max(0, delay) * 1000 + text.length * interval;
+    slotRef.current.report(durationMs);
     kickRef.current();
-  }, [text, skip]);
+  }, [text, skip, active, speed, delay]);
 
   const meta: ProgressiveTextMeta = {
     done: visible === text,

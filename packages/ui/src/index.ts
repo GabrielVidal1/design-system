@@ -25,3 +25,5 @@ export { ProgressiveText } from './components/progressive-text';
 export type { ProgressiveTextProps, ProgressiveTextMeta } from './components/progressive-text';
 export { ProgressiveList } from './components/progressive-list';
 export type { ProgressiveListProps, ProgressiveListItemMeta } from './components/progressive-list';
+export { useProgressiveSlot, ProgressiveTimelineSlot } from './components/progressive-timeline';
+export type { ProgressiveSlotValue } from './components/progressive-timeline';
