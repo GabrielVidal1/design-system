@@ -284,7 +284,8 @@ function ImportLine() {
         <span className="text-[color:var(--cyan-deep)]">import</span>
         <span className="text-muted-foreground"> {'{ '}</span>
         <span className="text-foreground">
-          ImageViewer, Nav2D, ViewableImage, ProgressiveImage, FuzzyList, PhonePreview, Button, Input, cn
+          ImageViewer, Nav2D, ViewableImage, ProgressiveImage, ProgressiveText, ProgressiveList, FuzzyList,
+          PhonePreview, Button, Input, cn
         </span>
         <span className="text-muted-foreground">{' }'} </span>
         <span className="text-[color:var(--cyan-deep)]">from</span>
