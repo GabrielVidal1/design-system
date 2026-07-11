@@ -18,3 +18,4 @@ export type { PhonePreviewProps } from './components/phone-preview';
 export { Button } from './components/button';
 export type { ButtonProps, ButtonVariant, ButtonSize } from './components/button';
 export { Input } from './components/input';
+export type { InputProps } from './components/input';
