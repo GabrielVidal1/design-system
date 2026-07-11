@@ -3,6 +3,7 @@ import { ArrowUpRight, Check, Copy, X } from 'lucide-react';
 import {
   Button,
   Changelog,
+  type ChangelogEntry,
   FuzzyList,
   ImageViewerProvider,
   Input,
@@ -123,7 +124,9 @@ open(urls, 0) // full-screen: zoom · pan · swipe`,
   entries={page}
   hasMore={hasMore}
   loading={loading}
-  onLoadMore={loadOlder}   // list virtualized + paged
+  onLoadMore={loadOlder}       // list virtualized + paged
+  newVersion={update}          // drive the reload toast yourself
+  onDismissNewVersion={clear}
 />  // + a "new version" reload toast`,
   },
   {
@@ -159,7 +162,10 @@ open(urls, 0) // full-screen: zoom · pan · swipe`,
     tag: 'shadcn',
     Icon: InputIcon,
     Demo: InputDemo,
-    code: `<Input placeholder="Search…" />`,
+    code: `<Input placeholder="Search…" />
+
+// persists across reloads (localStorage by default)
+<Input cacheKey="draft" cacheLocation="local" />`,
   },
   {
     id: 'cn',
@@ -460,6 +466,7 @@ function ChangelogDemo() {
   const PAGE = 8;
   const [count, setCount] = useState(8);
   const [loading, setLoading] = useState(false);
+  const [update, setUpdate] = useState<ChangelogEntry | null>(null);
   const entries = changelog.slice(0, count);
   const hasMore = count < changelog.length;
   const loadMore = () => {
@@ -470,6 +477,12 @@ function ChangelogDemo() {
       setLoading(false);
     }, 450);
   };
+  const simulateUpdate = () =>
+    setUpdate({
+      version: '9.9.9',
+      title: 'A shiny new version just shipped',
+      changes: ['Simulated update — hit Reload to see the toast behaviour'],
+    });
   return (
     <div className="flex flex-col items-start gap-3">
       <p className="text-sm text-muted-foreground">
@@ -477,13 +490,25 @@ function ChangelogDemo() {
         <span className="mono text-foreground">VirtualList</span> that pages in older releases as you
         scroll.
       </p>
-      <Changelog
-        entries={entries}
-        hasMore={hasMore}
-        loading={loading}
-        onLoadMore={loadMore}
-        trigger={({ open }) => <Button onClick={open}>Open changelog</Button>}
-      />
+      <div className="flex flex-wrap items-center gap-3">
+        <Changelog
+          entries={entries}
+          hasMore={hasMore}
+          loading={loading}
+          onLoadMore={loadMore}
+          newVersion={update}
+          onDismissNewVersion={() => setUpdate(null)}
+          trigger={({ open, hasUpdate }) => (
+            <Button onClick={open}>
+              Open changelog
+              {hasUpdate && <span className="ml-1.5 size-1.5 rounded-full bg-primary-foreground" />}
+            </Button>
+          )}
+        />
+        <Button variant="outline" onClick={simulateUpdate} disabled={update !== null}>
+          Simulate update
+        </Button>
+      </div>
     </div>
   );
 }
@@ -513,6 +538,12 @@ function InputDemo() {
     <div className="max-w-sm space-y-3">
       <Input placeholder="Search the catalogue…" />
       <Input type="email" placeholder="you@example.com" />
+      <div>
+        <Input cacheKey="ds-input-demo" cacheLocation="local" placeholder="Type, then reload the page…" />
+        <p className="mt-1.5 mono text-[11px] text-muted-foreground">
+          cacheKey · persists to localStorage · survives reload
+        </p>
+      </div>
       <Input disabled placeholder="Disabled" />
     </div>
   );
