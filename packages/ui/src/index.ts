@@ -21,3 +21,7 @@ export { Button } from './components/button';
 export type { ButtonProps, ButtonVariant, ButtonSize } from './components/button';
 export { Input } from './components/input';
 export type { InputProps } from './components/input';
+export { ProgressiveText } from './components/progressive-text';
+export type { ProgressiveTextProps, ProgressiveTextMeta } from './components/progressive-text';
+export { ProgressiveList } from './components/progressive-list';
+export type { ProgressiveListProps, ProgressiveListItemMeta } from './components/progressive-list';

@@ -220,6 +220,18 @@ body::before {
 }
 .a-resolve { animation: a-resolve 3.6s ease-in-out infinite; }
 
+@keyframes a-type {
+  0%        { width: 4px; }
+  55%, 100% { width: 88px; }
+}
+.a-type { animation: a-type 3.2s ease-in-out infinite; }
+
+@keyframes a-reveal {
+  0%, 100%  { opacity: 0; transform: translateY(6px); }
+  18%, 90%  { opacity: 1; transform: translateY(0); }
+}
+.a-reveal { animation: a-reveal 3.4s ease-in-out infinite; }
+
 @keyframes a-scan {
   0%   { transform: translateY(0); }
   45%  { transform: translateY(30px); }
