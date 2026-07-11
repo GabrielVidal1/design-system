@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { File as FileIcon, History, Undo2, X } from 'lucide-react';
+import { useEffect, type ReactNode } from 'react';
+import { File as FileIcon, History, ListChecks, Undo2, X } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
 import { VirtualList } from '../virtual-list';
@@ -54,7 +54,55 @@ export function AttachmentChips({
   );
 }
 
-/* ── Guideline toggle chips (with show-more) ─────────────────────────────── */
+/* ── A single toggle chip ────────────────────────────────────────────────── */
+function TagChip({ tag, on, onToggle }: { tag: GuidelineTag; on: boolean; onToggle: (id: string) => void }) {
+  const label = on ? tag.label : (tag.labelOff ?? tag.label);
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={() => onToggle(tag.id)}
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors',
+        on
+          ? 'border-primary/40 bg-primary/10 text-foreground'
+          : 'border-input text-muted-foreground hover:text-foreground',
+      )}
+    >
+      {tag.icon}
+      {label}
+    </button>
+  );
+}
+
+/* ── Guideline master on/off switch ──────────────────────────────────────── */
+export function GuidelinesSwitch({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onToggle}
+      title={
+        on
+          ? 'Guidelines are appended to the prompt — click to send it as typed'
+          : 'Prompt is sent as typed — click to append the guidelines again'
+      }
+      className={cn(
+        'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-medium transition-colors',
+        on
+          ? 'border-primary/60 bg-primary/10 text-primary hover:bg-primary/20'
+          : 'border-input bg-transparent text-muted-foreground hover:text-foreground',
+      )}
+    >
+      <ListChecks className="size-3" />
+      Guidelines {on ? 'on' : 'off'}
+    </button>
+  );
+}
+
+/* ── Guideline toggle chips (with show-more + optional leading switch) ────── */
 export function TagChips({
   tags,
   selected,
@@ -62,6 +110,7 @@ export function TagChips({
   showMax,
   expanded,
   onExpand,
+  leading,
 }: {
   tags: GuidelineTag[];
   selected: Set<string>;
@@ -69,34 +118,18 @@ export function TagChips({
   showMax?: number;
   expanded: boolean;
   onExpand: () => void;
+  /** Rendered as the first item of the row (e.g. the guidelines master switch). */
+  leading?: ReactNode;
 }) {
-  if (tags.length === 0) return null;
+  if (tags.length === 0 && !leading) return null;
   const hidden = showMax != null && !expanded ? Math.max(0, tags.length - showMax) : 0;
   const shown = hidden > 0 ? tags.slice(0, showMax) : tags;
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {shown.map((t) => {
-        const on = selected.has(t.id);
-        const label = on ? t.label : (t.labelOff ?? t.label);
-        return (
-          <button
-            key={t.id}
-            type="button"
-            aria-pressed={on}
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => onToggle(t.id)}
-            className={cn(
-              'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors',
-              on
-                ? 'border-primary/40 bg-primary/10 text-foreground'
-                : 'border-input text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {t.icon}
-            {label}
-          </button>
-        );
-      })}
+      {leading}
+      {shown.map((t) => (
+        <TagChip key={t.id} tag={t} on={selected.has(t.id)} onToggle={onToggle} />
+      ))}
       {hidden > 0 && (
         <button
           type="button"
@@ -107,6 +140,36 @@ export function TagChips({
           +{hidden} more
         </button>
       )}
+    </div>
+  );
+}
+
+/* ── Scrollable tag list (e.g. project/service locations), capped in height ── */
+const TAG_ROW_H = 30; // approx chip row height (px) incl. vertical gap
+
+export function TagScrollList({
+  tags,
+  selected,
+  onToggle,
+  rows = 3,
+}: {
+  tags: GuidelineTag[];
+  selected: Set<string>;
+  onToggle: (id: string) => void;
+  /** Visible height in chip rows before it scrolls. Default 3. */
+  rows?: number;
+}) {
+  if (tags.length === 0) return null;
+  return (
+    <div
+      className="overflow-y-auto rounded-lg border border-input/60 bg-background/40 p-1.5"
+      style={{ maxHeight: rows * TAG_ROW_H }}
+    >
+      <div className="flex flex-wrap gap-1.5">
+        {tags.map((t) => (
+          <TagChip key={t.id} tag={t} on={selected.has(t.id)} onToggle={onToggle} />
+        ))}
+      </div>
     </div>
   );
 }

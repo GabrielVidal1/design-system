@@ -6,7 +6,9 @@ import {
   GitCommit,
   Rocket,
   FlaskConical,
+  Server,
   Sparkles,
+  Tag as TagIcon,
 } from 'lucide-react';
 import {
   Button,
@@ -101,6 +103,21 @@ const GUIDELINE_TAGS: GuidelineTag[] = [
   },
 ];
 
+// Location tags (`group: 'tag'`) render in a scrollable list, not the guideline
+// row, and are never dimmed by the guidelines master switch.
+const LOCATION_TAGS: GuidelineTag[] = [
+  { id: 'svc-ai-agent', slug: 'ai-agent', group: 'tag', label: 'ai-agent', icon: <Server className="size-3 text-sky-500" />, description: 'conversation viewer' },
+  { id: 'svc-traefik', slug: 'traefik', group: 'tag', label: 'traefik', icon: <Server className="size-3 text-sky-500" />, description: 'reverse proxy' },
+  { id: 'svc-authelia', slug: 'authelia', group: 'tag', label: 'authelia', icon: <Server className="size-3 text-sky-500" />, description: 'forward-auth' },
+  { id: 'svc-pihole', slug: 'pihole', group: 'tag', label: 'pihole', icon: <Server className="size-3 text-sky-500" />, description: 'ad-blocker' },
+  { id: 'svc-grafana', slug: 'grafana', group: 'tag', label: 'grafana', icon: <Server className="size-3 text-sky-500" />, description: 'dashboards' },
+  { id: 'svc-loki', slug: 'loki', group: 'tag', label: 'loki', icon: <Server className="size-3 text-sky-500" />, description: 'log store' },
+  { id: 'prj-design-system', slug: 'design-system', group: 'tag', label: 'design-system', icon: <TagIcon className="size-3 text-primary" />, description: '@gabvdl/ui library' },
+  { id: 'prj-gabvdl', slug: 'gabvdl', group: 'tag', label: 'gabvdl', icon: <TagIcon className="size-3 text-primary" />, description: 'personal sites' },
+  { id: 'prj-zine-maker', slug: 'zine-maker', group: 'tag', label: 'zine-maker', icon: <TagIcon className="size-3 text-primary" />, description: 'mini-zine maker' },
+  { id: 'prj-moooo', slug: 'moooo', group: 'tag', label: 'moooo', icon: <TagIcon className="size-3 text-primary" />, description: 'party game' },
+];
+
 // Toggle guidelines + search-only mention tags (projects), all reachable via `#`.
 const MENTION_TAGS: GuidelineTag[] = [
   ...GUIDELINE_TAGS,
@@ -131,6 +148,7 @@ export function RichInputPage() {
       <DraftDemo />
       <FilesDemo />
       <GuidelinesDemo />
+      <TagListDemo />
       <MentionDemo />
       <HistoryDemo />
       <ImperativeDemo />
@@ -300,12 +318,76 @@ function GuidelinesDemo() {
   );
 }
 
-/* 05 — mention */
+/* 05 — guidelines master switch + scrollable tag list */
+function TagListDemo() {
+  const [prompt, setPrompt] = useState<string | null>(null);
+  const [glOn, setGlOn] = useState(true);
+  return (
+    <Section
+      n={5}
+      title="Guidelines switch & tag list"
+      code={`const tags = [
+  // guideline chips (default group)…
+  { id: 'worktree', label: 'Worktree', prompt: '…' },
+  // location chips → scrollable list
+  { id: 'svc-traefik', slug: 'traefik',
+    group: 'tag', label: 'traefik' },
+  // …
+]
+
+<RichInput
+  tags={tags}
+  guidelinesToggle          // on/off master switch
+  defaultGuidelinesOn
+  onGuidelinesToggle={setGlOn}
+  tagListRows={3}           // scroll after 3 rows
+/>`}
+      aside={
+        <>
+          <Readout label="guidelines">
+            <p className="text-xs text-foreground">
+              master switch is <span className="mono text-[color:var(--cyan-deep)]">{glOn ? 'on' : 'off'}</span>
+              {glOn ? ' — lines are woven in' : ' — sent as typed'}
+            </p>
+          </Readout>
+          <Readout label="composed prompt">
+            {prompt ? (
+              <pre className="whitespace-pre-wrap text-[11px] leading-relaxed text-foreground">{prompt}</pre>
+            ) : (
+              <p className="text-xs text-muted-foreground">flip the switch, toggle a location, then send</p>
+            )}
+          </Readout>
+        </>
+      }
+    >
+      <Lede>
+        Two clusters. Guideline chips sit under a{' '}
+        <span className="mono text-foreground">guidelinesToggle</span> master switch — flip it off and
+        the guideline lines are dropped from the composed prompt (sent as typed) and the chip row
+        hides, while <span className="mono text-foreground">group: 'tag'</span> chips (project/service
+        locations) stay put in their own scrollable list, capped at{' '}
+        <span className="mono text-foreground">tagListRows</span> rows before it scrolls.
+      </Lede>
+      <RichInput
+        tags={[...GUIDELINE_TAGS, ...LOCATION_TAGS]}
+        guidelinesToggle
+        onGuidelinesToggle={setGlOn}
+        tagListRows={3}
+        showMax={4}
+        undoWindowMs={0}
+        placeholder="Toggle guidelines, pick a location…"
+        onSubmit={(p) => setPrompt(p.prompt)}
+      />
+    </Section>
+  );
+}
+
+/* 06 — mention */
 function MentionDemo() {
   const [prompt, setPrompt] = useState<string | null>(null);
   return (
     <Section
-      n={5}
+      n={6}
       title="Mention search"
       code={`<RichInput
   tags={tags}          // toggles + kind:'mention'
@@ -344,7 +426,7 @@ function MentionDemo() {
   );
 }
 
-/* 06 — history */
+/* 07 — history */
 function HistoryDemo() {
   // Seed a few entries synchronously (before the child mounts) so the demo is
   // explorable immediately.
@@ -397,7 +479,7 @@ function HistoryDemo() {
   );
 }
 
-/* 07 — imperative handle */
+/* 08 — imperative handle */
 function ImperativeDemo() {
   const ref = useRef<RichInputHandle>(null);
   const [log, setLog] = useState<string[]>([]);

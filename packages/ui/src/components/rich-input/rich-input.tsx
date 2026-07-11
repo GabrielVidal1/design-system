@@ -20,10 +20,12 @@ import { useInputHistory } from './use-input-history';
 import { useMention } from './use-mention';
 import {
   AttachmentChips,
+  GuidelinesSwitch,
   HistorySheet,
   MentionMenu,
   ReverseSearchBar,
   TagChips,
+  TagScrollList,
   UnsendBanner,
 } from './parts';
 import type { ComposeInput, GuidelineTag, RichFile, RichInputHandle, RichSendPayload } from './types';
@@ -62,6 +64,18 @@ export interface RichInputProps {
   onTagsChange?: (active: GuidelineTag[]) => void;
   /** Show the guideline toggle chip row. Defaults to true when toggle tags exist. */
   guidelines?: boolean;
+  /**
+   * Render a built-in on/off master switch for the guideline chips. When off,
+   * the guideline lines are dropped from the composed prompt and the guideline
+   * chip row is hidden; `group: 'tag'` chips are unaffected. Default false.
+   */
+  guidelinesToggle?: boolean;
+  /** Initial state of the guidelines master switch. Default true. */
+  defaultGuidelinesOn?: boolean;
+  /** Notified when the guidelines master switch flips. */
+  onGuidelinesToggle?: (on: boolean) => void;
+  /** Height (in chip rows) of the scrollable `group: 'tag'` list. Default 3. */
+  tagListRows?: number;
   /** Chips shown before a "+N more" button. */
   showMax?: number;
   /** Mention trigger symbol. Default `#`. */
@@ -98,6 +112,10 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     tags = [],
     onTagsChange,
     guidelines,
+    guidelinesToggle = false,
+    defaultGuidelinesOn = true,
+    onGuidelinesToggle,
+    tagListRows = 3,
     showMax,
     mentionPrefix = '#',
     history: historyEnabled = true,
@@ -118,6 +136,10 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
   const [coarse, setCoarse] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  // Guideline master switch (only surfaced when `guidelinesToggle` is set).
+  const [guidelinesOn, setGuidelinesOn] = useState(defaultGuidelinesOn);
+  const guidelinesActive = !guidelinesToggle || guidelinesOn;
 
   // Reverse search (Ctrl+R).
   const [rsearch, setRsearch] = useState<{ query: string; match: string | null } | null>(null);
@@ -153,6 +175,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
   }, []);
 
   useEffect(() => onTagsChange?.(gl.active), [gl.active, onTagsChange]);
+  useEffect(() => onGuidelinesToggle?.(guidelinesOn), [guidelinesOn, onGuidelinesToggle]);
 
   const mention = useMention({
     tags,
@@ -188,14 +211,21 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     hist.resetCursor();
   }, [clearDraft, files, gl, hist]);
 
-  const showGuidelines = guidelines ?? gl.toggles.length > 0;
+  // Guideline toggles (default group) vs. scrollable tag toggles (`group: 'tag'`).
+  const guidelineToggles = gl.toggles.filter((t) => (t.group ?? 'guideline') !== 'tag');
+  const tagToggles = gl.toggles.filter((t) => t.group === 'tag');
+  // The guideline chip row shows when there are guideline chips (or forced via
+  // `guidelines`), and only while the master switch is on.
+  const showGuidelines = (guidelines ?? guidelineToggles.length > 0) && guidelinesActive;
 
   const buildPayload = useCallback((): RichSendPayload | null => {
     const base = value.trim();
     if ((!base && files.files.length === 0) || files.uploading) return null;
-    const prompt = composePrompt({ text: base, guidelines: gl.lines, tags: gl.active, files: files.files });
+    // Master switch off ⇒ drop the guideline lines (send the prompt as typed).
+    const lines = guidelinesActive ? gl.lines : [];
+    const prompt = composePrompt({ text: base, guidelines: lines, tags: gl.active, files: files.files });
     return { text: base, prompt, files: files.files, tags: gl.active };
-  }, [value, files.files, files.uploading, composePrompt, gl.lines, gl.active]);
+  }, [value, files.files, files.uploading, composePrompt, gl.lines, gl.active, guidelinesActive]);
 
   const fire = useCallback(
     (payload: RichSendPayload) => {
@@ -399,15 +429,31 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
             className="w-full resize-none bg-transparent px-2 py-1 text-sm leading-[22px] text-foreground outline-none placeholder:text-muted-foreground"
           />
 
-          {showGuidelines && gl.toggles.length > 0 && (
+          {(guidelinesToggle || (showGuidelines && guidelineToggles.length > 0)) && (
             <div className="px-1 pt-1.5">
               <TagChips
-                tags={gl.toggles}
+                tags={showGuidelines ? guidelineToggles : []}
                 selected={gl.selected}
                 onToggle={gl.toggle}
                 showMax={showMax}
                 expanded={expanded}
                 onExpand={() => setExpanded(true)}
+                leading={
+                  guidelinesToggle ? (
+                    <GuidelinesSwitch on={guidelinesOn} onToggle={() => setGuidelinesOn((v) => !v)} />
+                  ) : undefined
+                }
+              />
+            </div>
+          )}
+
+          {tagToggles.length > 0 && (
+            <div className="px-1 pt-1.5">
+              <TagScrollList
+                tags={tagToggles}
+                selected={gl.selected}
+                onToggle={gl.toggle}
+                rows={tagListRows}
               />
             </div>
           )}

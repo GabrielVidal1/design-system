@@ -34,6 +34,14 @@ export interface GuidelineTag {
   icon?: ReactNode;
   /** `'toggle'` (a chip, default) or `'mention'` (search-only). */
   kind?: 'toggle' | 'mention';
+  /**
+   * Which cluster a toggle chip renders in:
+   * - `'guideline'` (default) — a chip in the guideline row, governed by the
+   *   guidelines master switch (see {@link RichInputProps.guidelinesToggle}).
+   * - `'tag'` — a chip in the scrollable tag list (e.g. project/service
+   *   locations); never affected by the guidelines switch.
+   */
+  group?: 'guideline' | 'tag';
   /** Token typed after the prefix to insert this tag. Defaults to `id`. */
   slug?: string;
   /** One-line blurb shown in the mention menu. */
