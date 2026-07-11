@@ -245,10 +245,11 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
       clear: () => resetInput(),
       getValue: () => value,
       setValue: (v: string) => setValue(v),
+      setFiles: (f) => files.setFiles(f),
       submit,
       cancelSend,
     }),
-    [resetInput, value, setValue, submit, cancelSend],
+    [resetInput, value, setValue, files, submit, cancelSend],
   );
 
   /* ── history navigation ──────────────────────────────────────────────── */

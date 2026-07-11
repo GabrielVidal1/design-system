@@ -70,6 +70,8 @@ export interface RichInputHandle {
   clear: () => void;
   getValue: () => string;
   setValue: (value: string) => void;
+  /** Replace the attachment list (e.g. to restore files after an external un-send). */
+  setFiles: (files: RichFile[]) => void;
   /** Programmatically submit (starts the un-send window). */
   submit: () => void;
   /**
