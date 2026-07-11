@@ -13,6 +13,7 @@ import {
   PhonePreview,
   ProgressiveImage,
   ProgressiveList,
+  ProgressiveTable,
   ProgressiveText,
   ViewableImage,
   VirtualList,
@@ -30,13 +31,14 @@ import {
   PhonePreviewIcon,
   ProgressiveImageIcon,
   ProgressiveListIcon,
+  ProgressiveTableIcon,
   ProgressiveTextIcon,
   ViewableImageIcon,
   VirtualListIcon,
 } from './icons';
 import { changelog, fullUrl, nodes, specimenFulls, specimens, thumbUrl, type Node } from './data';
 
-const VERSION = '0.1.0';
+const VERSION = '0.2.0';
 const REPO = 'https://gitea.lab.gabvdl.xyz/gabrielvidal/design-system';
 
 interface Entry {
@@ -174,6 +176,24 @@ open(urls, 0) // full-screen: zoom · pan · swipe`,
 const { active, report, finish } = useProgressiveSlot()`,
   },
   {
+    id: 'progressive-table',
+    name: 'ProgressiveTable',
+    sig: 'headers · rows · speed · initialReveal',
+    tag: 'animation',
+    Icon: ProgressiveTableIcon,
+    Demo: ProgressiveTableDemo,
+    code: `// reveals the header first, then body rows one at a
+// time. Same timeline as ProgressiveList/Text, so it
+// nests inside a feed and hands off when the last row
+// lands. Cells are arbitrary nodes (markdown, code…).
+<ProgressiveTable
+  headers={['Feature', 'Before', 'After']}
+  rows={rows}          // ReactNode[][]
+  speed={6}            // rows / sec
+  initialReveal={0}    // 0 = animate the whole table
+/>`,
+  },
+  {
     id: 'changelog',
     name: 'Changelog',
     sig: 'entries? · trigger · reload toast',
@@ -290,8 +310,8 @@ function ImportLine() {
         <span className="text-[color:var(--cyan-deep)]">import</span>
         <span className="text-muted-foreground"> {'{ '}</span>
         <span className="text-foreground">
-          ImageViewer, Nav2D, ViewableImage, ProgressiveImage, ProgressiveText, ProgressiveList, FuzzyList,
-          PhonePreview, Button, Input, cn
+          ImageViewer, Nav2D, ViewableImage, ProgressiveImage, ProgressiveText, ProgressiveList,
+          ProgressiveTable, FuzzyList, PhonePreview, Button, Input, cn
         </span>
         <span className="text-muted-foreground">{' }'} </span>
         <span className="text-[color:var(--cyan-deep)]">from</span>
@@ -777,6 +797,47 @@ function ProgressiveListDemo() {
       </div>
       <p className="mono text-[11px] text-muted-foreground">
         timeline context · each row waits for the previous row's ProgressiveText to finish
+      </p>
+    </div>
+  );
+}
+
+function ProgressiveTableDemo() {
+  // A comparison matrix — the shape Claude writes most (empty top-left header
+  // cell, ✅/❌ + inline code in cells).
+  const headers: ReactNode[] = ['', 'React Query', 'Zustand', 'Custom hook'];
+  const rows: ReactNode[][] = [
+    ['Instant paint', '✅ built-in', '✅ wired', '✅'],
+    ['Background revalidate', '✅ free', '❌ hand-roll', '✅'],
+    ['New dependency', <span className="mono">~50 kB</span>, 'none', 'none'],
+    ['Rewrites call sites', <span className="mono">useQuery</span>, 'moderate', 'moderate'],
+  ];
+  const [runId, setRunId] = useState(0); // bump to remount → replay the reveal
+  return (
+    <div className="space-y-4">
+      <ProgressiveTable
+        key={runId}
+        headers={headers}
+        rows={rows}
+        speed={4}
+        delay={0.1}
+        initialReveal={0}
+        className="w-full border-collapse text-sm"
+        headCellClassName="border border-[color:var(--cyan)]/30 bg-[rgba(4,15,22,0.5)] px-3 py-2 text-left font-medium text-[color:var(--cyan)]"
+        cellClassName="border border-border px-3 py-2 align-top"
+        renderCell={(cell: ReactNode, { header }: { header: boolean }) =>
+          typeof cell === 'string' && !header ? (
+            <ProgressiveText text={cell} speed={60} instant={false} />
+          ) : (
+            cell
+          )
+        }
+      />
+      <Button size="sm" variant="ghost" onClick={() => setRunId((n) => n + 1)}>
+        Replay
+      </Button>
+      <p className="mono text-[11px] text-muted-foreground">
+        header reveals first · rows stagger in at speed=4 rows/s · cells type via ProgressiveText
       </p>
     </div>
   );

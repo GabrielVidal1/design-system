@@ -236,6 +236,49 @@ export function ProgressiveTextIcon() {
 }
 
 /** ProgressiveList — rows that stagger into view one after another. */
+/** ProgressiveTable — a header bar, then grid rows revealing one by one. */
+export function ProgressiveTableIcon() {
+  const cols = [46, 96, 146]; // x of each of 3 cells
+  const w = 44;
+  const bodyYs = [52, 74, 96];
+  return (
+    <Svg>
+      {/* header row — appears first */}
+      {cols.map((x, c) => (
+        <rect
+          key={`h${x}`}
+          className="a-reveal"
+          style={{ animationDelay: `${c * 0.06}s` }}
+          x={x}
+          y="28"
+          width={w}
+          height="15"
+          rx="3"
+          fill={CY}
+          fillOpacity="0.55"
+        />
+      ))}
+      {/* body cells — staggered per row */}
+      {bodyYs.map((y, r) =>
+        cols.map((x, c) => (
+          <rect
+            key={`${x}-${y}`}
+            className="a-reveal"
+            style={{ animationDelay: `${0.28 + r * 0.28 + c * 0.05}s` }}
+            x={x}
+            y={y}
+            width={w}
+            height="13"
+            rx="3"
+            fill={DIM}
+            fillOpacity="0.45"
+          />
+        )),
+      )}
+    </Svg>
+  );
+}
+
 export function ProgressiveListIcon() {
   const ys = [30, 50, 70, 90];
   return (
