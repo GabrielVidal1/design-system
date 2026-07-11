@@ -49,6 +49,13 @@ export {
   splitBySubparts,
 } from './components/progressive-bash';
 export type { CmdToken, CmdKind, OutputLine, OutputSpan, LineKind, SubCommand } from './components/progressive-bash';
+export { ResizableLayout } from './components/resizable-layout';
+export type {
+  ResizableLayoutProps,
+  ResizableLayoutHandle,
+  ResizableDrawerConfig,
+  DrawerSide,
+} from './components/resizable-layout';
 export { FloatingPanel, Dock, DockProvider, useDockContext } from './components/floating-panel';
 export type {
   FloatingPanelProps,

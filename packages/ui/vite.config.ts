@@ -31,6 +31,7 @@ export default defineConfig({
         'tailwind-merge',
         'fuse.js',
         '@tanstack/react-virtual',
+        'react-resizable-panels',
       ],
       output: {
         preserveModules: true,
