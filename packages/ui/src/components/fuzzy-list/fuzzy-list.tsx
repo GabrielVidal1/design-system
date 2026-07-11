@@ -4,13 +4,10 @@ import { Search } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
 import { highlightAll, highlightSnippet } from '../../lib/highlight';
+import { runSearch, type SearchResult } from '../../lib/search';
 import { VirtualList, type VirtualListHandle } from '../virtual-list';
 
-interface Result<T> {
-  item: T;
-  refIndex: number;
-  matches: readonly FuseResultMatch[];
-}
+type Result<T> = SearchResult<T>;
 
 /** What `renderItem` receives for each row. */
 export interface FuzzyRenderContext<T> {
@@ -53,6 +50,11 @@ export interface FuzzyListProps<T> {
   autoFocus?: boolean;
   /** Cap the number of results (Fuse `limit`). */
   limit?: number;
+  /** First-paint row-height guess for the virtual list, px. Default 60 (compact
+   * rows). Bump it when rendering taller rows/cards to cut first-paint jank. */
+  estimateSize?: number;
+  /** Off-screen rows kept mounted as a scroll buffer. Default 8. */
+  overscan?: number;
   /** Show the "N of M" count line above the list. */
   showCount?: boolean;
   /** Extra Fuse options, merged over the defaults. */
@@ -86,6 +88,11 @@ function getPath(obj: unknown, path: string): string {
  * function — it owns the search box, the Fuse index, keyboard navigation and
  * match highlighting. Reads its colours from the design tokens.
  *
+ * The search box is quote-aware: a bare query fuzzy-matches, while any
+ * `"double-quoted"` segment must appear as an exact (case-insensitive)
+ * substring. The two can mix — `parser "utils.ts"` fuzzy-matches `parser` and
+ * then keeps only rows whose fields contain the literal `utils.ts`.
+ *
  * ```tsx
  * <FuzzyList
  *   items={services}
@@ -110,6 +117,8 @@ export function FuzzyList<T>({
   emptyState = 'No matches.',
   autoFocus,
   limit,
+  estimateSize = 60,
+  overscan = 8,
   showCount = true,
   fuseOptions,
   toolbar,
@@ -126,13 +135,10 @@ export function FuzzyList<T>({
     [items, keys, fuseOptions],
   );
 
-  const results = useMemo<Result<T>[]>(() => {
-    const q = query.trim();
-    if (!q) return items.map((item, refIndex) => ({ item, refIndex, matches: [] }));
-    return fuse
-      .search(q, limit ? { limit } : undefined)
-      .map((r) => ({ item: r.item, refIndex: r.refIndex, matches: (r.matches ?? []) as readonly FuseResultMatch[] }));
-  }, [fuse, query, items, limit]);
+  const results = useMemo<Result<T>[]>(
+    () => runSearch(fuse, items, keys, query, limit),
+    [fuse, query, items, keys, limit],
+  );
 
   // Keep the keyboard cursor in range as the result set changes.
   useEffect(() => {
@@ -193,8 +199,8 @@ export function FuzzyList<T>({
       <VirtualList
         items={results}
         apiRef={apiRef}
-        estimateSize={60}
-        overscan={8}
+        estimateSize={estimateSize}
+        overscan={overscan}
         getItemKey={getItemKey ? (r, i) => getItemKey(r.item, i) : undefined}
         className={cn('min-h-0 flex-1 pt-1.5', listClassName)}
         emptyState={<p className="px-2 py-8 text-center text-sm text-muted-foreground">{emptyState}</p>}
