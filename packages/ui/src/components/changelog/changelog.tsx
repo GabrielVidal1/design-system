@@ -79,6 +79,14 @@ export interface ChangelogProps {
   hasMore?: boolean;
   /** Controlled mode: a page load is in flight. */
   loading?: boolean;
+  /**
+   * Controlled "new version" reload toast. Set to an entry to show the toast
+   * for it — useful when you detect an update yourself (e.g. in controlled
+   * mode, where the SDK watcher isn't running). Set to `null`/omit to hide it.
+   */
+  newVersion?: ChangelogEntry | null;
+  /** Called when the user dismisses the "new version" toast. */
+  onDismissNewVersion?: () => void;
 }
 
 /**
@@ -96,6 +104,8 @@ export function Changelog({
   onLoadMore,
   hasMore = false,
   loading = false,
+  newVersion = null,
+  onDismissNewVersion,
 }: ChangelogProps) {
   const controlled = entries !== undefined;
   const [loaded, setLoaded] = useState<ChangelogEntry[]>([]);
@@ -135,7 +145,14 @@ export function Changelog({
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
 
-  const hasUpdate = update !== null;
+  // The controlled `newVersion` prop takes precedence over the SDK watcher's
+  // own detected update, so a consumer can drive the reload toast directly.
+  const activeUpdate = newVersion ?? update;
+  const hasUpdate = activeUpdate !== null;
+  const dismissUpdate = () => {
+    setUpdate(null);
+    onDismissNewVersion?.();
+  };
 
   return (
     <>
@@ -187,7 +204,7 @@ export function Changelog({
         </div>
       )}
 
-      {update && (
+      {activeUpdate && (
         <div className="fixed left-1/2 top-3 z-[9999] w-[min(92vw,400px)] -translate-x-1/2">
           <div className="flex items-start gap-3 rounded-2xl border border-primary/40 bg-card p-3.5 shadow-xl">
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
@@ -195,10 +212,10 @@ export function Changelog({
             </span>
             <div className="min-w-0 flex-1">
               <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-primary">
-                New version · v{update.version}
+                New version · v{activeUpdate.version}
               </p>
               <p className="mt-0.5 text-sm text-foreground">
-                {update.title || update.changes[0] || 'A new version is available.'}
+                {activeUpdate.title || activeUpdate.changes[0] || 'A new version is available.'}
               </p>
               <div className="mt-2 flex items-center gap-2">
                 <button
@@ -210,7 +227,7 @@ export function Changelog({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setUpdate(null)}
+                  onClick={dismissUpdate}
                   className="rounded-lg px-2 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
                 >
                   Dismiss
