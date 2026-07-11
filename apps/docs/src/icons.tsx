@@ -365,3 +365,197 @@ export function FloatingPanelIcon() {
     </Svg>
   );
 }
+
+/** Toast — a card sliding up from the corner with a check. */
+export function ToastIcon() {
+  return (
+    <Svg>
+      <rect x="40" y="24" width="140" height="82" rx="8" stroke={DIM} strokeWidth="2" opacity="0.5" />
+      <g className="a-toast">
+        <rect x="86" y="66" width="86" height="30" rx="8" fill={CY} fillOpacity="0.14" stroke={CY} strokeWidth="2.5" />
+        <path d="M96 81 l6 6 l10 -12" stroke={CY} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        <rect x="120" y="74" width="42" height="5" rx="2.5" fill={CY} opacity="0.75" />
+        <rect x="120" y="84" width="28" height="4" rx="2" fill={DIM} opacity="0.6" />
+      </g>
+    </Svg>
+  );
+}
+
+/** Modal — a scrim dimming the page while a panel scales in. */
+export function ModalIcon() {
+  return (
+    <Svg>
+      <rect x="34" y="20" width="152" height="90" rx="8" stroke={DIM} strokeWidth="2" />
+      <rect className="a-scrim" x="34" y="20" width="152" height="90" rx="8" fill="var(--ink-950)" fillOpacity="0.35" />
+      <g className="a-panel">
+        <rect x="70" y="40" width="80" height="50" rx="8" fill="var(--surface-2)" stroke={CY} strokeWidth="2.5" />
+        <rect x="80" y="52" width="40" height="5" rx="2.5" fill={CY} opacity="0.8" />
+        <rect x="80" y="64" width="52" height="4" rx="2" fill={DIM} opacity="0.6" />
+        <rect x="112" y="74" width="28" height="9" rx="4.5" fill={CY} fillOpacity="0.3" />
+      </g>
+    </Svg>
+  );
+}
+
+/** ThemeToggle — a disc crossing from sun to moon. */
+export function ThemeToggleIcon() {
+  return (
+    <Svg>
+      <rect x="60" y="48" width="100" height="34" rx="17" stroke={DIM} strokeWidth="2" />
+      <g className="a-swap">
+        <circle cx="79" cy="65" r="11" fill={CY} fillOpacity="0.25" stroke={CY} strokeWidth="2.5" />
+        <path
+          d="M79 50 v-5 M79 85 v5 M64 65 h-5 M94 65 h5 M68 54 l-4 -4 M90 76 l4 4 M90 54 l4 -4 M68 76 l-4 4"
+          stroke={CY}
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      </g>
+      <path className="a-moon" d="M148 56 a11 11 0 1 0 8 17 a9 9 0 0 1 -8 -17 Z" fill={DIM} opacity="0.7" />
+    </Svg>
+  );
+}
+
+/** Spinner — an arc turning. */
+export function SpinnerIcon() {
+  return (
+    <Svg>
+      <circle cx="110" cy="60" r="24" stroke={DIM} strokeWidth="3" opacity="0.4" />
+      <g className="a-spin">
+        <path d="M110 36 a24 24 0 0 1 24 24" stroke={CY} strokeWidth="4" strokeLinecap="round" />
+      </g>
+      <rect x="82" y="98" width="56" height="6" rx="3" fill={DIM} opacity="0.5" />
+    </Svg>
+  );
+}
+
+/** Skeleton — placeholder bars pulsing. */
+export function SkeletonIcon() {
+  return (
+    <Svg>
+      <g className="a-pulse">
+        <rect x="42" y="30" width="44" height="44" rx="8" fill={CY} fillOpacity="0.22" />
+        <rect x="96" y="34" width="82" height="8" rx="4" fill={DIM} fillOpacity="0.55" />
+        <rect x="96" y="50" width="64" height="8" rx="4" fill={DIM} fillOpacity="0.55" />
+        <rect x="96" y="66" width="38" height="8" rx="4" fill={DIM} fillOpacity="0.55" />
+        <rect x="42" y="88" width="136" height="8" rx="4" fill={DIM} fillOpacity="0.4" />
+      </g>
+    </Svg>
+  );
+}
+
+/** EmptyState — an empty tray with a hovering call to action. */
+export function EmptyStateIcon() {
+  return (
+    <Svg>
+      <path d="M62 46 h96 l-10 40 h-76 Z" stroke={DIM} strokeWidth="2" strokeLinejoin="round" />
+      <line x1="52" y1="86" x2="168" y2="86" stroke={DIM} strokeWidth="2" strokeLinecap="round" />
+      <circle className="a-float" cx="110" cy="42" r="12" stroke={CY} strokeWidth="2.5" strokeDasharray="4 5" />
+      <rect x="88" y="98" width="44" height="12" rx="6" fill={CY} fillOpacity="0.22" stroke={CY} strokeWidth="2" />
+    </Svg>
+  );
+}
+
+/** StatusBadge — pills cycling through the job lifecycle. */
+export function StatusBadgeIcon() {
+  const pill = (x: number, y: number, cls: string, fill: string) => (
+    <g className={cls}>
+      <rect x={x} y={y} width="62" height="22" rx="11" fill={fill} fillOpacity="0.16" stroke={fill} strokeWidth="2" />
+      <circle cx={x + 14} cy={y + 11} r="4" fill={fill} />
+      <rect x={x + 24} y={y + 8} width="26" height="6" rx="3" fill={fill} opacity="0.7" />
+    </g>
+  );
+  return (
+    <Svg>
+      {pill(48, 24, 'a-badge-1', DIM)}
+      {pill(48, 54, 'a-badge-2', CY)}
+      {pill(48, 84, 'a-badge-3', DIM)}
+      <path className="a-tick" d="M136 60 l8 8 l16 -18" stroke={CY} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+/** CopyButton — a duplicated sheet, then a check. */
+export function CopyButtonIcon() {
+  return (
+    <Svg>
+      <rect x="64" y="30" width="52" height="62" rx="7" stroke={DIM} strokeWidth="2" />
+      <g className="a-copy">
+        <rect x="94" y="42" width="52" height="62" rx="7" fill="var(--surface-2)" stroke={CY} strokeWidth="2.5" />
+        <rect x="104" y="56" width="32" height="5" rx="2.5" fill={DIM} opacity="0.6" />
+        <rect x="104" y="68" width="24" height="5" rx="2.5" fill={DIM} opacity="0.6" />
+      </g>
+      <path className="a-check" d="M152 76 l7 7 l14 -16" stroke={CY} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+/** DropZone — a file falling into a dashed target. */
+export function DropZoneIcon() {
+  return (
+    <Svg>
+      <rect x="52" y="34" width="116" height="72" rx="10" stroke={CY} strokeWidth="2.5" strokeDasharray="8 7" />
+      <g className="a-drop">
+        <rect x="94" y="24" width="32" height="40" rx="5" fill={CY} fillOpacity="0.18" stroke={CY} strokeWidth="2.5" />
+        <path d="M104 44 l6 6 l6 -6 M110 34 v16" stroke={CY} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+      <line x1="80" y1="92" x2="140" y2="92" stroke={DIM} strokeWidth="2" strokeLinecap="round" opacity="0.6" />
+    </Svg>
+  );
+}
+
+/** SearchInput — a field with a loupe and a typed query. */
+export function SearchInputIcon() {
+  return (
+    <Svg>
+      <rect className="a-ring" x="44" y="50" width="132" height="32" rx="16" stroke={CY} strokeWidth="2.5" />
+      <circle cx="64" cy="66" r="7" stroke={CY} strokeWidth="2.5" />
+      <line x1="69" y1="71" x2="75" y2="77" stroke={CY} strokeWidth="2.5" strokeLinecap="round" />
+      <rect className="a-type" x="84" y="62" width="88" height="7" rx="3.5" fill={DIM} opacity="0.6" />
+      <rect x="150" y="58" width="18" height="16" rx="4" stroke={DIM} strokeWidth="1.5" opacity="0.7" />
+    </Svg>
+  );
+}
+
+/** RelativeTime — a clock hand sweeping. */
+export function RelativeTimeIcon() {
+  return (
+    <Svg>
+      <circle cx="110" cy="60" r="28" stroke={DIM} strokeWidth="2" />
+      <line x1="110" y1="60" x2="110" y2="42" stroke={CY} strokeWidth="3" strokeLinecap="round" className="a-hand" />
+      <circle cx="110" cy="60" r="3" fill={CY} />
+      <rect x="76" y="98" width="68" height="8" rx="4" fill={CY} fillOpacity="0.3" />
+    </Svg>
+  );
+}
+
+/** Hooks — a plug snapping into a socket. */
+export function HooksIcon() {
+  return (
+    <Svg>
+      <rect x="120" y="42" width="52" height="40" rx="8" stroke={DIM} strokeWidth="2" />
+      <line x1="120" y1="54" x2="106" y2="54" stroke={DIM} strokeWidth="2" strokeLinecap="round" />
+      <line x1="120" y1="70" x2="106" y2="70" stroke={DIM} strokeWidth="2" strokeLinecap="round" />
+      <g className="a-plug">
+        <rect x="52" y="46" width="46" height="32" rx="7" fill={CY} fillOpacity="0.16" stroke={CY} strokeWidth="2.5" />
+        <line x1="98" y1="54" x2="118" y2="54" stroke={CY} strokeWidth="3" strokeLinecap="round" />
+        <line x1="98" y1="70" x2="118" y2="70" stroke={CY} strokeWidth="3" strokeLinecap="round" />
+      </g>
+    </Svg>
+  );
+}
+
+/** format — a raw number resolving into a formatted one. */
+export function FormatIcon() {
+  return (
+    <Svg>
+      <rect x="42" y="48" width="60" height="32" rx="8" stroke={DIM} strokeWidth="2" />
+      <rect x="52" y="61" width="40" height="6" rx="3" fill={DIM} opacity="0.55" />
+      <path d="M108 64 h20 m-6 -6 l6 6 l-6 6" stroke={CY} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <g className="a-format">
+        <rect x="134" y="46" width="46" height="36" rx="8" fill={CY} fillOpacity="0.16" stroke={CY} strokeWidth="2.5" />
+        <rect x="143" y="61" width="28" height="6" rx="3" fill={CY} opacity="0.8" />
+      </g>
+    </Svg>
+  );
+}

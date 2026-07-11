@@ -1,16 +1,22 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { HashRouter, Link, Navigate, Route, Routes, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowUpRight, Check, Copy } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Check, Copy, Inbox } from 'lucide-react';
 import {
+  Badge,
   Button,
   Changelog,
   type ChangelogEntry,
+  CopyButton,
   Dock,
   DockProvider,
+  DropZone,
+  EmptyState,
   FloatingPanel,
   FuzzyList,
   ImageViewerProvider,
   Input,
+  Modal,
+  ModalProvider,
   Nav2DProvider,
   Nav2DItem,
   useNav2D,
@@ -22,19 +28,47 @@ import {
   ProgressiveList,
   ProgressiveTable,
   ProgressiveText,
+  RelativeTime,
+  SearchInput,
+  Skeleton,
+  SkeletonText,
+  Spinner,
+  StatusBadge,
+  ThemeToggle,
+  ToastProvider,
   ViewableImage,
   VirtualList,
   cn,
+  fmtBytes,
+  fmtCost,
+  fmtDuration,
+  fmtNum,
+  relTime,
+  useConfirm,
+  useCopyToClipboard,
+  useInfiniteScroll,
+  useIsMobile,
+  useLocalStorage,
+  useLongPress,
+  useModal,
+  useTheme,
+  useToast,
 } from '@gabvdl/ui';
 
 import {
   CnIcon,
   ButtonIcon,
   ChangelogIcon,
+  CopyButtonIcon,
+  DropZoneIcon,
+  EmptyStateIcon,
   FloatingPanelIcon,
+  FormatIcon,
   FuzzyListIcon,
+  HooksIcon,
   ImageViewerIcon,
   InputIcon,
+  ModalIcon,
   Nav2DIcon,
   PhonePreviewIcon,
   ProgressiveBashIcon,
@@ -42,7 +76,14 @@ import {
   ProgressiveListIcon,
   ProgressiveTableIcon,
   ProgressiveTextIcon,
+  RelativeTimeIcon,
   RichInputIcon,
+  SearchInputIcon,
+  SkeletonIcon,
+  SpinnerIcon,
+  StatusBadgeIcon,
+  ThemeToggleIcon,
+  ToastIcon,
   ViewableImageIcon,
   VirtualListIcon,
 } from './icons';
@@ -50,7 +91,7 @@ import { SandpackProvider, SandpackCodeEditor, type SandpackTheme } from '@codes
 import { RichInputPage } from './pages/RichInputPage';
 import { changelog, fullUrl, nodes, specimenFulls, specimens, thumbUrl, type Node } from './data';
 
-const VERSION = '0.6.0';
+const VERSION = '0.8.0';
 const REPO = 'https://gitea.lab.gabvdl.xyz/gabrielvidal/design-system';
 
 /* ─── Groups ──────────────────────────────────────────────────────────────── */
@@ -62,6 +103,7 @@ const GROUPS = [
   'Animation',
   'Feedback',
   'Layout',
+  'Hooks',
   'Utilities',
 ] as const;
 type Group = (typeof GROUPS)[number];
@@ -73,28 +115,42 @@ const GROUP_OF: Record<string, Group> = {
   'fuzzy-list': 'Data display',
   'virtual-list': 'Data display',
   'progressive-table': 'Data display',
+  'status-badge': 'Data display',
+  'relative-time': 'Data display',
   'nav-2d': 'Navigation',
   button: 'Inputs',
   input: 'Inputs',
   'rich-input': 'Inputs',
+  'search-input': 'Inputs',
+  'drop-zone': 'Inputs',
+  'copy-button': 'Inputs',
   'progressive-text': 'Animation',
   'progressive-list': 'Animation',
   'progressive-bash': 'Animation',
   changelog: 'Feedback',
+  toast: 'Feedback',
+  spinner: 'Feedback',
+  skeleton: 'Feedback',
+  'empty-state': 'Feedback',
   'phone-preview': 'Layout',
   'floating-panel': 'Layout',
+  modal: 'Layout',
+  hooks: 'Hooks',
   cn: 'Utilities',
+  theme: 'Utilities',
+  format: 'Utilities',
 };
 
 const GROUP_BLURB: Record<Group, string> = {
   Media: 'Images — a full-screen viewer, click-to-open thumbnails, and lazy blur-up loading.',
   'Data display': 'Windowed, searchable and reveal-animated lists and tables for large datasets.',
   Navigation: 'Spatial, joystick-driven selection over a 2-D field of targets.',
-  Inputs: 'Form primitives and the batteries-included composer.',
+  Inputs: 'Form primitives, the batteries-included composer, and the file/search/copy controls around them.',
   Animation: 'Typewriter text and staggered reveals that share one timeline.',
-  Feedback: 'Release notes, a changelog modal, and an update toast.',
-  Layout: 'Device frames and scaffolding.',
-  Utilities: 'The class-name helper every component is built on.',
+  Feedback: 'What the app says back — toasts, spinners, skeletons, empty states, release notes.',
+  Layout: 'Device frames, scaffolding, and the modal every project re-implements.',
+  Hooks: 'The headless half: gestures, storage, media queries, clipboard, intersection.',
+  Utilities: 'Class names, theming and the formatters shared across the lab.',
 };
 
 /* ─── Library source, imported raw for the "copy full source" IDE tab ──────── */
@@ -122,6 +178,19 @@ const SOURCE_FILE: Record<string, string> = {
   input: 'input.tsx',
   'rich-input': 'rich-input.tsx',
   cn: 'utils.ts',
+  toast: 'toast.tsx',
+  modal: 'modal.tsx',
+  spinner: 'spinner.tsx',
+  skeleton: 'skeleton.tsx',
+  'empty-state': 'empty-state.tsx',
+  'status-badge': 'status-badge.tsx',
+  'copy-button': 'copy-button.tsx',
+  'drop-zone': 'drop-zone.tsx',
+  'search-input': 'search-input.tsx',
+  'relative-time': 'relative-time.tsx',
+  theme: 'theme.tsx',
+  format: 'format.ts',
+  hooks: 'use-overlay.ts',
 };
 
 function fullSource(id: string): string | undefined {
@@ -420,6 +489,215 @@ ref.current?.skipToEnd()
 />`,
   },
   {
+    id: 'toast',
+    name: 'Toast',
+    sig: 'ToastProvider · useToast — types · actions · update',
+    tag: 'context',
+    Icon: ToastIcon,
+    Demo: ToastDemo,
+    code: `<ToastProvider position="bottom-right">
+  <App />
+</ToastProvider>
+
+const toast = useToast()
+toast.success('Deployed')
+toast.error('Build failed', {
+  action: { label: 'Logs', href: logsUrl },
+})
+
+// a pending toast, settled in place when the work lands
+const id = toast.loading('Uploading…')
+toast.update(id, 'Uploaded', { type: 'success' })`,
+  },
+  {
+    id: 'modal',
+    name: 'Modal',
+    sig: 'Modal · ModalProvider · useModal · useConfirm',
+    tag: 'overlay',
+    Icon: ModalIcon,
+    Demo: ModalDemo,
+    code: `// controlled
+<Modal open={open} onClose={close} title="Details" footer={<Button>Save</Button>}>
+  <Body />
+</Modal>
+
+// …or imperative, from any handler
+const modal = useModal()
+modal.open({ title: 'Details', content: <Body /> })
+
+// window.confirm, but yours — resolves false on Escape / scrim
+const confirm = useConfirm()
+if (await confirm({ title: 'Delete note?', destructive: true })) remove()
+
+// portal · Escape · scrim-click · scroll-lock · focus trap
+// + bottom-sheet on phones`,
+  },
+  {
+    id: 'spinner',
+    name: 'Spinner',
+    sig: 'size · label · center',
+    tag: 'feedback',
+    Icon: SpinnerIcon,
+    Demo: SpinnerDemo,
+    code: `<Spinner />
+<Spinner size="lg" label="Loading models…" center />`,
+  },
+  {
+    id: 'skeleton',
+    name: 'Skeleton',
+    sig: 'Skeleton · SkeletonText · SkeletonGrid',
+    tag: 'feedback',
+    Icon: SkeletonIcon,
+    Demo: SkeletonDemo,
+    code: `<Skeleton className="size-12 rounded-full" />
+<SkeletonText lines={3} />
+<SkeletonGrid count={6} aspect="aspect-video" />`,
+  },
+  {
+    id: 'empty-state',
+    name: 'EmptyState',
+    sig: 'icon · title · description · action',
+    tag: 'feedback',
+    Icon: EmptyStateIcon,
+    Demo: EmptyStateDemo,
+    code: `<EmptyState
+  icon={<Inbox />}
+  title="No jobs yet"
+  description="Queue one and it shows up here."
+  action={<Button size="sm">New job</Button>}
+/>`,
+  },
+  {
+    id: 'status-badge',
+    name: 'StatusBadge',
+    sig: 'Badge · StatusBadge — status → tone map',
+    tag: 'data',
+    Icon: StatusBadgeIcon,
+    Demo: StatusBadgeDemo,
+    code: `// the lab's job lifecycle, same colour in every service
+<StatusBadge status={job.status} />
+
+// extend the map for a domain of your own
+<StatusBadge status="seeding" meta={{
+  seeding: { label: 'Seeding', tone: 'violet', Icon: Sprout },
+}} />
+
+// or the bare pill
+<Badge tone="amber" dot>beta</Badge>`,
+  },
+  {
+    id: 'relative-time',
+    name: 'RelativeTime',
+    sig: 'date · every — ticking <time>',
+    tag: 'data',
+    Icon: RelativeTimeIcon,
+    Demo: RelativeTimeDemo,
+    code: `<RelativeTime date={job.createdAt} />
+// "4m ago", re-rendered every 30s, absolute date on hover
+// accepts ISO strings, Dates, epoch ms *or* epoch seconds`,
+  },
+  {
+    id: 'search-input',
+    name: 'SearchInput',
+    sig: 'value · onValueChange · shortcut',
+    tag: 'input',
+    Icon: SearchInputIcon,
+    Demo: SearchInputDemo,
+    code: `<SearchInput
+  value={q}
+  onValueChange={setQ}
+  shortcut              // ⌘K / "/" focuses, Escape clears
+  placeholder="Search services…"
+/>`,
+  },
+  {
+    id: 'drop-zone',
+    name: 'DropZone',
+    sig: 'DropZone · useFileDrop — accept · maxSize · folders',
+    tag: 'input',
+    Icon: DropZoneIcon,
+    Demo: DropZoneDemo,
+    code: `<DropZone
+  accept="image/*"
+  maxFiles={8}
+  maxSize={10 * 1024 * 1024}
+  recursive                       // walk dropped folders
+  onFiles={(files) => upload(files)}
+  onReject={(bad) => toast.error(\`\${bad.length} file(s) rejected\`)}
+  hint="PNG, JPG or WebP · up to 10 MB"
+/>
+
+// headless: drag state + the hidden input, on any element
+const { dragging, rootProps, inputProps, open } = useFileDrop({ onFiles })`,
+  },
+  {
+    id: 'copy-button',
+    name: 'CopyButton',
+    sig: 'value · label · share · useCopyToClipboard',
+    tag: 'input',
+    Icon: CopyButtonIcon,
+    Demo: CopyButtonDemo,
+    code: `<CopyButton value={url} label="Copy link" />
+
+// …or drive it yourself
+const { copy, copied } = useCopyToClipboard()
+// falls back to execCommand on insecure origins (the LAN),
+// and can offer the native share sheet first on touch`,
+  },
+  {
+    id: 'theme',
+    name: 'ThemeToggle',
+    sig: 'useTheme · ThemeToggle · setTheme',
+    tag: 'util',
+    Icon: ThemeToggleIcon,
+    Demo: ThemeDemo,
+    code: `<ThemeToggle />                    // sun ⇄ moon
+<ThemeToggle variant="segmented" />  // light · system · dark
+
+// no provider needed — one module store, persisted,
+// follows the OS when set to "system"
+const { theme, isDark, setTheme, toggle } = useTheme()
+
+// <ThemeProvider> only to change the storage key / default
+<ThemeProvider storageKey="app-theme" defaultTheme="dark" />`,
+  },
+  {
+    id: 'hooks',
+    name: 'hooks',
+    sig: 'gestures · storage · media · clipboard · overlay',
+    tag: 'hooks',
+    Icon: HooksIcon,
+    Demo: HooksDemo,
+    code: `const isMobile = useIsMobile()               // + useMediaQuery, useIsTouch,
+                                            //   usePrefersDark, usePrefersReducedMotion
+const [seen, setSeen] = useLocalStorage('seen', false)  // cross-tab synced, quota-safe
+
+const press = useLongPress((pt) => openMenu(pt))        // touch hold + right-click
+<div {...press} />
+
+const sentinel = useInfiniteScroll({ hasMore, loading, onLoadMore })
+<div ref={sentinel} />                      // loads the next page 600px early
+
+useScrollLock(open)                         // ref-counted — nesting is safe
+useEscape(close, open)
+const ref = useOutsideClick(close)          // closes on pointerdown, not click`,
+  },
+  {
+    id: 'format',
+    name: 'format',
+    sig: 'relTime · fmtDuration · fmtBytes · fmtNum · fmtCost',
+    tag: 'util',
+    Icon: FormatIcon,
+    Demo: FormatDemo,
+    code: `relTime('2026-07-12T09:00:00Z')  // "4m ago"  (ISO · Date · ms · seconds)
+fmtDuration(128_400)             // "2m 08s"
+fmtBytes(1_483_776)              // "1.4 MB"
+fmtNum(12_402)                   // "12.4k"
+fmtCost(0.00412)                 // "$0.0041" — small LLM costs keep their digits
+
+downloadFile('board.csv', csv, 'text/csv')  // anchor + object URL + revoke`,
+  },
+  {
     id: 'cn',
     name: 'cn',
     sig: '(...ClassValue[]) => string',
@@ -434,13 +712,17 @@ ref.current?.skipToEnd()
 export function App() {
   return (
     <HashRouter>
-      <ImageViewerProvider>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/c/:id" element={<ComponentPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </ImageViewerProvider>
+      <ToastProvider>
+        <ModalProvider>
+          <ImageViewerProvider>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/c/:id" element={<ComponentPage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </ImageViewerProvider>
+        </ModalProvider>
+      </ToastProvider>
     </HashRouter>
   );
 }
@@ -555,7 +837,7 @@ function ComponentPage() {
 
 function Header({ title }: { title?: string }) {
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-[rgba(255,255,255,0.82)] backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-border bg-[color:var(--header-bg)] backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-5">
         <div className="flex items-center gap-3">
           {title ? (
@@ -580,6 +862,8 @@ function Header({ title }: { title?: string }) {
               {REGISTRY.length} components
             </span>
           )}
+          {/* The library's own toggle, dogfooded — it themes this page. */}
+          <ThemeToggle />
           <a href={REPO} target="_blank" rel="noreferrer">
             <Button variant="outline" size="sm" className="mono text-xs uppercase tracking-[0.14em]">
               Source <ArrowUpRight />
@@ -598,8 +882,11 @@ function ImportLine() {
         <span className="text-[color:var(--cyan-deep)]">import</span>
         <span className="text-muted-foreground"> {'{ '}</span>
         <span className="text-foreground">
-          ImageViewer, Nav2D, ViewableImage, ProgressiveImage, ProgressiveText, ProgressiveList,
-          ProgressiveTable, FuzzyList, PhonePreview, Button, Input, RichInput, cn
+          ImageViewer, ViewableImage, ProgressiveImage, ProgressiveText, ProgressiveList,
+          ProgressiveTable, FuzzyList, VirtualList, Nav2D, PhonePreview, Modal, useConfirm,
+          ToastProvider, useToast, ThemeToggle, useTheme, Spinner, Skeleton, EmptyState,
+          StatusBadge, RelativeTime, SearchInput, DropZone, CopyButton, Button, Input, RichInput,
+          useLocalStorage, useMediaQuery, useLongPress, relTime, fmtBytes, cn
         </span>
         <span className="text-muted-foreground">{' }'} </span>
         <span className="text-[color:var(--cyan-deep)]">from</span>
@@ -1492,5 +1779,550 @@ function Footer() {
         </a>
       </div>
     </footer>
+  );
+}
+
+/* ─── Wave-2 demos: the primitives lifted out of the homelab projects ──────── */
+
+function DemoRow({ children }: { children: ReactNode }) {
+  return <div className="flex flex-wrap items-center gap-2">{children}</div>;
+}
+
+function ToastDemo() {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+
+  const fakeUpload = () => {
+    setBusy(true);
+    const id = toast.loading('Uploading plate.tiff…');
+    setTimeout(() => {
+      toast.update(id, 'plate.tiff uploaded', { type: 'success' });
+      setBusy(false);
+    }, 1800);
+  };
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        One provider, one callable <code className="mono text-foreground">toast()</code>. Errors live
+        longer than the rest, a <code className="mono text-foreground">loading</code> toast stays
+        pinned until you settle it, and the stack is capped so a burst can't bury the page.
+      </p>
+      <DemoRow>
+        <Button size="sm" onClick={() => toast.success('Deployed to raspy2')}>
+          Success
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() =>
+            toast.error('Build failed — vite exited 1', {
+              title: 'ai-agent',
+              action: { label: 'View logs', onClick: () => toast.info('…opening Grafana') },
+            })
+          }
+        >
+          Error + action
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => toast.warning('Registry is unreachable')}>
+          Warning
+        </Button>
+        <Button size="sm" variant="outline" disabled={busy} onClick={fakeUpload}>
+          Pending → settled
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => toast.dismiss()}>
+          Clear
+        </Button>
+      </DemoRow>
+    </div>
+  );
+}
+
+function ModalDemo() {
+  const modal = useModal();
+  const confirm = useConfirm();
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Portalled, Escape- and scrim-closable, scroll-locked, focus-trapped — and a bottom sheet on a
+        phone. Use it controlled, open it imperatively, or ask a yes/no question and{' '}
+        <code className="mono text-foreground">await</code> the answer.
+      </p>
+      <DemoRow>
+        <Button size="sm" onClick={() => setOpen(true)}>
+          Controlled
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() =>
+            modal.open({
+              title: 'Job 4812',
+              description: 'trellis2 · 512 · 1 image',
+              content: (
+                <div className="space-y-3 text-sm text-muted-foreground">
+                  <p>Opened from a click handler — no per-dialog state in the page.</p>
+                  <div className="flex flex-wrap gap-2">
+                    <StatusBadge status="running" />
+                    <Badge tone="violet">gfx1151</Badge>
+                  </div>
+                </div>
+              ),
+            })
+          }
+        >
+          Imperative
+        </Button>
+        <Button
+          size="sm"
+          variant="destructive"
+          onClick={async () => {
+            const yes = await confirm({
+              title: 'Delete plate XII?',
+              description: 'This removes the specimen and its thumbnail. It cannot be undone.',
+              confirmLabel: 'Delete',
+              destructive: true,
+            });
+            yes ? toast.success('Deleted') : toast.info('Kept');
+          }}
+        >
+          await confirm()
+        </Button>
+      </DemoRow>
+
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Specimen details"
+        description="Plate VII — harvest table"
+        footer={
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
+              Close
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setOpen(false);
+                toast.success('Saved');
+              }}
+            >
+              Save
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <ProgressiveImage
+            thumb={thumbUrl(1062)}
+            full={fullUrl(1062)}
+            alt="Plate VII"
+            className="aspect-[4/3] w-full rounded-lg"
+          />
+          <p className="text-sm text-muted-foreground">
+            Try Escape, or a click on the scrim. Tab is trapped inside the panel, and the trigger
+            gets its focus back on close.
+          </p>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+function SpinnerDemo() {
+  return (
+    <div className="grid gap-4 sm:grid-cols-3">
+      {(['sm', 'md', 'lg'] as const).map((size) => (
+        <div
+          key={size}
+          className="flex flex-col items-center gap-3 rounded-lg border border-border bg-[var(--surface)] py-6"
+        >
+          <Spinner size={size} />
+          <span className="mono text-[11px] text-muted-foreground">size="{size}"</span>
+        </div>
+      ))}
+      <div className="rounded-lg border border-border bg-[var(--surface)] sm:col-span-3">
+        <Spinner center label="Loading specimens…" />
+      </div>
+    </div>
+  );
+}
+
+function SkeletonDemo() {
+  const [loading, setLoading] = useState(true);
+
+  return (
+    <div className="space-y-4">
+      <DemoRow>
+        <Button size="sm" variant="outline" onClick={() => setLoading((l) => !l)}>
+          {loading ? 'Show content' : 'Show skeleton'}
+        </Button>
+        <span className="mono text-[11px] text-muted-foreground">
+          the placeholder should have the shape of what lands
+        </span>
+      </DemoRow>
+
+      <div className="flex gap-4 rounded-lg border border-border bg-[var(--surface)] p-4">
+        {loading ? (
+          <>
+            <Skeleton className="size-12 shrink-0 rounded-full" />
+            <SkeletonText lines={3} className="flex-1" />
+          </>
+        ) : (
+          <>
+            <img
+              src={thumbUrl(1025)}
+              alt=""
+              className="size-12 shrink-0 rounded-full object-cover"
+            />
+            <div className="flex-1 text-sm">
+              <p className="font-medium text-foreground">Plate V — study of a hound</p>
+              <p className="mt-1 text-muted-foreground">
+                Cyanotype on rag paper, exposed twelve minutes under a July sun. Catalogued with the
+                rest of the mammals.
+              </p>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EmptyStateDemo() {
+  const toast = useToast();
+  const [items, setItems] = useState<string[]>([]);
+
+  return (
+    <div className="rounded-lg border border-border bg-[var(--surface)]">
+      {items.length === 0 ? (
+        <EmptyState
+          icon={<Inbox />}
+          title="No jobs in the queue"
+          description="Nothing is generating right now. Queue a render and it shows up here."
+          action={
+            <Button
+              size="sm"
+              onClick={() => {
+                setItems(['job 4812']);
+                toast.success('Queued');
+              }}
+            >
+              Queue a job
+            </Button>
+          }
+        />
+      ) : (
+        <div className="flex items-center justify-between gap-3 p-4">
+          <div className="flex items-center gap-3">
+            <StatusBadge status="queued" />
+            <span className="mono text-sm text-foreground">{items[0]}</span>
+          </div>
+          <Button size="sm" variant="ghost" onClick={() => setItems([])}>
+            Clear
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const DEMO_STATUSES = ['queued', 'running', 'done', 'error', 'cancelled', 'archived'];
+
+function StatusBadgeDemo() {
+  return (
+    <div className="space-y-5">
+      <div>
+        <p className="eyebrow mb-2.5 text-muted-foreground">JOB_STATUS — the default map</p>
+        <DemoRow>
+          {DEMO_STATUSES.map((s) => (
+            <StatusBadge key={s} status={s} />
+          ))}
+        </DemoRow>
+      </div>
+      <div>
+        <p className="eyebrow mb-2.5 text-muted-foreground">Badge — the bare pill</p>
+        <DemoRow>
+          {(['neutral', 'sky', 'emerald', 'amber', 'rose', 'violet'] as const).map((tone) => (
+            <Badge key={tone} tone={tone} dot>
+              {tone}
+            </Badge>
+          ))}
+        </DemoRow>
+      </div>
+      <p className="text-sm text-muted-foreground">
+        An unknown status degrades to a neutral pill of the raw string —{' '}
+        <StatusBadge status="seeding" /> — rather than crashing the row.
+      </p>
+    </div>
+  );
+}
+
+function RelativeTimeDemo() {
+  const [base] = useState(() => Date.now());
+  const rows: [string, number][] = [
+    ['20 seconds ago', base - 20_000],
+    ['4 minutes ago', base - 4 * 60_000],
+    ['3 hours ago', base - 3 * 3_600_000],
+    ['9 days ago', base - 9 * 86_400_000],
+    ['in 2 hours', base + 2 * 3_600_000],
+  ];
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-border">
+      <table className="w-full text-sm">
+        <tbody>
+          {rows.map(([label, t]) => (
+            <tr key={label} className="border-b border-border last:border-0">
+              <td className="px-4 py-2.5 text-muted-foreground">{label}</td>
+              <td className="mono px-4 py-2.5 text-right text-foreground">
+                <RelativeTime date={t} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function SearchInputDemo() {
+  const [q, setQ] = useState('');
+  const hits = nodes.filter((n) =>
+    `${n.name} ${n.host} ${n.desc}`.toLowerCase().includes(q.toLowerCase()),
+  );
+
+  return (
+    <div className="space-y-3">
+      <SearchInput
+        value={q}
+        onValueChange={setQ}
+        shortcut
+        placeholder="Search the lab…"
+        className="max-w-md"
+      />
+      <p className="mono text-[11px] text-muted-foreground">
+        ⌘K or / focuses · Escape clears · {hits.length} / {nodes.length} match
+      </p>
+      <div className="max-h-48 overflow-y-auto rounded-lg border border-border bg-[var(--surface)]">
+        {hits.length === 0 ? (
+          <EmptyState compact icon={<Inbox />} title="Nothing matches" />
+        ) : (
+          hits.map((n) => (
+            <div
+              key={n.name}
+              className="flex items-center justify-between gap-3 border-b border-border px-4 py-2 last:border-0"
+            >
+              <span className="mono text-sm text-foreground">{n.name}</span>
+              <Badge tone={n.kind === 'service' ? 'sky' : n.kind === 'project' ? 'violet' : 'amber'}>
+                {n.kind}
+              </Badge>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DropZoneDemo() {
+  const toast = useToast();
+  const [files, setFiles] = useState<{ name: string; size: number; url: string }[]>([]);
+
+  return (
+    <div className="space-y-4">
+      <DropZone
+        accept="image/*"
+        maxFiles={6}
+        maxSize={10 * 1024 * 1024}
+        recursive
+        hint="images · up to 6 files · 10 MB each · folders welcome"
+        onFiles={(picked) =>
+          setFiles((prev) =>
+            [
+              ...prev,
+              ...picked.map((f) => ({ name: f.name, size: f.size, url: URL.createObjectURL(f) })),
+            ].slice(0, 6),
+          )
+        }
+        onReject={(bad) =>
+          toast.error(
+            `${bad.length} file(s) rejected — ${[...new Set(bad.map((b) => b.reason))].join(', ')}`,
+          )
+        }
+      />
+      {files.length > 0 && (
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+          {files.map((f) => (
+            <figure key={f.url} className="space-y-1">
+              <img src={f.url} alt="" className="aspect-square w-full rounded-lg object-cover" />
+              <figcaption className="mono truncate text-[10px] text-muted-foreground">
+                {fmtBytes(f.size)}
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CopyButtonDemo() {
+  const { copy, copied } = useCopyToClipboard({ timeout: 1200 });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-[var(--surface)] px-4 py-2.5">
+        <code className="mono truncate text-[13px] text-foreground">npm i @gabvdl/ui</code>
+        <CopyButton value="npm i @gabvdl/ui" label="Copy" />
+      </div>
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-[var(--surface)] px-4 py-2.5">
+        <code className="mono truncate text-[13px] text-foreground">https://ui.gabvdl.xyz</code>
+        <CopyButton value="https://ui.gabvdl.xyz" share label="Share" />
+      </div>
+      <div>
+        <p className="eyebrow mb-2.5 text-muted-foreground">…or the hook, on your own control</p>
+        <Button size="sm" variant="outline" onClick={() => copy('gabvdl/ui')}>
+          {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+          {copied ? 'Copied' : 'useCopyToClipboard()'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function ThemeDemo() {
+  const { theme, resolved, setTheme } = useTheme();
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        This page <em>is</em> the demo — the toggle in the header is the shipped component, and the
+        whole site is themed from the same CSS custom properties.
+      </p>
+      <div className="flex flex-wrap items-center gap-6 rounded-lg border border-border bg-[var(--surface)] p-5">
+        <div className="flex flex-col items-center gap-2">
+          <ThemeToggle />
+          <span className="mono text-[11px] text-muted-foreground">icon</span>
+        </div>
+        <div className="flex flex-col items-center gap-2">
+          <ThemeToggle variant="segmented" />
+          <span className="mono text-[11px] text-muted-foreground">segmented</span>
+        </div>
+        <div className="mono ml-auto text-[11px] text-muted-foreground">
+          theme=<span className="text-foreground">{theme}</span> · resolved=
+          <span className="text-foreground">{resolved}</span>
+          <button
+            type="button"
+            onClick={() => setTheme('system')}
+            className="ml-3 underline underline-offset-2 hover:text-foreground"
+          >
+            reset to system
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HooksDemo() {
+  const isMobile = useIsMobile();
+  const [clicks, setClicks] = useLocalStorage('ui-docs-clicks', 0);
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const press = useLongPress((pt) => setMenu(pt), { onClick: () => setMenu(null) });
+
+  const [page, setPage] = useState(1);
+  const rows = specimens.slice(0, page * 4);
+  const hasMore = rows.length < specimens.length;
+  const sentinel = useInfiniteScroll<HTMLDivElement>({
+    hasMore,
+    onLoadMore: () => setPage((p) => p + 1),
+    rootMargin: '40px',
+  });
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <div className="rounded-lg border border-border bg-[var(--surface)] p-4">
+        <p className="eyebrow mb-2 text-muted-foreground">useIsMobile</p>
+        <p className="mono text-sm text-foreground">{String(isMobile)}</p>
+        <p className="mt-1 text-xs text-muted-foreground">Resize the window — one shared listener.</p>
+      </div>
+
+      <div className="rounded-lg border border-border bg-[var(--surface)] p-4">
+        <p className="eyebrow mb-2 text-muted-foreground">useLocalStorage</p>
+        <DemoRow>
+          <Button size="sm" variant="outline" onClick={() => setClicks((c) => c + 1)}>
+            clicked {clicks}×
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setClicks(0)}>
+            reset
+          </Button>
+        </DemoRow>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Survives a reload, and syncs across tabs.
+        </p>
+      </div>
+
+      <div className="relative rounded-lg border border-border bg-[var(--surface)] p-4">
+        <p className="eyebrow mb-2 text-muted-foreground">useLongPress</p>
+        <div
+          {...press}
+          className="flex h-20 cursor-pointer select-none items-center justify-center rounded-lg border border-dashed border-border text-sm text-muted-foreground"
+        >
+          hold me (or right-click)
+        </div>
+        {menu && (
+          <div className="mono mt-2 text-[11px] text-[color:var(--cyan-deep)]">
+            fired at {Math.round(menu.x)}, {Math.round(menu.y)} — anchor a menu there
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-border bg-[var(--surface)] p-4">
+        <p className="eyebrow mb-2 text-muted-foreground">useInfiniteScroll</p>
+        <div className="h-20 overflow-y-auto rounded-lg border border-border">
+          {rows.map((s) => (
+            <div key={s.id} className="mono border-b border-border px-3 py-1.5 text-xs last:border-0">
+              {s.label}
+            </div>
+          ))}
+          <div ref={sentinel} className="p-2 text-center">
+            {hasMore ? <Spinner size="sm" /> : <span className="mono text-[10px] text-muted-foreground">end</span>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FormatDemo() {
+  const [now] = useState(() => Date.now());
+  const rows: [string, string][] = [
+    [`relTime(now - 4min)`, relTime(now - 4 * 60_000, now)],
+    [`relTime('2026-07-03')`, relTime('2026-07-03T00:00:00Z', now)],
+    [`fmtDuration(128400)`, fmtDuration(128_400)],
+    [`fmtDuration(840)`, fmtDuration(840)],
+    [`fmtBytes(1483776)`, fmtBytes(1_483_776)],
+    [`fmtNum(12402)`, fmtNum(12_402)],
+    [`fmtCost(0.00412)`, fmtCost(0.00412)],
+    [`fmtCost(12.5)`, fmtCost(12.5)],
+  ];
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-border">
+      <table className="w-full text-sm">
+        <tbody>
+          {rows.map(([call, out]) => (
+            <tr key={call} className="border-b border-border last:border-0">
+              <td className="mono px-4 py-2 text-[12px] text-muted-foreground">{call}</td>
+              <td className="mono px-4 py-2 text-right text-[13px] tabular-nums text-foreground">{out}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

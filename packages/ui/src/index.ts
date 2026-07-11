@@ -5,6 +5,61 @@
 // it imports. Styles ship separately — see `@gabvdl/ui/styles.css`.
 
 export { cn } from './lib/utils';
+export {
+  downloadFile,
+  fmtBytes,
+  fmtCost,
+  fmtDateTime,
+  fmtDuration,
+  fmtNum,
+  relTime,
+} from './lib/format';
+export type { TimeInput } from './lib/format';
+
+export {
+  useCopyToClipboard,
+  useEscape,
+  useInfiniteScroll,
+  useIntersection,
+  useIsMobile,
+  useIsTouch,
+  useLocalStorage,
+  useLongPress,
+  useMediaQuery,
+  useOutsideClick,
+  usePrefersDark,
+  usePrefersReducedMotion,
+  useScrollLock,
+} from './hooks';
+export type {
+  LongPressPoint,
+  UseCopyOptions,
+  UseInfiniteScrollOptions,
+  UseLongPressOptions,
+} from './hooks';
+
+export { ToastProvider, Toaster, useToast } from './components/toast';
+export type { Toast, ToastAction, ToastFn, ToastOptions, ToastPosition, ToastType } from './components/toast';
+export { Modal, ModalProvider, useConfirm, useModal } from './components/modal';
+export type { ConfirmSpec, ModalProps, ModalSize, ModalSpec } from './components/modal';
+export { ThemeProvider, ThemeToggle, resolveTheme, setTheme, toggleTheme, useTheme } from './components/theme';
+export type { ThemeMode, ThemeToggleProps, UseThemeResult } from './components/theme';
+export { Spinner } from './components/spinner';
+export type { SpinnerProps } from './components/spinner';
+export { Skeleton, SkeletonGrid, SkeletonText } from './components/skeleton';
+export type { SkeletonGridProps, SkeletonTextProps } from './components/skeleton';
+export { EmptyState } from './components/empty-state';
+export type { EmptyStateProps } from './components/empty-state';
+export { Badge, JOB_STATUS, StatusBadge } from './components/status-badge';
+export type { BadgeProps, StatusBadgeProps, StatusMeta, Tone } from './components/status-badge';
+export { CopyButton } from './components/copy-button';
+export type { CopyButtonProps } from './components/copy-button';
+export { DropZone, useFileDrop } from './components/drop-zone';
+export type { DropZoneProps, FileRejection, UseFileDropOptions } from './components/drop-zone';
+export { SearchInput } from './components/search-input';
+export type { SearchInputProps } from './components/search-input';
+export { RelativeTime } from './components/relative-time';
+export type { RelativeTimeProps } from './components/relative-time';
 
 export { ImageViewerProvider, useImageViewer, ViewableImage, ProgressiveImage } from './components/image-viewer';
 export { FuzzyList, highlightAll, highlightSnippet } from './components/fuzzy-list';

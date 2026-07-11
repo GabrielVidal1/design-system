@@ -27,6 +27,27 @@ built on shadcn primitives. Ships today:
 - **`Button` / `Input`** — the shadcn-style basics, styled from shared tokens.
 - **`cn`** — the `clsx` + `tailwind-merge` class helper.
 
+…plus `FuzzyList`, `VirtualList`, `Nav2D`, `RichInput`, `PhonePreview`,
+`FloatingPanel`, `ResizableLayout`, `Changelog` and the `Progressive*` family.
+The full catalogue, with a live demo per component, is the docs site.
+
+### The shared primitives (v0.8)
+
+Every homelab project had rewritten the same handful of things — three toast
+systems, four theme toggles, a copy-to-clipboard snippet in five places, an
+empty state in nine. Those are now one implementation each:
+
+| | |
+| --- | --- |
+| **`ToastProvider` / `useToast`** | one callable `toast()` — types, an action link, and a `loading` toast you settle in place with `toast.update(id, …)` |
+| **`Modal` / `useModal` / `useConfirm`** | portal, Escape, scrim-click, ref-counted scroll lock, focus trap, bottom sheet on phones — and `await confirm({ destructive: true })` in place of `window.confirm` |
+| **`ThemeToggle` / `useTheme`** | light ⇄ dark ⇄ system, persisted, `<meta name=theme-color>` kept in step. No provider needed |
+| **`Spinner` / `Skeleton` / `EmptyState`** | the three loading/empty shapes |
+| **`StatusBadge` / `Badge`** | a `status → {label, tone, icon}` map, so a job reads the same colour in every service |
+| **`SearchInput` / `DropZone` / `CopyButton` / `RelativeTime`** | ⌘K-focusable search, drag-and-drop (with folder walking), clipboard with an `execCommand` fallback for insecure origins, a `<time>` that keeps ticking |
+| **hooks** | `useMediaQuery` · `useIsMobile` · `useIsTouch` · `useLocalStorage` · `useLongPress` · `useCopyToClipboard` · `useIntersection` / `useInfiniteScroll` · `useScrollLock` · `useEscape` · `useOutsideClick` |
+| **format** | `relTime` · `fmtDuration` · `fmtBytes` · `fmtNum` · `fmtCost` · `downloadFile` |
+
 ### Use
 
 ```bash
@@ -58,7 +79,8 @@ Every colour reads from CSS custom properties — override the tokens on `:root`
 site is the shipped library recoloured to a cyanotype.
 
 Style entry points: `@gabvdl/ui/styles.css` (everything), `@gabvdl/ui/theme.css`
-(design tokens only), `@gabvdl/ui/image-viewer.css` (overlay only).
+(design tokens only), `@gabvdl/ui/image-viewer.css` (overlay only),
+`@gabvdl/ui/overlay.css` (modal + toast motion only).
 
 ## Develop
 
