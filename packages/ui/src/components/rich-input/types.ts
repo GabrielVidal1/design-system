@@ -42,6 +42,12 @@ export interface GuidelineTag {
    *   locations); never affected by the guidelines switch.
    */
   group?: 'guideline' | 'tag';
+  /**
+   * Radio behaviour: tags sharing an `exclusive` key are mutually exclusive —
+   * turning one on turns the others in that key off (e.g. a model picker).
+   * Turning the active one off again leaves the key with no selection.
+   */
+  exclusive?: string;
   /** Token typed after the prefix to insert this tag. Defaults to `id`. */
   slug?: string;
   /** One-line blurb shown in the mention menu. */
