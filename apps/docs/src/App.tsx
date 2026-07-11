@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { HashRouter, Link, Navigate, Route, Routes, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowUpRight, Check, Copy, Inbox } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Check, Copy, Inbox, Plus, Save, Trash2 } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -453,13 +453,25 @@ ref.current?.skipToEnd()
   {
     id: 'button',
     name: 'Button',
-    sig: "variant · size",
+    sig: 'variant · size · icon · loading · tooltip',
     tag: 'shadcn',
     Icon: ButtonIcon,
     Demo: ButtonDemo,
-    code: `<Button>Default</Button>
-<Button variant="outline" size="sm">Outline</Button>
-<Button variant="destructive">Delete</Button>`,
+    code: `<Button icon={<Save />}>Save</Button>
+<Button size="lg" variant="outline">Large</Button>
+
+// disables itself, swaps the icon for a spinner and
+// goes aria-busy; the label is announced to a reader
+<Button loading={saving} loadingText="Saving…" icon={<Save />}>
+  Save
+</Button>
+
+// icon-only: the tooltip doubles as the accessible name
+<Button size="icon-sm" icon={<Trash2 />} variant="destructive"
+        tooltip="Delete run" tooltipSide="bottom" />
+
+// type defaults to "button" — no accidental form submits
+<Button type="submit" icon={<Check />}>Submit</Button>`,
   },
   {
     id: 'input',
@@ -1306,6 +1318,13 @@ function ChangelogDemo() {
 }
 
 function ButtonDemo() {
+  const [saving, setSaving] = useState(false);
+
+  function save() {
+    setSaving(true);
+    setTimeout(() => setSaving(false), 1800);
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -1314,11 +1333,44 @@ function ButtonDemo() {
         <Button variant="ghost">Ghost</Button>
         <Button variant="destructive">Delete</Button>
       </div>
+      <div className="flex flex-wrap items-end gap-3">
+        <Button size="sm" icon={<Plus />}>
+          Small
+        </Button>
+        <Button size="md" icon={<Plus />}>
+          Medium
+        </Button>
+        <Button size="lg" icon={<Plus />}>
+          Large
+        </Button>
+        <Button variant="outline" icon={<ArrowUpRight />} iconPosition="right">
+          Trailing icon
+        </Button>
+      </div>
       <div className="flex flex-wrap items-center gap-3">
-        <Button size="sm">Small</Button>
-        <Button size="default">Default</Button>
-        <Button size="icon" aria-label="Add">
-          <Copy />
+        <Button size="icon-sm" variant="outline" icon={<Copy />} tooltip="Copy — small" />
+        <Button size="icon-md" variant="outline" icon={<Copy />} tooltip="Copy — medium" />
+        <Button size="icon-lg" variant="outline" icon={<Copy />} tooltip="Copy — large" />
+        <Button
+          size="icon-md"
+          variant="destructive"
+          icon={<Trash2 />}
+          tooltip="Delete run"
+          tooltipSide="bottom"
+        />
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button icon={<Save />} loading={saving} loadingText="Saving…" onClick={save}>
+          Save
+        </Button>
+        <Button
+          variant="outline"
+          icon={<Check />}
+          disabled
+          tooltip="Nothing to publish yet"
+          tooltipSide="right"
+        >
+          Publish
         </Button>
       </div>
     </div>

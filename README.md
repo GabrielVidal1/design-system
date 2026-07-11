@@ -24,7 +24,10 @@ built on shadcn primitives. Ships today:
   Imported from the [Sherlock project](../sherlock-project).
 - **`ViewableImage`** — a clickable image that opens the viewer over its group.
 - **`ProgressiveImage`** — blurred thumbnail → full-res on scroll, cross-faded.
-- **`Button` / `Input`** — the shadcn-style basics, styled from shared tokens.
+- **`Button`** — four variants, three size tiers (`sm`/`md`/`lg`, each with an
+  icon-only twin), an icon slot, a `loading` state and an optional `tooltip`
+  that doubles as the accessible name of an icon-only button.
+- **`Input`** — the shadcn-style basic, styled from shared tokens.
 - **`cn`** — the `clsx` + `tailwind-merge` class helper.
 
 …plus `FuzzyList`, `VirtualList`, `Nav2D`, `RichInput`, `PhonePreview`,
