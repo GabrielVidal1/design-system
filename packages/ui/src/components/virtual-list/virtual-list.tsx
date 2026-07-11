@@ -43,6 +43,16 @@ export interface VirtualListProps<T> {
   loadingIndicator?: ReactNode;
   /** Shown when `items` is empty and not loading. */
   emptyState?: ReactNode;
+  /**
+   * Animate rows sliding to their new position when the list is re-sorted (e.g.
+   * an auto-sort by "updated" date whose value changed), so a reorder glides
+   * instead of teleporting. Only animates while the list is idle — scrolling and
+   * lazy height-measurement never animate. Requires the stylesheet
+   * `@gabvdl/ui/virtual-list.css` (bundled in `styles.css`) and a stable
+   * `getItemKey` so React keeps each row's DOM node across the reorder. Honors
+   * `prefers-reduced-motion`.
+   */
+  smooth?: boolean;
   /** The scroll container — MUST be given a bounded height (via `className`). */
   className?: string;
   style?: CSSProperties;
@@ -87,6 +97,7 @@ export function VirtualList<T>({
   endThreshold = 4,
   loadingIndicator = DefaultLoading,
   emptyState = null,
+  smooth = false,
   className,
   style,
   apiRef,
@@ -102,6 +113,12 @@ export function VirtualList<T>({
   });
 
   const virtualItems = virtualizer.getVirtualItems();
+
+  // Only glide rows when the list is idle: during a scroll the same reflow that
+  // repositions rows (and lazy height-measurement) would otherwise animate too,
+  // reading as lag. On a reorder the component re-renders while not scrolling,
+  // so the target offsets change and the transition plays.
+  const animate = smooth && !virtualizer.isScrolling;
 
   useImperativeHandle(
     apiRef,
@@ -135,6 +152,7 @@ export function VirtualList<T>({
             key={v.key}
             data-index={v.index}
             ref={virtualizer.measureElement}
+            className={cn('ds-virtual-row', animate && 'ds-virtual-row--smooth')}
             style={{
               position: 'absolute',
               top: 0,

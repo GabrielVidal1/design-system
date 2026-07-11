@@ -1,0 +1,29 @@
+/*
+ * Smooth-reorder animation for <VirtualList smooth>.
+ *
+ * Plain CSS — no Tailwind directives — so it works whether or not the consumer
+ * uses Tailwind. Each virtualized row is absolutely positioned and moved with a
+ * `transform: translateY(...)`; when the underlying list is re-sorted (e.g. an
+ * auto-sort by "updated" date whose value changed), a row's target offset
+ * changes and this transition glides it to its new slot instead of teleporting,
+ * so the reorder reads clearly instead of flashing.
+ *
+ * The component only adds `--smooth` while the list is idle (not actively being
+ * scrolled), so scroll and lazy height-measurement never animate — only genuine
+ * reorders do. Honors `prefers-reduced-motion`.
+ */
+.ds-virtual-row {
+  /* base marker class — no styling on its own */
+}
+
+.ds-virtual-row--smooth {
+  transition: transform var(--ds-virtual-row-duration, 320ms)
+    var(--ds-virtual-row-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-virtual-row--smooth {
+    transition: none;
+  }
+}
