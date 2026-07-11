@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { ArrowUpRight, Check, Copy, X } from 'lucide-react';
+import { HashRouter, Link, Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { ArrowLeft, ArrowUpRight, Check, Copy } from 'lucide-react';
 import {
   Button,
   Changelog,
@@ -33,12 +34,14 @@ import {
   ProgressiveListIcon,
   ProgressiveTableIcon,
   ProgressiveTextIcon,
+  RichInputIcon,
   ViewableImageIcon,
   VirtualListIcon,
 } from './icons';
+import { RichInputPage } from './pages/RichInputPage';
 import { changelog, fullUrl, nodes, specimenFulls, specimens, thumbUrl, type Node } from './data';
 
-const VERSION = '0.2.1';
+const VERSION = '0.3.0';
 const REPO = 'https://gitea.lab.gabvdl.xyz/gabrielvidal/design-system';
 
 interface Entry {
@@ -47,8 +50,11 @@ interface Entry {
   sig: string;
   tag: string;
   Icon: () => ReactNode;
-  Demo: () => ReactNode;
-  code: string;
+  /** A single live demo (rendered by the generic component page). */
+  Demo?: () => ReactNode;
+  code?: string;
+  /** A component that owns its whole page (multi-demo). Overrides Demo/code. */
+  Page?: () => ReactNode;
 }
 
 const REGISTRY: Entry[] = [
@@ -251,6 +257,21 @@ const { active, report, finish } = useProgressiveSlot()`,
 <Input cacheKey="draft" cacheLocation="local" />`,
   },
   {
+    id: 'rich-input',
+    name: 'RichInput',
+    sig: 'draft · un-send · files · tags · #mention · history',
+    tag: 'shadcn',
+    Icon: RichInputIcon,
+    Page: RichInputPage,
+    code: `<RichInput
+  cacheKey="chat"          // persisted draft + history
+  undoWindowMs={3000}      // 3s un-send window
+  tags={guidelineTags}     // toggle chips + #mention
+  accept="image/*"         // multi-file upload
+  onSubmit={(p) => send(p.prompt, p.files)}
+/>`,
+  },
+  {
     id: 'cn',
     name: 'cn',
     sig: '(...ClassValue[]) => string',
@@ -263,37 +284,108 @@ const { active, report, finish } = useProgressiveSlot()`,
 ];
 
 export function App() {
-  const [open, setOpen] = useState<Entry | null>(null);
   return (
-    <ImageViewerProvider>
-      <Header count={REGISTRY.length} />
+    <HashRouter>
+      <ImageViewerProvider>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/c/:id" element={<ComponentPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </ImageViewerProvider>
+    </HashRouter>
+  );
+}
+
+function Home() {
+  return (
+    <>
+      <Header />
       <main className="mx-auto max-w-6xl px-5 pb-24">
         <ImportLine />
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {REGISTRY.map((e) => (
-            <ComponentCard key={e.id} entry={e} onOpen={() => setOpen(e)} />
+            <ComponentCard key={e.id} entry={e} />
           ))}
         </section>
       </main>
       <Footer />
-      {open && <DemoModal entry={open} onClose={() => setOpen(null)} />}
-    </ImageViewerProvider>
+    </>
   );
 }
 
-function Header({ count }: { count: number }) {
+function ComponentPage() {
+  const { id } = useParams();
+  const entry = REGISTRY.find((e) => e.id === id);
+  const name = entry?.name;
+
+  useEffect(() => {
+    if (!name) return;
+    window.scrollTo(0, 0);
+    document.title = `${name} — gabvdl/ui`;
+    return () => {
+      document.title = 'gabvdl/ui';
+    };
+  }, [name]);
+
+  if (!entry) return <Navigate to="/" replace />;
+
+  return (
+    <>
+      <Header title={entry.name} />
+      <main className="pb-24">
+        {entry.Page ? (
+          <entry.Page />
+        ) : (
+          <div className="mx-auto max-w-3xl px-5">
+            <div className="py-8">
+              <p className="eyebrow mb-2 text-[color:var(--cyan-deep)]">{entry.tag}</p>
+              <h1 className="display text-3xl text-foreground">{entry.name}</h1>
+              <p className="mono mt-2 text-[13px] text-muted-foreground">{entry.sig}</p>
+            </div>
+            <div className="rounded-xl border border-border bg-[rgba(4,15,22,0.35)] p-5">
+              {entry.Demo?.()}
+            </div>
+            {entry.code && (
+              <div className="mt-4">
+                <CodeBlock code={entry.code} />
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+      <Footer />
+    </>
+  );
+}
+
+function Header({ title }: { title?: string }) {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-[rgba(7,30,46,0.72)] backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-5">
-        <div className="flex items-baseline gap-2">
-          <span className="mono text-sm text-foreground">gabvdl</span>
-          <span className="mono text-sm text-[color:var(--cyan)]">/ui</span>
-          <span className="mono text-[11px] text-muted-foreground">v{VERSION}</span>
+        <div className="flex items-center gap-3">
+          {title ? (
+            <Link
+              to="/"
+              className="mono inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowLeft className="size-3.5" /> catalogue
+            </Link>
+          ) : (
+            <Link to="/" className="flex items-baseline gap-2">
+              <span className="mono text-sm text-foreground">gabvdl</span>
+              <span className="mono text-sm text-[color:var(--cyan)]">/ui</span>
+              <span className="mono text-[11px] text-muted-foreground">v{VERSION}</span>
+            </Link>
+          )}
+          {title && <span className="mono text-sm text-foreground">{title}</span>}
         </div>
         <div className="flex items-center gap-4">
-          <span className="mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-            {count} components
-          </span>
+          {!title && (
+            <span className="mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+              {REGISTRY.length} components
+            </span>
+          )}
           <a href={REPO} target="_blank" rel="noreferrer">
             <Button variant="outline" size="sm" className="mono text-xs uppercase tracking-[0.14em]">
               Source <ArrowUpRight />
@@ -313,7 +405,7 @@ function ImportLine() {
         <span className="text-muted-foreground"> {'{ '}</span>
         <span className="text-foreground">
           ImageViewer, Nav2D, ViewableImage, ProgressiveImage, ProgressiveText, ProgressiveList,
-          ProgressiveTable, FuzzyList, PhonePreview, Button, Input, cn
+          ProgressiveTable, FuzzyList, PhonePreview, Button, Input, RichInput, cn
         </span>
         <span className="text-muted-foreground">{' }'} </span>
         <span className="text-[color:var(--cyan-deep)]">from</span>
@@ -323,10 +415,10 @@ function ImportLine() {
   );
 }
 
-function ComponentCard({ entry, onOpen }: { entry: Entry; onOpen: () => void }) {
-  const { name, sig, tag, Icon } = entry;
+function ComponentCard({ entry }: { entry: Entry }) {
+  const { id, name, sig, tag, Icon } = entry;
   return (
-    <button className="comp-card group" onClick={onOpen} aria-label={`Open ${name} demo`}>
+    <Link to={`/c/${id}`} className="comp-card group block text-left" aria-label={`Open ${name}`}>
       <div className="comp-card__art">
         <Icon />
       </div>
@@ -339,54 +431,7 @@ function ComponentCard({ entry, onOpen }: { entry: Entry; onOpen: () => void }) 
           {tag}
         </span>
       </div>
-    </button>
-  );
-}
-
-function DemoModal({ entry, onClose }: { entry: Entry; onClose: () => void }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [onClose]);
-  const { name, sig, Demo, code } = entry;
-  return (
-    <div
-      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-[rgba(4,15,22,0.7)] p-4 backdrop-blur-sm sm:p-8"
-      onClick={onClose}
-    >
-      <div
-        className="my-auto w-full max-w-3xl overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
-          <div className="min-w-0">
-            <span className="mono text-sm text-foreground">{name}</span>
-            <span className="mono ml-2 text-[11px] text-muted-foreground">{sig}</span>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-        <div className="max-h-[70vh] overflow-y-auto p-5">
-          <div className="rounded-lg border border-border bg-[rgba(4,15,22,0.35)] p-4">
-            <Demo />
-          </div>
-          <div className="mt-4">
-            <CodeBlock code={code} />
-          </div>
-        </div>
-      </div>
-    </div>
+    </Link>
   );
 }
 

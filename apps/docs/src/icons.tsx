@@ -279,6 +279,24 @@ export function ProgressiveTableIcon() {
   );
 }
 
+/** RichInput — a composer with chips, a blinking caret and a send button. */
+export function RichInputIcon() {
+  return (
+    <Svg>
+      <rect className="a-ring" x="30" y="24" width="160" height="82" rx="12" stroke={CY} strokeWidth="2.5" />
+      <rect x="44" y="38" width="70" height="6" rx="3" fill={DIM} opacity="0.6" />
+      <line className="a-caret" x1="120" y1="35" x2="120" y2="49" stroke={CY} strokeWidth="2" />
+      {/* toggle chips */}
+      <rect x="44" y="80" width="34" height="14" rx="7" fill={CY} fillOpacity="0.16" stroke={CY} strokeWidth="1.5" />
+      <rect x="84" y="80" width="30" height="14" rx="7" stroke={DIM} strokeWidth="1.5" />
+      <rect x="120" y="80" width="24" height="14" rx="7" stroke={DIM} strokeWidth="1.5" />
+      {/* send button */}
+      <rect className="a-pop" x="158" y="78" width="18" height="18" rx="5" fill={CY} fillOpacity="0.2" stroke={CY} strokeWidth="2" />
+      <path d="M162 87 l10 0 M168 83 l4 4 -4 4" stroke={CY} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
 export function ProgressiveListIcon() {
   const ys = [30, 50, 70, 90];
   return (

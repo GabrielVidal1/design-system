@@ -21,6 +21,15 @@ export { Button } from './components/button';
 export type { ButtonProps, ButtonVariant, ButtonSize } from './components/button';
 export { Input } from './components/input';
 export type { InputProps } from './components/input';
+export { RichInput, defaultComposePrompt } from './components/rich-input';
+export type {
+  RichInputProps,
+  RichFile,
+  GuidelineTag,
+  RichSendPayload,
+  RichInputHandle,
+  ComposeInput,
+} from './components/rich-input';
 export { ProgressiveText } from './components/progressive-text';
 export type { ProgressiveTextProps, ProgressiveTextMeta } from './components/progressive-text';
 export { ProgressiveList } from './components/progressive-list';
