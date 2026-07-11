@@ -137,6 +137,79 @@ export function parseMarkerText(text: string): SubMarker | null {
   return { title: m[1].trim(), value: m[2].trim() || undefined, raw: text };
 }
 
+/** One step extracted from a compound `echo "Title..[value]" && cmd && …` chain. */
+export interface SubCommand {
+  /** The human title (text before `..[`). */
+  title: string;
+  /** The bracketed tag/value (text inside `[...]`), if any. */
+  value?: string;
+  /** The real command that followed the marker (echo statement + connector stripped). */
+  command: string;
+  /** The step's output — the lines printed after its marker line, up to the next. */
+  output: string;
+}
+
+// A shell connector joining chained stages (`a && b`, `a ; b`, `a || b`).
+const CONNECTOR_LEAD = /^\s*(?:&&|\|\||;|&)\s*/;
+const CONNECTOR_TRAIL = /\s*(?:&&|\|\||;|&)\s*$/;
+
+function trimBlankEdges(lines: string[]): string[] {
+  let a = 0;
+  let b = lines.length;
+  while (a < b && lines[a].trim() === '') a++;
+  while (b > a && lines[b - 1].trim() === '') b--;
+  return lines.slice(a, b);
+}
+
+/**
+ * [EXPERIMENTAL] Split a compound `echo "Title..[value]" && realcmd && …` chain
+ * into its individual steps, pairing each marker's real command with the output
+ * lines printed after that marker's echoed line. Returns `null` when the command
+ * has no `..[...]` echo markers (nothing to split).
+ *
+ * This is what lets `ProgressiveBash` expand one chained command into several
+ * separate, sequentially-typed command blocks — so a long agent one-liner
+ * animates as the individual commands it really ran, filling playback time
+ * while a genuinely long command elsewhere is still running.
+ */
+export function splitBySubparts(command: string, output: string): SubCommand[] | null {
+  const found: { marker: SubMarker; start: number; end: number }[] = [];
+  let m: RegExpExecArray | null;
+  ECHO_RE.lastIndex = 0;
+  while ((m = ECHO_RE.exec(command))) {
+    const text = m[1] ?? m[2] ?? m[3] ?? '';
+    const marker = parseMarkerText(text);
+    if (marker) found.push({ marker, start: m.index, end: m.index + m[0].length });
+  }
+  if (found.length === 0) return null;
+
+  // Bucket the output: lines after marker i's echoed line (up to the next
+  // marker's line) are step i's output; the marker lines themselves are swallowed.
+  const rawToIdx = new Map(found.map((f, i) => [f.marker.raw, i]));
+  const buckets: string[][] = found.map(() => []);
+  let cur = -1;
+  for (const line of output.replace(/\r\n?/g, '\n').split('\n')) {
+    const hit = rawToIdx.get(line.trim());
+    if (hit !== undefined) {
+      cur = hit;
+      continue;
+    }
+    if (cur >= 0) buckets[cur].push(line);
+  }
+
+  return found.map((f, i) => {
+    const raw = command.slice(f.end, found[i + 1]?.start ?? command.length);
+    let cmd = raw.replace(CONNECTOR_LEAD, '').replace(CONNECTOR_TRAIL, '').trim();
+    if (!cmd) cmd = f.marker.value ?? f.marker.title;
+    return {
+      title: f.marker.title,
+      value: f.marker.value,
+      command: cmd,
+      output: trimBlankEdges(buckets[i]).join('\n'),
+    };
+  });
+}
+
 /**
  * [EXPERIMENTAL] Pull `echo "Title..[value]"` step markers out of a compound
  * command. Agents often chain steps like

@@ -13,11 +13,10 @@ import { cn } from '../../lib/utils';
 import {
   tokenizeCommand,
   splitOutput,
-  parseEchoMarkers,
+  splitBySubparts,
   type CmdToken,
   type OutputLine,
   type OutputSpan,
-  type SubMarker,
 } from './parse';
 import { computeGapMs, DEFAULT_TUNING, type BashEntry, type PlaybackTuning } from './playback';
 
@@ -77,10 +76,12 @@ export interface ProgressiveBashProps {
    */
   stickyPrompt?: boolean;
   /**
-   * [EXPERIMENTAL] Parse each command for `echo "Title..[value]"` step markers
-   * (see {@link parseEchoMarkers}) and hoist the matching output lines into
-   * titled sub-part headers — turning one chained command into a labelled,
-   * multi-step block. @default false
+   * [EXPERIMENTAL] Split a chained `echo "Title..[value]" && cmd && …` command
+   * (see {@link splitBySubparts}) into one separate command block per step, each
+   * pairing the real command with the output printed after its marker — so the
+   * terminal types several sequential commands instead of one long chain. Useful
+   * to keep the terminal visually busy (and buy time) while a genuinely long
+   * command elsewhere is still running. @default false
    */
   experimentalSubparts?: boolean;
   /** Prompt glyph shown before each command. @default '❯' */
@@ -152,6 +153,37 @@ interface Parsed {
   lines: OutputLine[];
 }
 
+/**
+ * Expand each chained `echo "Title..[value]" && cmd` entry into one block per
+ * step (the marker's title becomes the block's `# comment`), so the terminal
+ * types several separate commands instead of one long chain. Entries without
+ * markers (or with a single step) pass through untouched. Sub-blocks keep the
+ * parent timestamp so they play back-to-back, and only the last carries the
+ * parent's error status.
+ */
+function expandSubparts(entries: BashEntry[]): BashEntry[] {
+  const out: BashEntry[] = [];
+  for (const e of entries) {
+    const subs = splitBySubparts(e.command ?? '', e.output ?? '');
+    if (!subs || subs.length <= 1) {
+      out.push(e);
+      continue;
+    }
+    subs.forEach((s, i) => {
+      out.push({
+        ...e,
+        id: `${e.id}::sub${i}`,
+        command: s.command,
+        output: s.output,
+        description: s.title || (i === 0 ? e.description : undefined),
+        exitCode: i === subs.length - 1 ? e.exitCode : undefined,
+        isError: i === subs.length - 1 ? e.isError : undefined,
+      });
+    });
+  }
+  return out;
+}
+
 /** Truncate a token stream to the first `n` visible characters. */
 function sliceTokens(tokens: CmdToken[], n: number): CmdToken[] {
   if (n <= 0) return [];
@@ -205,8 +237,8 @@ interface Cursor {
  * Extras: `catchUp` renders already-past entries fully-written on mount (a
  * reload doesn't re-type a finished session); `stickyPrompt` pins each
  * command's prompt line to the top while its output scrolls; and
- * `experimentalSubparts` hoists `echo "Title..[value]"` step markers inside a
- * chained command into titled sub-part headers.
+ * `experimentalSubparts` splits a chained `echo "Title..[value]" && cmd` command
+ * into several separate, sequentially-typed command blocks.
  */
 export function ProgressiveBash({
   entries,
@@ -231,11 +263,10 @@ export function ProgressiveBash({
 }: ProgressiveBashProps) {
   const skip = instant || reducedMotion();
 
-  // The merged, deduped entry list (prop + imperative pushes).
+  // The merged, deduped entry list (prop + imperative pushes). Dedup tracks the
+  // raw ids; `experimentalSubparts` expansion happens downstream in `playList`.
   const [list, setList] = useState<BashEntry[]>(() => entries ?? []);
   const seen = useRef<Set<string>>(new Set((entries ?? []).map((e) => e.id)));
-  const listRef = useRef(list);
-  listRef.current = list;
 
   const appendEntries = useCallback((incoming: BashEntry[]) => {
     const fresh = incoming.filter((e) => e && !seen.current.has(e.id));
@@ -249,18 +280,26 @@ export function ProgressiveBash({
     if (entries) appendEntries(entries);
   }, [entries, appendEntries]);
 
+  // The list actually played/rendered: raw entries, optionally expanded so each
+  // chained `echo "Title..[value]" && cmd` step becomes its own command block.
+  const playList = useMemo(
+    () => (experimentalSubparts ? expandSubparts(list) : list),
+    [list, experimentalSubparts],
+  );
+  const listRef = useRef(playList);
+  listRef.current = playList;
+
   const parsed = useMemo(() => {
     const map = new Map<string, Parsed>();
-    for (const e of list) {
-      const markers = experimentalSubparts ? parseEchoMarkers(e.command ?? '') : undefined;
+    for (const e of playList) {
       map.set(e.id, {
         tokens: tokenizeCommand(e.command ?? ''),
         cmdLen: (e.command ?? '').length,
-        lines: e.output ? splitOutput(e.output, markers) : [],
+        lines: e.output ? splitOutput(e.output) : [],
       });
     }
     return map;
-  }, [list, experimentalSubparts]);
+  }, [playList]);
   const parsedRef = useRef(parsed);
   parsedRef.current = parsed;
 
@@ -417,42 +456,42 @@ export function ProgressiveBash({
   // Skip / instant: jump straight to fully-revealed.
   useEffect(() => {
     if (!skip) return;
-    cursor.current = { index: list.length, phase: 'idle', typed: 0, outLines: 0, acc: 0, gapMs: 0 };
+    cursor.current = { index: playList.length, phase: 'idle', typed: 0, outLines: 0, acc: 0, gapMs: 0 };
     setRender({ ...cursor.current });
-  }, [skip, list.length]);
+  }, [skip, playList.length]);
 
   // Catch-up: on first paint, fast-forward past every entry already in the past
   // relative to the `catchUp` reference so a reload doesn't re-type finished
   // history — only entries at/after "now" animate live. Runs once.
   const caughtUp = useRef(false);
   useEffect(() => {
-    if (caughtUp.current || skip || !catchUp || list.length === 0) return;
+    if (caughtUp.current || skip || !catchUp || playList.length === 0) return;
     caughtUp.current = true;
     const ref = typeof catchUp === 'number' ? catchUp : Date.now();
     let idx = 0;
-    while (idx < list.length && list[idx].timestamp != null && (list[idx].timestamp as number) <= ref) idx++;
+    while (idx < playList.length && playList[idx].timestamp != null && (playList[idx].timestamp as number) <= ref) idx++;
     if (idx <= 0) return; // nothing is in the past — play normally
     cursor.current = {
       index: idx,
-      phase: idx >= list.length ? 'idle' : 'gap',
+      phase: idx >= playList.length ? 'idle' : 'gap',
       typed: 0,
       outLines: 0,
       acc: 0,
       gapMs: 0,
     };
     setRender({ ...cursor.current });
-  }, [catchUp, list, skip]);
+  }, [catchUp, playList, skip]);
 
   // React to list growth: (re)start the loop unless skipping.
   useEffect(() => {
     if (skip) return;
-    if (list.length === 0) return;
+    if (playList.length === 0) return;
     // First entry's initial gap.
     if (cursor.current.index === 0 && cursor.current.phase === 'gap' && cursor.current.typed === 0 && cursor.current.gapMs === 0) {
       cursor.current.gapMs = t0Gap(tuning);
     }
     kickRef.current();
-  }, [list, skip, tuning]);
+  }, [playList, skip, tuning]);
 
   // ---- Autoscroll-lock (release the moment the user scrolls up) -------------
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -514,12 +553,12 @@ export function ProgressiveBash({
         className={cn('min-h-0 flex-1 overflow-y-auto px-3 py-2.5', bodyClassName)}
         style={{ color: 'var(--tb-fg)' }}
       >
-        {list.length === 0 ? (
+        {playList.length === 0 ? (
           <div className="select-none py-6 text-center" style={{ color: 'var(--tb-dim)' }}>
             {prompt} waiting for commands…
           </div>
         ) : (
-          list.map((entry, i) => (
+          playList.map((entry, i) => (
             <BashBlock
               key={entry.id}
               entry={entry}
@@ -617,9 +656,7 @@ function BashBlock({
       {lines.length > 0 && (
         <div className="mt-0.5">
           {lines.map((ln, idx) =>
-            ln.sub ? (
-              <SubHeader key={idx} sub={ln.sub} />
-            ) : ln.divider ? (
+            ln.divider ? (
               <div
                 key={idx}
                 className="my-1 flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-wider"
@@ -642,29 +679,6 @@ function BashBlock({
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-/** A hoisted `echo "Title..[value]"` step marker, rendered as a titled header. */
-function SubHeader({ sub }: { sub: SubMarker }) {
-  return (
-    <div className="mb-0.5 mt-1.5 flex items-center gap-2">
-      <span
-        className="rounded-sm px-1.5 py-px text-[11px] font-semibold"
-        style={{ background: 'var(--tb-header)', color: 'var(--tb-cyan)', border: '1px solid var(--tb-border)' }}
-      >
-        {sub.title}
-      </span>
-      {sub.value && (
-        <span
-          className="rounded-sm px-1.5 py-px text-[10.5px] font-medium"
-          style={{ color: 'var(--tb-magenta)', border: '1px solid var(--tb-border)' }}
-        >
-          {sub.value}
-        </span>
-      )}
-      <span className="h-px flex-1" style={{ background: 'var(--tb-border)' }} />
     </div>
   );
 }

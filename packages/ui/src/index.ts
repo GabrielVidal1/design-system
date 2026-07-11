@@ -46,8 +46,9 @@ export {
   tokenizeCommand,
   splitOutput,
   classifyLine,
+  splitBySubparts,
 } from './components/progressive-bash';
-export type { CmdToken, CmdKind, OutputLine, OutputSpan, LineKind } from './components/progressive-bash';
+export type { CmdToken, CmdKind, OutputLine, OutputSpan, LineKind, SubCommand } from './components/progressive-bash';
 export { FloatingPanel, Dock, DockProvider, useDockContext } from './components/floating-panel';
 export type {
   FloatingPanelProps,

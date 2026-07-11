@@ -320,8 +320,8 @@ ref.current?.skipToEnd()
 // its output scrolls past
 <ProgressiveBash entries={entries} stickyPrompt />
 
-// [experimental] hoist echo "Title..[value]" step markers in a
-// chained command into titled sub-parts
+// [experimental] split a chained echo "Title..[value]" && cmd
+// command into one separately-typed command block per step
 <ProgressiveBash
   entries={[{ id: '1',
     command: 'echo "Build..[vite]" && vite build',
@@ -1229,13 +1229,13 @@ function ProgressiveBashDemo() {
 
 function ProgressiveBashSubpartsDemo() {
   // [EXPERIMENTAL] A single chained command whose `echo "Title..[value]"` steps
-  // print headers into the output; `experimentalSubparts` hoists each matching
-  // output line into a titled sub-part header.
+  // label each stage; `experimentalSubparts` splits it into one separately-typed
+  // command block per step (each real command paired with its own output).
   const t0 = 1_700_000_000_000;
   const entries: BashEntry[] = [
     {
       id: 'deploy',
-      description: 'one chained command, split into labelled steps',
+      description: 'one chained command, split into separate commands',
       command:
         'echo "Install..[npm ci]" && npm ci && echo "Typecheck..[tsc]" && tsc --noEmit && ' +
         'echo "Build..[vite]" && vite build && echo "Deploy..[rsync]" && rsync -az dist/ raspy2:/srv/',
@@ -1270,8 +1270,8 @@ function ProgressiveBashSubpartsDemo() {
         </Button>
       </div>
       <p className="mono text-[11px] text-muted-foreground">
-        [experimental] one <code>{'echo "Title..[value]" && …'}</code> chain · each marker becomes a titled step header ·
-        toggle off to see the raw echoed lines
+        [experimental] one <code>{'echo "Title..[value]" && …'}</code> chain · each step is split into its own typed
+        command (paired with its output) · toggle off to see the single raw chain instead
       </p>
     </div>
   );
