@@ -38,7 +38,7 @@ import {
 } from './icons';
 import { changelog, fullUrl, nodes, specimenFulls, specimens, thumbUrl, type Node } from './data';
 
-const VERSION = '0.2.0';
+const VERSION = '0.2.1';
 const REPO = 'https://gitea.lab.gabvdl.xyz/gabrielvidal/design-system';
 
 interface Entry {
@@ -125,14 +125,16 @@ open(urls, 0) // full-screen: zoom · pan · swipe`,
   {
     id: 'virtual-list',
     name: 'VirtualList',
-    sig: '<T>(items, renderItem, onEndReached?)',
+    sig: '<T>(items, renderItem, smooth?, onEndReached?)',
     tag: 'data',
     Icon: VirtualListIcon,
     Demo: VirtualListDemo,
     code: `<VirtualList
-  items={rows}
-  className="h-96"        // bounded height
-  estimateSize={56}       // heights are then measured
+  items={rows}                  // re-sorted as data changes
+  className="h-96"              // bounded height
+  estimateSize={56}             // heights are then measured
+  smooth                        // glide rows to their new slot on reorder
+  getItemKey={(row) => row.id}  // stable identity — required for smooth
   hasMore={hasMore}
   loading={loading}
   onEndReached={loadNextPage}   // infinite lazy load
@@ -611,45 +613,116 @@ function PhonePreviewDemo() {
   );
 }
 
+interface HeatRow {
+  id: number;
+  label: string;
+  heat: number;
+}
+
+const HEAT_LABELS = [
+  'deploy pipeline',
+  'auth service',
+  'image indexer',
+  'traefik router',
+  'sqlite store',
+  'sse watcher',
+  'token counter',
+  'skill runner',
+  'plan viewer',
+  'conv archive',
+  'memory sync',
+  'search index',
+];
+
 function VirtualListDemo() {
-  const TOTAL = 500;
-  const PAGE = 40;
-  const [count, setCount] = useState(80);
-  const [loading, setLoading] = useState(false);
-  const rows = Array.from({ length: count }, (_, i) => i);
-  const hasMore = count < TOTAL;
-  const loadMore = () => {
-    if (loading || !hasMore) return;
-    setLoading(true);
-    setTimeout(() => {
-      setCount((c) => Math.min(c + PAGE, TOTAL));
-      setLoading(false);
-    }, 450);
-  };
+  const [smooth, setSmooth] = useState(true);
+  const [playing, setPlaying] = useState(true);
+  const [rows, setRows] = useState<HeatRow[]>(() =>
+    Array.from({ length: 48 }, (_, i) => ({
+      id: i,
+      label: `${HEAT_LABELS[i % HEAT_LABELS.length]} #${i}`,
+      heat: Math.round(Math.random() * 100),
+    })),
+  );
+
+  // Bump a handful of random rows' "activity", which re-sorts the list — the
+  // exact reorder the `smooth` prop is meant to make legible.
+  const bump = () =>
+    setRows((prev) => {
+      const next = prev.map((r) => ({ ...r }));
+      for (let k = 0; k < 5; k++) {
+        const r = next[Math.floor(Math.random() * next.length)];
+        r.heat = Math.min(100, r.heat + 12 + Math.floor(Math.random() * 40));
+      }
+      // gentle global decay so values keep circulating
+      for (const r of next) r.heat = Math.max(0, r.heat - 3);
+      return next;
+    });
+
+  useEffect(() => {
+    if (!playing) return;
+    const t = setInterval(bump, 1100);
+    return () => clearInterval(t);
+  }, [playing]);
+
+  const sorted = [...rows].sort((a, b) => b.heat - a.heat);
+
   return (
     <div>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => setSmooth((s) => !s)}
+          className={cn(
+            'mono rounded-md border px-2.5 py-1.5 text-[11px] transition-colors',
+            smooth
+              ? 'border-[color:var(--cyan-deep)] bg-[rgba(94,198,232,0.12)] text-[color:var(--cyan-deep)]'
+              : 'border-border text-muted-foreground hover:text-foreground',
+          )}
+        >
+          smooth: {smooth ? 'on' : 'off'}
+        </button>
+        <button
+          onClick={bump}
+          className="mono rounded-md border border-border px-2.5 py-1.5 text-[11px] text-foreground transition-colors hover:bg-[rgba(94,198,232,0.06)]"
+        >
+          bump activity
+        </button>
+        <button
+          onClick={() => setPlaying((p) => !p)}
+          className="mono rounded-md border border-border px-2.5 py-1.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {playing ? '❚❚ pause' : '▶ auto'}
+        </button>
+      </div>
       <VirtualList
-        items={rows}
+        items={sorted}
         className="h-[360px] rounded-lg border border-border"
-        estimateSize={52}
-        hasMore={hasMore}
-        loading={loading}
-        onEndReached={loadMore}
-        getItemKey={(i) => i}
-        renderItem={(i) => (
-          <div className="flex items-center gap-3 px-3" style={{ paddingBottom: 6 }}>
-            <span className="mono text-[11px] tabular-nums text-[color:var(--cyan-deep)]">
-              {String(i).padStart(3, '0')}
-            </span>
-            <div className="flex-1 rounded-md border border-border bg-[rgba(94,198,232,0.04)] px-3 py-2.5">
-              <span className="text-sm text-foreground">Row {i}</span>
-              <span className="mono ml-2 text-[11px] text-muted-foreground">virtualized · lazy</span>
+        estimateSize={48}
+        smooth={smooth}
+        getItemKey={(r) => r.id}
+        renderItem={(r, i) => (
+          <div className="px-2" style={{ paddingBottom: 6 }}>
+            <div className="flex items-center gap-3 rounded-md border border-border bg-[rgba(94,198,232,0.04)] px-3 py-2">
+              <span className="mono w-6 shrink-0 text-[11px] tabular-nums text-[color:var(--cyan-deep)]">
+                {String(i + 1).padStart(2, '0')}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm text-foreground">{r.label}</span>
+              <div className="h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-[rgba(94,198,232,0.1)]">
+                <div
+                  className="h-full rounded-full bg-[color:var(--cyan-deep)]"
+                  style={{ width: `${r.heat}%` }}
+                />
+              </div>
+              <span className="mono w-7 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
+                {r.heat}
+              </span>
             </div>
           </div>
         )}
       />
       <p className="mt-2 mono text-[11px] text-muted-foreground">
-        {count} of {TOTAL} — rows mount on demand · scroll to lazy-load
+        48 rows auto-sort by activity · toggle <span className="text-foreground">smooth</span> to see
+        rows glide vs. teleport · scroll to see windowing
       </p>
     </div>
   );
