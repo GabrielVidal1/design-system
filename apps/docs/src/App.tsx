@@ -160,12 +160,18 @@ open(urls, 0) // full-screen: zoom · pan · swipe`,
     tag: 'animation',
     Icon: ProgressiveListIcon,
     Demo: ProgressiveListDemo,
-    code: `// reveals items one at a time at a constant rate.
-// items present at mount show instantly; only
-// later-appended rows animate in (append-only feeds)
+    code: `// reveals items in order via a timeline context: each
+// row waits for the PREVIOUS row's inner animation before
+// it appears. Rows with a ProgressiveText report their
+// duration; plain rows fall back to a constant \`speed\`.
 <ProgressiveList items={rows} speed={3} delay={0.15}>
-  {(row, i, { isNew }) => <Row {...row} fresh={isNew} />}
-</ProgressiveList>`,
+  {(row, i, { isNew }) => (
+    <ProgressiveText text={row.text} instant={!isNew} />
+  )}
+</ProgressiveList>
+
+// any custom element can join the timeline:
+const { active, report, finish } = useProgressiveSlot()`,
   },
   {
     id: 'changelog',
@@ -739,26 +745,38 @@ function ProgressiveTextDemo() {
 }
 
 function ProgressiveListDemo() {
-  const [items, setItems] = useState<string[]>(['alpha', 'bravo', 'charlie']);
+  const seed = [
+    'First line types out…',
+    'then the next row waits for it,',
+    'and only appears once the typing is done.',
+  ];
+  const [items, setItems] = useState<string[]>(seed);
+  const [runId, setRunId] = useState(0); // bump to remount → replay the sequence
   return (
     <div className="space-y-4">
-      <ProgressiveList items={items} speed={3} delay={0.1} initialReveal={0} className="space-y-2" getKey={(_, i) => i}>
+      <ProgressiveList key={runId} items={items} speed={2} delay={0.1} initialReveal={0} className="space-y-2" getKey={(_, i) => i}>
         {(label, i, { isNew }) => (
           <div
             className={cn(
-              'rounded-md border px-3 py-2 text-sm mono',
+              'rounded-md border px-3 py-2 text-sm',
               isNew ? 'border-[color:var(--cyan)]/40 bg-[rgba(4,15,22,0.4)]' : 'border-border bg-[rgba(4,15,22,0.25)]',
             )}
           >
-            {i + 1}. {label}
+            <span className="mono text-[color:var(--cyan-deep)]">{i + 1}. </span>
+            <ProgressiveText text={label} speed={34} instant={!isNew} />
           </div>
         )}
       </ProgressiveList>
-      <Button size="sm" variant="outline" onClick={() => setItems((xs) => [...xs, `row ${xs.length + 1}`])}>
-        Append a row
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="outline" onClick={() => setItems((xs) => [...xs, `new row ${xs.length + 1} types in too`])}>
+          Append a row
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setRunId((n) => n + 1)}>
+          Replay
+        </Button>
+      </div>
       <p className="mono text-[11px] text-muted-foreground">
-        speed=3 rows/s · initialReveal=0 replays on open · appended rows fade in
+        timeline context · each row waits for the previous row's ProgressiveText to finish
       </p>
     </div>
   );
