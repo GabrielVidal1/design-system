@@ -222,3 +222,38 @@ export function ChangelogIcon() {
     </Svg>
   );
 }
+
+/** ProgressiveText — text lines with a growing typed run and a blinking caret. */
+export function ProgressiveTextIcon() {
+  return (
+    <Svg>
+      <rect x="52" y="34" width="116" height="8" rx="4" fill={CY} fillOpacity="0.5" />
+      <rect x="52" y="56" width="92" height="8" rx="4" fill={CY} fillOpacity="0.42" />
+      <rect className="a-type" x="52" y="78" width="4" height="8" rx="4" fill={CY} />
+      <line className="a-caret" x1="146" y1="74" x2="146" y2="90" stroke={CY} strokeWidth="2.5" />
+    </Svg>
+  );
+}
+
+/** ProgressiveList — rows that stagger into view one after another. */
+export function ProgressiveListIcon() {
+  const ys = [30, 50, 70, 90];
+  return (
+    <Svg>
+      {ys.map((y, i) => (
+        <rect
+          key={y}
+          className="a-reveal"
+          style={{ animationDelay: `${i * 0.28}s` }}
+          x="54"
+          y={y}
+          width={i % 2 ? 92 : 112}
+          height="13"
+          rx="4"
+          fill={i === ys.length - 1 ? CY : DIM}
+          fillOpacity="0.5"
+        />
+      ))}
+    </Svg>
+  );
+}
