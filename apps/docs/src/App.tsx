@@ -93,13 +93,15 @@ import {
   ToastIcon,
   ViewableImageIcon,
   VirtualListIcon,
+  ElementPickerIcon,
 } from './icons';
 import { SandpackProvider, SandpackCodeEditor, type SandpackTheme } from '@codesandbox/sandpack-react';
 import { RichInputPage } from './pages/RichInputPage';
+import { ElementPickerPage } from './pages/ElementPickerPage';
 import { changelog, fullUrl, nodes, specimenFulls, specimens, thumbUrl, type Node } from './data';
 import { loadSearchIndex, type IndexEntry } from './search';
 
-const VERSION = '0.13.0';
+const VERSION = '0.16.0';
 const REPO = 'https://gitea.lab.gabvdl.xyz/gabrielvidal/design-system';
 
 /* ─── Groups ──────────────────────────────────────────────────────────────── */
@@ -133,6 +135,7 @@ const GROUP_OF: Record<string, Group> = {
   'search-input': 'Inputs',
   'drop-zone': 'Inputs',
   'copy-button': 'Inputs',
+  'element-picker': 'Inputs',
   'progressive-text': 'Animation',
   'progressive-list': 'Animation',
   'progressive-bash': 'Animation',
@@ -199,6 +202,7 @@ const SOURCE_FILE: Record<string, string> = {
   'empty-state': 'empty-state.tsx',
   'status-badge': 'status-badge.tsx',
   'copy-button': 'copy-button.tsx',
+  'element-picker': 'element-picker.tsx',
   'drop-zone': 'drop-zone.tsx',
   'search-input': 'search-input.tsx',
   'relative-time': 'relative-time.tsx',
@@ -597,6 +601,24 @@ ref.current?.toggle('bottom')`,
   accept="image/*"         // multi-file upload
   onSubmit={(p) => send(p.prompt, p.files)}
 />`,
+  },
+  {
+    id: 'element-picker',
+    name: 'ElementPicker',
+    sig: 'hover · click · press-and-hold — full HTML + parsed',
+    tag: 'input',
+    Icon: ElementPickerIcon,
+    Page: ElementPickerPage,
+    code: `<ElementPickerField
+  root={pageEl}            // pick inside this only
+  value={picked}
+  onChange={setPicked}
+  filter={(el) => el.matches('.card')}
+/>
+
+// each entry: the live node + a serializable parse
+picked[0].element  // HTMLElement
+picked[0].info     // { tag, kind, text, selector, hierarchy, styles, … }`,
   },
   {
     id: 'toast',

@@ -828,3 +828,30 @@ export function GlobalSearchIcon() {
     </Svg>
   );
 }
+
+/** ElementPicker — a cursor crosses the page and a box lights up under it. */
+export function ElementPickerIcon() {
+  return (
+    <Svg>
+      <rect x="42" y="22" width="136" height="86" rx="7" stroke={DIM} strokeWidth="2" />
+      <rect x="54" y="32" width="52" height="8" rx="4" fill={DIM} opacity="0.5" />
+      <rect x="54" y="50" width="50" height="44" rx="5" stroke={DIM} strokeWidth="2" />
+
+      <g className="a-fade" style={v({ '--o0': '0.25', '--o1': '1', '--dur': '4.4s' })}>
+        <rect x="116" y="50" width="50" height="44" rx="5" fill={CY} fillOpacity="0.18" stroke={CY} strokeWidth="2.5" />
+        <rect x="124" y="58" width="26" height="5" rx="2.5" fill={CY} opacity="0.7" />
+        <rect x="124" y="68" width="34" height="5" rx="2.5" fill={CY} opacity="0.4" />
+      </g>
+
+      <g className="a-drift" style={v({ '--dx': '52px', '--dy': '12px', '--dur': '4.4s' })}>
+        <path
+          d="M78 58 L78 80 L84 74.5 L88.5 84 L93 82 L88.5 72.5 L96 72 Z"
+          fill={PAPER}
+          stroke={INK}
+          strokeWidth="2.5"
+          strokeLinejoin="round"
+        />
+      </g>
+    </Svg>
+  );
+}

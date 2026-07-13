@@ -53,6 +53,7 @@ empty state in nine. Those are now one implementation each:
 | **`Spinner` / `Skeleton` / `EmptyState`** | the three loading/empty shapes |
 | **`StatusBadge` / `Badge`** | a `status → {label, tone, icon}` map, so a job reads the same colour in every service |
 | **`SearchInput` / `DropZone` / `CopyButton` / `RelativeTime`** | ⌘K-focusable search, drag-and-drop (with folder walking), clipboard with an `execCommand` fallback for insecure origins, a `<time>` that keeps ticking |
+| **`ElementPicker` / `ElementPickerField`** | point at a page and take it apart — hover draws the devtools box model, click selects; press-and-hold + drag does the same on a touchscreen. Hands back the live node plus a serializable parse: text, kind, hierarchy, computed styles, full HTML |
 | **hooks** | `useMediaQuery` · `useIsMobile` · `useIsTouch` · `useLocalStorage` · `useLongPress` · `useCopyToClipboard` · `useIntersection` / `useInfiniteScroll` · `useScrollLock` · `useEscape` · `useOutsideClick` |
 | **format** | `relTime` · `fmtDuration` · `fmtBytes` · `fmtNum` · `fmtCost` · `downloadFile` |
 

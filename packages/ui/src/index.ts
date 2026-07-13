@@ -60,6 +60,34 @@ export { DropZone, useFileDrop } from './components/drop-zone';
 export type { DropZoneProps, FileRejection, UseFileDropOptions } from './components/drop-zone';
 export { SearchInput } from './components/search-input';
 export type { SearchInputProps } from './components/search-input';
+export {
+  ElementPicker,
+  ElementPickerField,
+  ElementPickerOverlay,
+  ElementPreview,
+  useElementPicker,
+  classify,
+  formatHtml,
+  hierarchy,
+  parseElement,
+  uniqueSelector,
+  STYLE_GROUPS,
+  STYLE_PROPS,
+} from './components/element-picker';
+export type {
+  ElementPickerProps,
+  ElementPickerOverlayProps,
+  ElementPickerFieldProps,
+  ElementPreviewProps,
+  UseElementPickerOptions,
+  UseElementPickerResult,
+  ParseOptions,
+  ElementField,
+  ElementInfo,
+  ElementKind,
+  ElementPathStep,
+  PickedElement,
+} from './components/element-picker';
 export { RelativeTime } from './components/relative-time';
 export type { RelativeTimeProps } from './components/relative-time';
 
