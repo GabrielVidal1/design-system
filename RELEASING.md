@@ -12,12 +12,18 @@ needs — that part has a sharp edge.
 # 1. bump the version
 $EDITOR packages/ui/package.json        # e.g. 0.0.14 → 0.0.15
 
-# 2. commit and push BOTH remotes
+# 2. update CHANGELOG.md — move the [Unreleased] section's entries under a new
+#    `## [0.0.15] - YYYY-MM-DD` heading (leave [Unreleased] empty above it),
+#    and add the compare/release links at the bottom. Do this before tagging,
+#    not after — the tag should point at the commit the changelog describes.
+$EDITOR CHANGELOG.md
+
+# 3. commit and push BOTH remotes
 git add -A && git commit -m "release: @gabvdl/ui 0.0.15"
 git push origin main
 git push github main
 
-# 3. tag — the tag must equal the package version (CI enforces it)
+# 4. tag — the tag must equal the package version (CI enforces it)
 git tag v0.0.15
 git push github v0.0.15
 ```

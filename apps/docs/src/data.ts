@@ -59,36 +59,208 @@ export const nodes: Node[] = [
   { name: 'raspy2', kind: 'box', host: '100.74.118.12', desc: 'public-facing edge, zipgo/Caddy serves gabvdl.xyz over Tailscale' },
 ];
 
-// A generated changelog history for the Changelog demo — enough entries to page
+// The real changelog history for the Changelog demo, straight from this repo's
+// own git log (see CHANGELOG.md at the repo root) — enough entries to page
 // through (infinite load) and to virtualize.
 import type { ChangelogEntry } from '@gabvdl/ui';
 
-const CHANGE_POOL = [
-  'Add VirtualList — windowed, infinite lazy loading',
-  'FuzzyList now renders through VirtualList',
-  'Move the Changelog widget into @gabvdl/ui',
-  'PhonePreview: dependency-free iPhone frame',
-  'FuzzyList<T> generic fuzzy search on Fuse.js',
-  'Import the Sherlock image viewer',
-  'Cyanotype specimen-sheet docs identity',
-  'Tree-shakeable ESM build with bundled .d.ts',
-  'Retheme entirely from CSS custom properties',
-  'Keyboard navigation + scroll-into-view',
-  'Reduced-motion respected across animations',
-  'Ship subpath CSS exports (theme, image-viewer)',
+export const changelog: ChangelogEntry[] = [
+  {
+    version: '0.1.0',
+    date: '2026-07-13',
+    title: 'First beta cut',
+    changes: [
+      'Converge controlled-callback prop names on `on<X>Change`; old names kept as deprecated aliases',
+      'Add the first test suite (Vitest + Testing Library), wired into CI',
+      'Ship LICENSE (MIT) at the repo root and in the package',
+      'Add a real CHANGELOG.md, reconstructed from git history',
+      'Docs: add Getting started, Theming, and progressive-timeline pages',
+      'Fix props tables for components whose props are declared as a type alias',
+    ],
+  },
+  {
+    version: '0.0.14',
+    date: '2026-07-13',
+    title: 'Publish @gabvdl/ui to public npm',
+    changes: [
+      'Reset to a fresh 0.0.x alpha line for the public registry, publishConfig.access=public',
+      'GitHub mirror + tag-triggered CI release workflow (typecheck, build, npm publish --provenance)',
+      'Fix CI publish EOTP errors — support bypass-2FA tokens and OIDC trusted publishing',
+    ],
+    sha: 'ea7e64f',
+  },
+  {
+    version: '0.16.0',
+    date: '2026-07-13',
+    title: 'ElementPicker',
+    changes: [
+      'Add ElementPicker / ElementPickerField — point at a page and take it apart: hover box-model overlay, click to select, touch hold + drag',
+      'Ships useElementPicker as a standalone headless hook',
+    ],
+    sha: '3f9c5c2',
+  },
+  {
+    version: '0.15.0',
+    date: '2026-07-13',
+    title: 'RichInput: drop files',
+    changes: [
+      'Drag-and-drop files onto the RichInput composer, through the same accept/maxFiles/fileFilter checks as a pick',
+      'Fix an IframePreview props type that broke the dts build',
+    ],
+    sha: 'f51dde0',
+  },
+  {
+    version: '0.14.0',
+    date: '2026-07-13',
+    title: 'ResizableLayout: per-side mobile behaviour',
+    changes: [
+      "Add per-side `mobileMode`: 'drawer' (overlay, focus-taking) or 'panel' (stays in the flow, splits the screen)",
+    ],
+    sha: 'fa0a226',
+  },
+  {
+    version: '0.13.0',
+    date: '2026-07-13',
+    title: 'GlobalSearch + Cmd-K',
+    changes: [
+      'Add GlobalSearch — a Cmd-K palette built from Modal + FuzzyList + VirtualList',
+      'FuzzyList gains a debounced search pass and documented quote-aware exact match',
+      'Docs: build-time search index over every component, hook, util and prop',
+      'Docs: per-component props tables generated from that same index',
+    ],
+    sha: '9b85f26',
+  },
+  {
+    version: '0.12.0',
+    date: '2026-07-13',
+    title: 'ResizableLayout: top/bottom drawers',
+    changes: [
+      'ResizableLayout now supports all four sides — top/bottom get a vertical PanelGroup + swipeable overlay',
+      'Deploy ui.gabvdl.xyz with the ResizableLayout drawer card',
+    ],
+    sha: '0cb4302',
+  },
+  {
+    version: '0.11.0',
+    date: '2026-07-12',
+    title: 'RichInput: exclusive tag groups',
+    changes: [
+      'RichInput: exclusive (radio-style) tag groups',
+      'Docs: redesign all 31 component card SVGs on one shared ease-in-out motion system',
+    ],
+    sha: '29fcf7d',
+  },
+  {
+    version: '0.10.0',
+    date: '2026-07-12',
+    title: 'IframePreview',
+    changes: [
+      'Add IframePreview / IframePreviewOverlay — full-screen controlled iframe with an editable address bar and a real (non-cached) reload',
+    ],
+    sha: 'df91c42',
+  },
+  {
+    version: '0.9.0',
+    date: '2026-07-12',
+    title: 'Button overhaul',
+    changes: [
+      'Button: sm/md/lg size tiers with icon-only twins, loading state, icon slot, portalled tooltip',
+    ],
+    sha: 'b209a08',
+  },
+  {
+    version: '0.8.0',
+    date: '2026-07-12',
+    title: 'Shared primitives wave',
+    changes: [
+      'Add ToastProvider/useToast, Modal/useModal/useConfirm, ThemeToggle/useTheme',
+      'Add Spinner/Skeleton/EmptyState, Badge/StatusBadge, SearchInput/DropZone/CopyButton/RelativeTime',
+      "Add the shared hooks and format module lifted out of the homelab's other projects",
+    ],
+    sha: '1335a4b',
+  },
+  {
+    version: '0.7.0',
+    date: '2026-07-11',
+    title: 'ResizableLayout',
+    changes: [
+      'Add ResizableLayout — resizable/collapsible drawers on desktop, swipeable overlays on mobile',
+    ],
+    sha: 'a4fe4f2',
+  },
+  {
+    version: '0.6.0',
+    date: '2026-07-11',
+    title: 'ProgressiveBash + FloatingPanel',
+    changes: [
+      'Add ProgressiveBash — a replayed, syntax-colored terminal session',
+      'Add FloatingPanel/Dock — drag-to-float, drag-to-dock windows',
+      'ProgressiveBash: catch-up on load, sticky prompt, echo subparts split into sequential commands',
+    ],
+    sha: '354d1de',
+  },
+  {
+    version: '0.5.0',
+    date: '2026-07-11',
+    title: 'RichInput: guidelines switch',
+    changes: ['RichInput: guidelines master switch and a scrollable tag-group list'],
+    sha: '4e71d01',
+  },
+  {
+    version: '0.4.0',
+    date: '2026-07-11',
+    title: 'Docs: light theme',
+    changes: [
+      'RichInput: expose a setFiles imperative handle',
+      "Docs: light technical theme, catalogue grouped by category, embedded read-only IDE per component",
+    ],
+    sha: '2e36d76',
+  },
+  {
+    version: '0.3.0',
+    date: '2026-07-11',
+    title: 'RichInput composer',
+    changes: [
+      'Add RichInput — the ai-agent composer factored into hooks: draft, un-send, files, guidelines, mention, history',
+      'FuzzyList: quote-aware exact match, estimateSize/overscan props',
+    ],
+    sha: '895257e',
+  },
+  {
+    version: '0.2.1',
+    date: '2026-07-11',
+    title: 'VirtualList: smooth-reorder',
+    changes: ['VirtualList: smooth-reorder animation when a sorted list changes order'],
+    sha: '2acf26b',
+  },
+  {
+    version: '0.2.0',
+    date: '2026-07-11',
+    title: 'ProgressiveTable',
+    changes: ['Add ProgressiveTable — header-first, row-by-row table reveal on the progressive-timeline'],
+    sha: '8d8b4ef',
+  },
+  {
+    version: '0.1.1',
+    date: '2026-07-11',
+    title: 'Progressive timeline context',
+    changes: [
+      'Add the progressive-timeline context so ProgressiveList waits on nested inner animations',
+      'Add ProgressiveText and ProgressiveList',
+    ],
+    sha: '1e99555',
+  },
+  {
+    version: '0.1.0',
+    date: '2026-07-11',
+    title: 'Initial release',
+    changes: [
+      'Monorepo scaffold: @gabvdl/ui + cyanotype docs',
+      'Flagship ImageViewerProvider/ViewableImage/ProgressiveImage, Button, Input',
+      'Add FuzzyList, PhonePreview, VirtualList, Changelog',
+      'Add Nav2D — joystick + 2D-raycast spatial navigation',
+      'Input: cacheKey/cacheLocation localStorage persistence',
+    ],
+    sha: '4e16193',
+  },
 ];
-
-const BASE = Date.parse('2026-07-11T00:00:00Z');
-
-export const changelog: ChangelogEntry[] = Array.from({ length: 42 }, (_, i) => {
-  const rel = 42 - i; // release number, newest first
-  const count = (i % 3) + 1;
-  const changes = Array.from({ length: count }, (_, k) => CHANGE_POOL[(i * 3 + k) % CHANGE_POOL.length]);
-  return {
-    version: `0.${Math.floor(rel / 10)}.${rel % 10}`,
-    date: new Date(BASE - i * 86_400_000).toISOString().slice(0, 10),
-    title: i % 4 === 0 ? changes[0] : undefined,
-    changes,
-    sha: (0xabc123 + rel).toString(16).slice(0, 7),
-  };
-});

@@ -1,8 +1,10 @@
 # gabvdl design system
 
-> ⚠️ **Very early alpha.** Expect breaking changes — the API moves fast and any
-> `0.0.x` bump may break you. Pin an exact version. `1.0.0`, coming shortly,
-> will be the first stable cut.
+> **Beta.** `0.1.0` is the first coherent, tested, documented cut — the API is
+> stabilizing. From `0.1.0` on, a breaking change bumps the **minor**, and a
+> renamed prop keeps its old name as a deprecated alias for at least one minor.
+> Pin `~0.1.0` if you want stability without missing fixes. `1.0.0` will be the
+> first stable cut. See [`CHANGELOG.md`](CHANGELOG.md) for what shipped when.
 
 Gabriel Vidal's personal design system — the React components reused across the
 homelab, catalogued in one place. Live at **[ui.gabvdl.xyz](https://ui.gabvdl.xyz)**,
