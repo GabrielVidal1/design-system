@@ -8,6 +8,15 @@ in the [README](README.md): from `0.1.0` on, breaking changes bump the
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-07-14
+
+### Added
+
+- `RichInput`: **`renderSendButton`** — replace the built-in send button
+  entirely. Receives `{ canSend, submit }`, so a caller can layer a long-press
+  gesture, a split button, or any other custom control on top of the same
+  submit path the default button uses.
+
 ## [0.1.4] - 2026-07-13
 
 ### Fixed

@@ -76,6 +76,14 @@ export interface ComposeInput {
   files: RichFile[];
 }
 
+/** What a custom {@link RichInputProps.renderSendButton} is handed. */
+export interface RichSendButtonProps {
+  /** Whether there's anything to send and nothing is blocking it (upload in flight, `disabled`) — mirrors the built-in button's disabled state. */
+  canSend: boolean;
+  /** Submit exactly as the built-in button would (starts the un-send window). */
+  submit: () => void;
+}
+
 /** Imperative handle exposed through `ref`. */
 export interface RichInputHandle {
   focus: () => void;

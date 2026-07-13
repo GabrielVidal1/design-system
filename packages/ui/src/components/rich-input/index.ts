@@ -4,6 +4,7 @@ export type {
   RichFile,
   GuidelineTag,
   RichSendPayload,
+  RichSendButtonProps,
   RichInputHandle,
   ComposeInput,
 } from './types';

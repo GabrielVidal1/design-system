@@ -126,6 +126,7 @@ export type {
   RichFile,
   GuidelineTag,
   RichSendPayload,
+  RichSendButtonProps,
   RichInputHandle,
   ComposeInput,
 } from './components/rich-input';

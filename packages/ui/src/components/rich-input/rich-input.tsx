@@ -29,7 +29,14 @@ import {
   TagScrollList,
   UnsendBanner,
 } from './parts';
-import type { ComposeInput, GuidelineTag, RichFile, RichInputHandle, RichSendPayload } from './types';
+import type {
+  ComposeInput,
+  GuidelineTag,
+  RichFile,
+  RichInputHandle,
+  RichSendButtonProps,
+  RichSendPayload,
+} from './types';
 
 const LINE_HEIGHT = 22;
 
@@ -112,6 +119,16 @@ export interface RichInputProps {
 
   /** Extra buttons rendered in the toolbar's left cluster. */
   toolbarExtra?: ReactNode;
+
+  /**
+   * Replace the built-in send button. Receives `{ canSend, submit }` — call
+   * `submit` for a plain send (e.g. from `onClick`) and layer on whatever else
+   * the caller needs (a long-press menu, a split button, …). The built-in
+   * button's disabled/enabled styling and `submit` wiring are otherwise
+   * unreachable from outside, so this is the escape hatch for anything beyond
+   * a single click.
+   */
+  renderSendButton?: (props: RichSendButtonProps) => ReactNode;
 }
 
 export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function RichInput(
@@ -148,6 +165,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     history: historyEnabled = true,
     composePrompt = defaultComposePrompt,
     toolbarExtra,
+    renderSendButton,
   },
   ref,
 ) {
@@ -565,20 +583,24 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
                   <History className="size-4" />
                 </IconButton>
               )}
-              <button
-                type="button"
-                aria-label="Send"
-                disabled={!canSend}
-                onClick={submit}
-                className={cn(
-                  'inline-flex size-8 items-center justify-center rounded-lg transition-colors',
-                  canSend
-                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                    : 'bg-muted text-muted-foreground',
-                )}
-              >
-                <SendHorizontal className="size-4" />
-              </button>
+              {renderSendButton ? (
+                renderSendButton({ canSend, submit })
+              ) : (
+                <button
+                  type="button"
+                  aria-label="Send"
+                  disabled={!canSend}
+                  onClick={submit}
+                  className={cn(
+                    'inline-flex size-8 items-center justify-center rounded-lg transition-colors',
+                    canSend
+                      ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                      : 'bg-muted text-muted-foreground',
+                  )}
+                >
+                  <SendHorizontal className="size-4" />
+                </button>
+              )}
             </div>
           </div>
         </div>
