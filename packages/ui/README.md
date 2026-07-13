@@ -1,19 +1,20 @@
 # @gabvdl/ui
 
+> ⚠️ **Very early alpha.** Expect breaking changes — the API moves fast and any
+> `0.0.x` bump may break you. Pin an exact version. `1.0.0`, coming shortly,
+> will be the first stable cut.
+
 Gabriel Vidal's personal design system — tree-shakeable React components built on
 shadcn primitives, reused across the homelab. Flagship: a full-screen image
 viewer with zoom, pan and swipe.
 
-Published to the homelab's private npm registry (verdaccio). Browse it at
-**[registry.lab.gabvdl.xyz](https://registry.lab.gabvdl.xyz)**; the docs + live
-demo are at **[ui.gabvdl.xyz](https://ui.gabvdl.xyz)**.
+Source is mirrored at
+**[github.com/GabrielVidal1/design-system](https://github.com/GabrielVidal1/design-system)**;
+the docs + live demo are at **[ui.gabvdl.xyz](https://ui.gabvdl.xyz)**.
 
 ## Install
 
 ```bash
-# Point the @gabvdl scope at the private registry (once, per project .npmrc):
-echo '@gabvdl:registry=http://localhost:4873/' >> .npmrc
-
 npm install @gabvdl/ui
 ```
 
@@ -80,6 +81,10 @@ dev, so nothing is hand-maintained: add a component and it is searchable on the
 next build.
 
 ## Publishing (maintainer)
+
+Public npm releases ride on a version tag — see [`RELEASING.md`](../../RELEASING.md)
+at the repo root. Dev builds still go to the homelab's private verdaccio
+(browse it at [registry.lab.gabvdl.xyz](https://registry.lab.gabvdl.xyz)):
 
 ```bash
 # from the homelab repo root, with the registry profile up:

@@ -1,0 +1,59 @@
+name: Publish to npm
+
+# Push a version tag to release @gabvdl/ui to the public npm registry:
+#
+#   git tag v0.0.14 && git push github v0.0.14
+#
+# The tag must match packages/ui/package.json's version exactly (guarded
+# below). Pre-release tags (v1.0.0-rc.1) publish under the `next` dist-tag
+# so they never become `latest`. Needs the NPM_TOKEN repo secret (granular
+# token with read+write on @gabvdl/*).
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # create the GitHub Release
+  id-token: write # npm --provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Check tag matches package version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          VERSION="$(node -p "require('./packages/ui/package.json').version")"
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "::error::tag v$TAG != @gabvdl/ui version $VERSION — bump packages/ui/package.json first"
+            exit 1
+          fi
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build:ui
+
+      - name: Publish @gabvdl/ui
+        working-directory: packages/ui
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          case "$TAG" in
+            *-*) DIST_TAG=next ;;
+            *)   DIST_TAG=latest ;;
+          esac
+          npm publish --access public --provenance --tag "$DIST_TAG"
+
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag

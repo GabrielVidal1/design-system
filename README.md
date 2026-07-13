@@ -1,7 +1,13 @@
 # gabvdl design system
 
+> ⚠️ **Very early alpha.** Expect breaking changes — the API moves fast and any
+> `0.0.x` bump may break you. Pin an exact version. `1.0.0`, coming shortly,
+> will be the first stable cut.
+
 Gabriel Vidal's personal design system — the React components reused across the
-homelab, catalogued in one place. Live at **[ui.gabvdl.xyz](https://ui.gabvdl.xyz)**.
+homelab, catalogued in one place. Live at **[ui.gabvdl.xyz](https://ui.gabvdl.xyz)**,
+published as [`@gabvdl/ui` on npm](https://www.npmjs.com/package/@gabvdl/ui),
+mirrored at [github.com/GabrielVidal1/design-system](https://github.com/GabrielVidal1/design-system).
 
 A small monorepo:
 
@@ -99,3 +105,13 @@ npm run build        # turbo: builds @gabvdl/ui, then the docs app
 npm run dev          # docs dev server (build the library once first)
 npm run deploy       # build, then push apps/docs to ui.gabvdl.xyz via zipgo
 ```
+
+## Release
+
+Two registries, two purposes:
+
+- **Public npm** (`@gabvdl/ui`) — released by CI when a `v*` tag is pushed to
+  the GitHub mirror. See [`RELEASING.md`](RELEASING.md).
+- **Private verdaccio** (homelab dev builds) — published on demand with
+  `./services/registry/publish.sh` from the homelab repo root, so lab projects
+  can consume work-in-progress versions without a public release.
