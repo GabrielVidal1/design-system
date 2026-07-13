@@ -60,18 +60,41 @@ gh secret set NPM_TOKEN -R GabrielVidal1/design-system
 Note npm now caps write-token lifetime at 90 days, so this secret expires and
 has to be rotated.
 
-**Trusted publishing (OIDC) — no token, nothing to rotate. Prefer this.** It
-can't do a package's *first* publish (npm requires the package to exist before
-you can register a publisher), so once `@gabvdl/ui` is on npm:
+**Trusted publishing (OIDC) — no token, nothing to rotate. This is what v0.1.0
+shipped with.** It can't do a package's *first* publish (npm requires the package
+to exist before you can register a publisher), so once `@gabvdl/ui` is on npm:
 
 1. npmjs.com → the package → **Settings / Access** → add a trusted publisher:
-   repo `GabrielVidal1/design-system`, workflow `publish.yml`.
+   repo `GabrielVidal1/design-system`, workflow `publish.yml`, **environment
+   blank** (the job declares none — set one here and the exchange fails).
 2. `gh secret delete NPM_TOKEN -R GabrielVidal1/design-system`.
 
-The workflow already handles both: it exports `NODE_AUTH_TOKEN` only when the
-secret exists, and otherwise authenticates over OIDC from the job's `id-token`.
-(An *empty but present* `NODE_AUTH_TOKEN` would make npm try token auth and skip
-OIDC — hence the conditional.)
+The workflow handles both paths: with a secret it writes the `_authToken` line
+itself, otherwise it authenticates over OIDC from the job's `id-token`.
+
+### Two traps, both hit on the 0.1.0 cut
+
+**Do not give `actions/setup-node` a `registry-url:`.** It writes an `.npmrc`
+holding `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}`; with no token
+that line expands to an *empty* credential, npm sends blank auth, and the
+registry answers **404 on the PUT** instead of falling back to OIDC. Removing
+the input is what makes trusted publishing reachable at all — not exporting
+`NODE_AUTH_TOKEN` isn't sufficient, the `.npmrc` file is.
+
+**A failed OIDC exchange is silent.** npm reports only `ENEEDAUTH` ("you need to
+run npm login"), which reads like a missing token. Re-run the publish with
+`--loglevel verbose` and the real answer appears:
+
+```
+npm http fetch POST 404 …/-/npm/v1/oidc/token/exchange/package/@gabvdl%2fui
+npm verbose oidc Failed token exchange request …: OIDC token exchange error - package not found
+```
+
+`package not found` there does **not** mean the package is missing (it is public
+and exists) — it means **no trusted-publisher config matches**. Fix the entry in
+step 1 above, then just re-run the job; the tag needn't move, since the workflow
+file at the tagged commit is already correct. A healthy exchange logs
+`POST 201 … Successfully retrieved and set token`.
 
 ## Private verdaccio (dev builds)
 

@@ -69,17 +69,15 @@ jobs:
           else
             echo "no NPM_TOKEN secret — publishing via trusted publishing (OIDC)"
           fi
-          # OIDC needs npm >= 11.5.1 AND the id-token request env exposed to the
-          # step; when the token exchange fails npm just falls through to "no
-          # auth" (ENEEDAUTH), so publish verbosely — the `npm verbose oidc`
-          # lines are the only place the real reason shows up.
-          echo "npm $(npm -v) · id-token env: ${ACTIONS_ID_TOKEN_REQUEST_URL:+present}${ACTIONS_ID_TOKEN_REQUEST_URL:-MISSING}"
           TAG="${GITHUB_REF_NAME#v}"
           case "$TAG" in
             *-*) DIST_TAG=next ;;
             *)   DIST_TAG=latest ;;
           esac
-          npm publish --access public --provenance --tag "$DIST_TAG" --loglevel verbose
+          # If this ever dies with ENEEDAUTH, re-run with --loglevel verbose: a
+          # failed OIDC exchange is silent otherwise, and the `npm verbose oidc`
+          # line carries the actual reason.
+          npm publish --access public --provenance --tag "$DIST_TAG"
 
       - name: GitHub Release
         env:
