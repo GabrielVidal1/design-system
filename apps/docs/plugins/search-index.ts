@@ -86,10 +86,11 @@ const isExported = (node: ts.Node): boolean =>
 
 /* ─── Extraction ───────────────────────────────────────────────────────────── */
 
-/** Every .ts/.tsx under `dir`, minus barrels — an `index.ts` re-export carries no docs. */
+/** Every .ts/.tsx under `dir`, minus barrels and tests — an `index.ts` re-export
+ * carries no docs, and a `.test.` file documents nothing a user imports. */
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { recursive: true, encoding: 'utf8' })
-    .filter((p) => /\.tsx?$/.test(p) && !p.endsWith('index.ts') && !p.endsWith('.d.ts'))
+    .filter((p) => /\.tsx?$/.test(p) && !p.endsWith('index.ts') && !p.endsWith('.d.ts') && !/\.test\./.test(p))
     .map((p: string) => join(dir, p));
 }
 
@@ -121,17 +122,60 @@ function publicApi(src: string): Set<string> {
 }
 
 function extract(
-  file: string,
+  sf: ts.SourceFile,
+  checker: ts.TypeChecker,
+  src: string,
   id: string,
   route: string,
   repoFile: string,
   api: Set<string>,
 ): IndexEntry[] {
-  const text = readFileSync(file, 'utf8');
-  const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-
   const symbols: { name: string; kind: IndexEntry['kind']; summary: string }[] = [];
   const propsByOwner = new Map<string, { name: string; type: string; summary: string; optional: boolean; default?: string }[]>();
+  const addProps = (owner: string, props: { name: string; type: string; summary: string; optional: boolean; default?: string }[]) =>
+    propsByOwner.set(owner, [...(propsByOwner.get(owner) ?? []), ...props]);
+
+  /**
+   * A `type XProps = …` alias (an intersection, `Omit<…>`, a mapped type…) has
+   * no member list in the syntax tree — ask the checker for the resolved
+   * properties instead. Only members DECLARED in the library's own source are
+   * emitted: an alias reaching into `React.ComponentProps<'input'>` should not
+   * dump three hundred DOM attributes into the table.
+   */
+  const aliasProps = (alias: ts.TypeAliasDeclaration) => {
+    const symbol = checker.getSymbolAtLocation(alias.name);
+    if (!symbol) return [];
+    const type = checker.getDeclaredTypeOfSymbol(symbol);
+    const rows: { name: string; type: string; summary: string; optional: boolean; default?: string }[] = [];
+    for (const prop of type.getProperties()) {
+      const decl = prop.declarations?.[0];
+      if (!decl || !decl.getSourceFile().fileName.startsWith(src)) continue; // inherited DOM/react prop
+      const optional = Boolean(prop.flags & ts.SymbolFlags.Optional);
+      if (ts.isPropertySignature(decl)) {
+        // Declared in our source as a plain member — print it exactly as written.
+        rows.push({
+          name: decl.name.getText(),
+          type: decl.type ? decl.type.getText().replace(/\s+/g, ' ') : 'unknown',
+          summary: docOf(decl),
+          optional: optional || Boolean(decl.questionToken),
+          default: defaultTagOf(decl),
+        });
+      } else {
+        // A mapped/computed member — fall back to the checker's own printing.
+        rows.push({
+          name: prop.getName(),
+          type: checker.typeToString(checker.getTypeOfSymbolAtLocation(prop, alias)).replace(/\s+/g, ' '),
+          summary: flatten(ts.displayPartsToString(prop.getDocumentationComment(checker))),
+          optional,
+          default: prop.getJsDocTags(checker).find((t) => t.name === 'default' || t.name === 'defaultValue')?.text
+            ?.map((p) => p.text)
+            .join('')
+            .trim(),
+        });
+      }
+    }
+    return rows;
+  };
 
   for (const stmt of sf.statements) {
     if (!isExported(stmt)) continue;
@@ -158,14 +202,24 @@ function extract(
     if (ts.isInterfaceDeclaration(stmt)) {
       const owner = stmt.name.text.replace(/Props$/, '');
       if (owner === stmt.name.text) continue; // not a props bag
-      const props = stmt.members.filter(ts.isPropertySignature).map((m) => ({
-        name: m.name.getText(sf),
-        type: m.type ? m.type.getText(sf).replace(/\s+/g, ' ') : 'unknown',
-        summary: docOf(m),
-        optional: Boolean(m.questionToken),
-        default: defaultTagOf(m),
-      }));
-      propsByOwner.set(owner, [...(propsByOwner.get(owner) ?? []), ...props]);
+      addProps(
+        owner,
+        stmt.members.filter(ts.isPropertySignature).map((m) => ({
+          name: m.name.getText(sf),
+          type: m.type ? m.type.getText(sf).replace(/\s+/g, ' ') : 'unknown',
+          summary: docOf(m),
+          optional: Boolean(m.questionToken),
+          default: defaultTagOf(m),
+        })),
+      );
+      continue;
+    }
+
+    // `export type FooProps = …` — same table, resolved through the checker.
+    if (ts.isTypeAliasDeclaration(stmt)) {
+      const owner = stmt.name.text.replace(/Props$/, '');
+      if (owner === stmt.name.text) continue; // not a props bag
+      addProps(owner, aliasProps(stmt));
     }
   }
 
@@ -231,10 +285,24 @@ const kindOf = (name: string): IndexEntry['kind'] =>
 export function buildIndex({ src, routeBase = '#/c/', idOverrides = {} }: SearchIndexOptions): IndexEntry[] {
   const root = resolve(src);
   const api = publicApi(root);
+  const files = sourceFiles(root);
+  // A real program (not per-file parses): the type checker is what lets a
+  // `type XProps = A & Omit<B, 'x'>` alias resolve to concrete members.
+  const program = ts.createProgram(files, {
+    target: ts.ScriptTarget.ES2022,
+    module: ts.ModuleKind.ESNext,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
+    jsx: ts.JsxEmit.ReactJSX,
+    lib: ['lib.es2022.d.ts', 'lib.dom.d.ts', 'lib.dom.iterable.d.ts'],
+    skipLibCheck: true,
+  });
+  const checker = program.getTypeChecker();
   const entries: IndexEntry[] = [];
-  for (const file of sourceFiles(root)) {
+  for (const file of files) {
+    const sf = program.getSourceFile(file);
+    if (!sf) continue;
     const id = idFor(root, file, idOverrides);
-    entries.push(...extract(file, id, `${routeBase}${id}`, relative(resolve(root, '../..'), file), api));
+    entries.push(...extract(sf, checker, root, id, `${routeBase}${id}`, relative(resolve(root, '../..'), file), api));
   }
   // Components first, then hooks/utils, then the long tail of props — Fuse keeps
   // ties in input order, so this is the tiebreak for an empty query too.

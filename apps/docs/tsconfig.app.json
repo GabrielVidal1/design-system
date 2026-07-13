@@ -2,7 +2,10 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
-    "composite": true
+    "composite": true,
+    "resolveJsonModule": true
   },
-  "include": ["src"]
+  "include": [
+    "src"
+  ]
 }

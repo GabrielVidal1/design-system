@@ -428,6 +428,46 @@ export function ProgressiveBashIcon() {
   );
 }
 
+/** ProgressiveTimeline — the head hands down the spine; each slot reveals in turn. */
+export function ProgressiveTimelineIcon() {
+  const ys = [30, 58, 86];
+  return (
+    <Svg>
+      <line x1="62" y1="26" x2="62" y2="104" stroke={DIM} strokeWidth="2" opacity="0.4" />
+      {ys.map((y, i) => (
+        <g key={y} className="a-reveal" style={v({ '--dur': '4.2s', animationDelay: `${i * 0.55}s` })}>
+          <circle cx="62" cy={y + 7} r="4" fill={i === ys.length - 1 ? CY : DIM} opacity="0.85" />
+          {i === 1 ? (
+            <rect
+              className="a-grow"
+              style={v({ '--g0': '0.12', '--dur': '4.2s', animationDelay: '0.55s' })}
+              x="76"
+              y={y}
+              width="74"
+              height="14"
+              rx="4"
+              fill={CY}
+              fillOpacity="0.4"
+            />
+          ) : (
+            <rect x="76" y={y} width={i === 0 ? 96 : 84} height="14" rx="4" fill={i === ys.length - 1 ? CY : DIM} fillOpacity="0.5" />
+          )}
+        </g>
+      ))}
+      <circle
+        className="a-drift"
+        style={v({ '--dy': '56px', '--dur': '4.2s' })}
+        cx="62"
+        cy="37"
+        r="7"
+        fill={PAPER}
+        stroke={CY}
+        strokeWidth="2.5"
+      />
+    </Svg>
+  );
+}
+
 /** FloatingPanel — the window hovers, breathing above its dashed dock. */
 export function FloatingPanelIcon() {
   return (

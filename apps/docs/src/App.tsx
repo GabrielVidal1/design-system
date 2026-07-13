@@ -30,6 +30,8 @@ import {
   ProgressiveList,
   ProgressiveTable,
   ProgressiveText,
+  ProgressiveTimelineSlot,
+  useProgressiveSlot,
   RelativeTime,
   ResizableLayout,
   type ResizableLayoutHandle,
@@ -82,6 +84,7 @@ import {
   ProgressiveListIcon,
   ProgressiveTableIcon,
   ProgressiveTextIcon,
+  ProgressiveTimelineIcon,
   RelativeTimeIcon,
   ResizableLayoutIcon,
   RichInputIcon,
@@ -95,13 +98,17 @@ import {
   VirtualListIcon,
   ElementPickerIcon,
 } from './icons';
+import pkg from '@gabvdl/ui/package.json';
 import { SandpackProvider, SandpackCodeEditor, type SandpackTheme } from '@codesandbox/sandpack-react';
 import { RichInputPage } from './pages/RichInputPage';
 import { ElementPickerPage } from './pages/ElementPickerPage';
+import { StartPage } from './pages/StartPage';
+import { ThemingPage } from './pages/ThemingPage';
 import { changelog, fullUrl, nodes, specimenFulls, specimens, thumbUrl, type Node } from './data';
 import { loadSearchIndex, type IndexEntry } from './search';
 
-const VERSION = '0.16.0';
+/** Always the published package's version — read from its package.json at build time. */
+const VERSION = pkg.version;
 const REPO = 'https://gitea.lab.gabvdl.xyz/gabrielvidal/design-system';
 
 /* ─── Groups ──────────────────────────────────────────────────────────────── */
@@ -139,6 +146,7 @@ const GROUP_OF: Record<string, Group> = {
   'progressive-text': 'Animation',
   'progressive-list': 'Animation',
   'progressive-bash': 'Animation',
+  'progressive-timeline': 'Animation',
   changelog: 'Feedback',
   toast: 'Feedback',
   spinner: 'Feedback',
@@ -185,6 +193,7 @@ const SOURCE_FILE: Record<string, string> = {
   'progressive-list': 'progressive-list.tsx',
   'progressive-table': 'progressive-table.tsx',
   'progressive-bash': 'progressive-bash.tsx',
+  'progressive-timeline': 'progressive-timeline.tsx',
   changelog: 'changelog.tsx',
   'phone-preview': 'phone-preview.tsx',
   'iframe-preview': 'iframe-preview.tsx',
@@ -445,6 +454,38 @@ ref.current?.skipToEnd()
     output: 'Build..[vite]\\n✓ built in 1.8s' }]}
   experimentalSubparts
 />`,
+  },
+  {
+    id: 'progressive-timeline',
+    name: 'ProgressiveTimeline',
+    sig: 'ProgressiveTimelineSlot · useProgressiveSlot',
+    tag: 'animation',
+    Icon: ProgressiveTimelineIcon,
+    Demo: ProgressiveTimelineDemo,
+    code: `// the timeline underneath ProgressiveList/Text/Bash, exposed:
+// each slot reveals in turn, waiting for the previous slot's
+// inner animation before it appears.
+{steps.map((step, i) =>
+  i <= head && (
+    <ProgressiveTimelineSlot
+      key={step.id}
+      active={i === head}                    // the current head animates
+      fallbackMs={600}                       // plain content hands off after this
+      onComplete={() => setHead((h) => h + 1)}
+    >
+      <Row step={step} />   {/* a ProgressiveText inside reports its
+                                typing duration automatically */}
+    </ProgressiveTimelineSlot>
+  ),
+)}
+
+// any custom element can join the timeline:
+const { active, report, finish } = useProgressiveSlot()
+useEffect(() => {
+  if (!active) return
+  const done = report(1200)  // "I'll animate for 1.2s"
+  // …start the animation; call done() to hand off early
+}, [active])`,
   },
   {
     id: 'changelog',
@@ -850,6 +891,22 @@ export function App() {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/c/:id" element={<ComponentPage />} />
+              <Route
+                path="/start"
+                element={
+                  <GuidePage title="Getting started">
+                    <StartPage />
+                  </GuidePage>
+                }
+              />
+              <Route
+                path="/theming"
+                element={
+                  <GuidePage title="Theming">
+                    <ThemingPage />
+                  </GuidePage>
+                }
+              />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </ImageViewerProvider>
@@ -896,6 +953,24 @@ function Home() {
   );
 }
 
+/** Shell for the standalone guide pages (/start, /theming) — header, scroll, title, footer. */
+function GuidePage({ title, children }: { title: string; children: ReactNode }) {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    document.title = `${title} — gabvdl/ui`;
+    return () => {
+      document.title = 'gabvdl/ui';
+    };
+  }, [title]);
+  return (
+    <>
+      <Header title={title} />
+      <main className="mx-auto max-w-3xl px-5 pb-24">{children}</main>
+      <Footer />
+    </>
+  );
+}
+
 function Hero() {
   return (
     <div className="pt-14 pb-4">
@@ -908,8 +983,16 @@ function Hero() {
         type, each with a live demo and full source you can copy straight into your project.
       </p>
       <div className="mt-6 flex flex-wrap items-center gap-3">
+        <Link to="/start">
+          <Button className="mono text-xs uppercase tracking-[0.12em]">Get started</Button>
+        </Link>
+        <Link to="/theming">
+          <Button variant="outline" className="mono text-xs uppercase tracking-[0.12em]">
+            Theming
+          </Button>
+        </Link>
         <a href={REPO} target="_blank" rel="noreferrer">
-          <Button className="mono text-xs uppercase tracking-[0.12em]">
+          <Button variant="outline" className="mono text-xs uppercase tracking-[0.12em]">
             Source <ArrowUpRight className="size-4" />
           </Button>
         </a>
@@ -1177,9 +1260,16 @@ function DocsSearch({ trigger = 'icon' }: { trigger?: 'icon' | 'bar' }) {
       getItemKey={(e) => `${e.kind}:${e.name}`}
       emptyState="Nothing in the index matches."
       onSelect={(e) => {
-        if (!HAS_PAGE.has(e.id)) return navigate('/');
-        // A prop lands on its row in the page's props table, not just the page.
-        navigate(e.kind === 'prop' ? `/c/${e.id}?prop=${encodeURIComponent(e.name)}` : `/c/${e.id}`);
+        if (HAS_PAGE.has(e.id)) {
+          // A prop lands on its row in the page's props table, not just the page.
+          navigate(e.kind === 'prop' ? `/c/${e.id}?prop=${encodeURIComponent(e.name)}` : `/c/${e.id}`);
+          return;
+        }
+        // No card of its own — land on the card documenting the same source
+        // file if one exists, else the catalogue. Never a dead /c/ route.
+        const file = e.file.split('/').pop() ?? '';
+        const parent = REGISTRY.find((r) => SOURCE_FILE[r.id] === file);
+        navigate(parent ? `/c/${parent.id}` : '/');
       }}
       renderItem={({ item, highlight, active }) => (
         <div
@@ -1229,9 +1319,20 @@ function Header({ title }: { title?: string }) {
         </div>
         <div className="flex items-center gap-3 sm:gap-4">
           {!title && (
-            <span className="mono hidden text-[11px] uppercase tracking-[0.18em] text-muted-foreground sm:inline">
-              {REGISTRY.length} components
-            </span>
+            <nav className="hidden items-center gap-4 sm:flex">
+              <Link
+                to="/start"
+                className="mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Start
+              </Link>
+              <Link
+                to="/theming"
+                className="mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Theming
+              </Link>
+            </nav>
           )}
           {/* Dogfooded: the palette searches this library's own build-time index. */}
           <DocsSearch />
@@ -2036,6 +2137,87 @@ function ProgressiveBashSubpartsDemo() {
       <p className="mono text-[11px] text-muted-foreground">
         [experimental] one <code>{'echo "Title..[value]" && …'}</code> chain · each step is split into its own typed
         command (paired with its output) · toggle off to see the single raw chain instead
+      </p>
+    </div>
+  );
+}
+
+/**
+ * A custom timeline participant: once its slot is active it fills a bar over
+ * `ms` and reports that duration, so the next slot waits for it — the
+ * `useProgressiveSlot` half of the API, exercised outside the library.
+ */
+function TimelineBar({ ms, label }: { ms: number; label: string }) {
+  const { active, report } = useProgressiveSlot();
+  const [started, setStarted] = useState(false);
+  useEffect(() => {
+    if (!active || started) return;
+    report(ms); // "I'll animate for this long" — the timeline waits
+    const frame = requestAnimationFrame(() => setStarted(true));
+    return () => cancelAnimationFrame(frame);
+  }, [active, started, ms, report]);
+  return (
+    <div className="rounded-md border border-[color:var(--cyan)]/40 bg-[var(--surface)] px-3 py-2">
+      <div className="mono mb-1.5 text-[11px] text-muted-foreground">{label}</div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-[var(--tint-strong)]">
+        <div
+          className="h-full rounded-full bg-[color:var(--cyan)]"
+          style={{ width: started ? '100%' : '0%', transition: `width ${ms}ms linear` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+type TimelineStep =
+  | { id: string; kind: 'text'; text: string }
+  | { id: string; kind: 'bar'; ms: number; label: string }
+  | { id: string; kind: 'plain'; text: string };
+
+const TIMELINE_STEPS: TimelineStep[] = [
+  { id: 'intro', kind: 'text', text: 'The head slot types this line out…' },
+  { id: 'bar', kind: 'bar', ms: 1400, label: 'a custom participant — reports 1.4s via useProgressiveSlot' },
+  { id: 'after', kind: 'text', text: '…and this one waited for the bar to fill.' },
+  { id: 'plain', kind: 'plain', text: 'A plain row reports nothing — it hands off after fallbackMs.' },
+];
+
+function TimelineRun() {
+  const [head, setHead] = useState(0);
+  const advance = () => setHead((h) => h + 1);
+  return (
+    <div className="space-y-2">
+      {TIMELINE_STEPS.map((step, i) =>
+        i <= head ? (
+          <ProgressiveTimelineSlot key={step.id} active={i === head} fallbackMs={600} onComplete={advance}>
+            {step.kind === 'bar' ? (
+              <TimelineBar ms={step.ms} label={step.label} />
+            ) : (
+              <div className="rounded-md border border-border bg-[var(--surface-2)] px-3 py-2 text-sm">
+                <span className="mono text-[color:var(--cyan-deep)]">{i + 1}. </span>
+                {step.kind === 'text' ? <ProgressiveText text={step.text} speed={34} /> : step.text}
+              </div>
+            )}
+          </ProgressiveTimelineSlot>
+        ) : null,
+      )}
+      <p className={cn('mono text-[11px]', head >= TIMELINE_STEPS.length ? 'text-[color:var(--cyan)]' : 'text-muted-foreground')}>
+        {head >= TIMELINE_STEPS.length ? '✓ timeline complete' : `head at slot ${head + 1} / ${TIMELINE_STEPS.length}`}
+      </p>
+    </div>
+  );
+}
+
+function ProgressiveTimelineDemo() {
+  const [runId, setRunId] = useState(0); // bump to remount → replay the sequence
+  return (
+    <div className="space-y-4">
+      <TimelineRun key={runId} />
+      <Button size="sm" variant="outline" onClick={() => setRunId((n) => n + 1)}>
+        Replay
+      </Button>
+      <p className="mono text-[11px] text-muted-foreground">
+        4 slots · a ProgressiveText reports its typing duration automatically · the bar joins via useProgressiveSlot ·
+        the plain row falls back to fallbackMs=600
       </p>
     </div>
   );
