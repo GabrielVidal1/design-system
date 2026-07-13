@@ -76,7 +76,7 @@ const isExported = (node: ts.Node): boolean =>
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { recursive: true, encoding: 'utf8' })
     .filter((p) => /\.tsx?$/.test(p) && !p.endsWith('index.ts') && !p.endsWith('.d.ts'))
-    .map((p) => join(dir, p));
+    .map((p: string) => join(dir, p));
 }
 
 /** Docs id for a source file: the `components/<id>/` directory, or an override. */

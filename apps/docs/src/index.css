@@ -281,6 +281,30 @@ body::before {
   animation: a-grow var(--dur, 4s) var(--ease-io) infinite;
 }
 
+/* resizable — the left panel collapses to the wall while the bottom panel
+   takes up the slack: bottom scaleX = (118 − 44·left) / 74, an affine pair,
+   so with identical stops + easing the bottom edge tracks the panel exactly */
+@keyframes a-rz-left {
+  0%, 10%  { transform: scaleX(1); }
+  46%, 64% { transform: scaleX(0.12); }
+  100%     { transform: scaleX(1); }
+}
+.anim-svg .a-rz-left {
+  transform-box: view-box;
+  transform-origin: 34px center;
+  animation: a-rz-left var(--dur, 4.6s) var(--ease-io) infinite;
+}
+@keyframes a-rz-bottom {
+  0%, 10%  { transform: scaleX(1); }
+  46%, 64% { transform: scaleX(1.5232); }
+  100%     { transform: scaleX(1); }
+}
+.anim-svg .a-rz-bottom {
+  transform-box: view-box;
+  transform-origin: 152px center;
+  animation: a-rz-bottom var(--dur, 4.6s) var(--ease-io) infinite;
+}
+
 /* turn — one graceful revolution per cycle (origin set per icon) */
 @keyframes a-turn { to { transform: rotate(360deg); } }
 .a-turn { animation: a-turn var(--dur, 1.6s) var(--ease-io) infinite; }
