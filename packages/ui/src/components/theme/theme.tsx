@@ -94,14 +94,22 @@ export interface UseThemeResult {
   toggle: () => void;
 }
 
+// The snapshot carries the resolved value too — with the bare mode, a live OS
+// flip under `system` never changes the snapshot and React bails out of
+// re-rendering, leaving `resolved`/`isDark` stale while the DOM class moves on.
+function snapshot(): string {
+  const m = init();
+  return `${m}:${m === 'system' ? (systemDark() ? 'dark' : 'light') : m}`;
+}
+
 /** The dark-mode hook. No provider required. */
 export function useTheme(): UseThemeResult {
-  const theme = React.useSyncExternalStore(
+  const snap = React.useSyncExternalStore(
     subscribe,
-    () => init(),
-    () => fallback,
+    snapshot,
+    () => `${fallback}:${fallback === 'dark' ? 'dark' : 'light'}`,
   );
-  const resolved = theme === 'system' ? (systemDark() ? 'dark' : 'light') : theme;
+  const [theme, resolved] = snap.split(':') as [ThemeMode, 'light' | 'dark'];
   return { theme, resolved, isDark: resolved === 'dark', setTheme, toggle: toggleTheme };
 }
 
