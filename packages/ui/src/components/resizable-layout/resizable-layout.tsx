@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
   type TouchEvent,
 } from 'react';
@@ -69,6 +70,13 @@ export interface ResizableDrawerConfig {
    * vanishing with no way back. Number = px, string = verbatim. @default 0
    */
   mobileCollapsedSize?: string | number;
+  /**
+   * `'panel'` mode only: let the user drag the panel's inner edge to resize it
+   * (touch or pointer). The dragged size overrides `mobileWidth`/`mobileHeight`
+   * while open and is persisted per side under the layout's `autoSaveId`.
+   * @default true
+   */
+  mobileResizable?: boolean;
   /** Extra classes on the drawer surface (desktop panel + mobile overlay). */
   className?: string;
   /** `'drawer'` mode only: swipe in-axis on the drawer to close it. Default true. */
@@ -159,7 +167,9 @@ function sizeStyle(side: DrawerSide, config: ResizableDrawerConfig): CSSProperti
  *
  *   Both are sized per side with `mobileWidth`/`mobileHeight` (a `'panel'` may
  *   also use `'auto'` to hug its content, and `mobileCollapsedSize` to keep a
- *   tappable strip visible while closed).
+ *   tappable strip visible while closed). A `'panel'` is also drag-resizable
+ *   from the grip on its inner edge (opt out with `mobileResizable: false`);
+ *   the dragged size persists under `autoSaveId`.
  *
  * The center is always a `min-h-0` flex column, so a child with
  * `min-h-0 flex-1 overflow-y-auto` scrolls correctly in both modes — no more
@@ -265,7 +275,7 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
           onOpenChange: (o: boolean) => onChange(side, o),
         };
         return (config.mobileMode ?? 'drawer') === 'panel' ? (
-          <MobilePanel {...props} />
+          <MobilePanel {...props} autoSaveId={autoSaveId} />
         ) : (
           <MobileDrawer {...props} />
         );
@@ -487,31 +497,127 @@ function ResizeHandle({
   );
 }
 
+/** Smallest size a resized mobile panel can be dragged to, px. */
+const MOBILE_PANEL_MIN = 48;
+/** Room the center must keep when a mobile panel is dragged larger, px. */
+const MOBILE_CENTER_MIN = 96;
+
+function loadMobileSize(key: string | null): number | null {
+  if (!key || typeof window === 'undefined') return null;
+  try {
+    const n = Number(localStorage.getItem(key));
+    return Number.isFinite(n) && n > 0 ? n : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * An in-flow mobile side that splits the screen with the center instead of
  * overlaying it — no backdrop, so the center stays interactive. Closing it
  * shrinks it to `mobileCollapsedSize` (0 by default) rather than sliding it
  * off-screen; the content stays mounted either way, so a composer keeps its
  * draft across a collapse.
+ *
+ * Unless `mobileResizable` is false, the inner edge carries a grip the user can
+ * drag to resize the panel; the dragged size then overrides
+ * `mobileWidth`/`mobileHeight` and persists per side under the layout's
+ * `autoSaveId`.
  */
 function MobilePanel({
   side,
   config,
   open,
+  autoSaveId,
 }: {
   side: DrawerSide;
   config: ResizableDrawerConfig;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  autoSaveId?: string;
 }) {
   const horizontal = isHorizontal(side);
-  const size = open ? openSize(side, config) : css(config.mobileCollapsedSize ?? 0);
+  const asideRef = useRef<HTMLElement>(null);
+  const storageKey = autoSaveId ? `${autoSaveId}:mobile:${side}` : null;
+  const [customSize, setCustomSize] = useState<number | null>(() => loadMobileSize(storageKey));
+  const [dragging, setDragging] = useState(false);
+
+  const resizable = config.mobileResizable ?? true;
+  const size = open
+    ? resizable && customSize !== null
+      ? `${customSize}px`
+      : openSize(side, config)
+    : css(config.mobileCollapsedSize ?? 0);
+
+  const startResize = (e: ReactPointerEvent) => {
+    const el = asideRef.current;
+    if (!el) return;
+    e.preventDefault();
+    const rect = el.getBoundingClientRect();
+    const startSize = horizontal ? rect.width : rect.height;
+    const startPos = horizontal ? e.clientX : e.clientY;
+    // Grow direction: dragging the inner edge away from the panel's own edge.
+    const sign = side === 'left' || side === 'top' ? 1 : -1;
+    const parent = el.parentElement?.getBoundingClientRect();
+    const max = Math.max(
+      MOBILE_PANEL_MIN,
+      (parent ? (horizontal ? parent.width : parent.height) : startSize) - MOBILE_CENTER_MIN,
+    );
+
+    let latest = startSize;
+    const onMove = (ev: PointerEvent) => {
+      const d = ((horizontal ? ev.clientX : ev.clientY) - startPos) * sign;
+      latest = Math.min(max, Math.max(MOBILE_PANEL_MIN, startSize + d));
+      setCustomSize(latest);
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      setDragging(false);
+      if (storageKey) {
+        try {
+          localStorage.setItem(storageKey, String(Math.round(latest)));
+        } catch {
+          /* ignore */
+        }
+      }
+    };
+    setDragging(true);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  };
+
+  const grip = open && resizable && (
+    <div
+      onPointerDown={startResize}
+      role="separator"
+      aria-orientation={horizontal ? 'vertical' : 'horizontal'}
+      className={cn(
+        'z-10 flex shrink-0 touch-none select-none items-center justify-center',
+        horizontal
+          ? cn('absolute inset-y-0 w-4 cursor-ew-resize', side === 'left' ? 'right-0' : 'left-0')
+          : 'h-3.5 w-full cursor-ns-resize',
+      )}
+    >
+      <div
+        className={cn(
+          'rounded-full bg-border transition-colors',
+          dragging && 'bg-primary',
+          horizontal ? 'h-8 w-1' : 'h-1 w-8',
+        )}
+      />
+    </div>
+  );
 
   return (
     <aside
+      ref={asideRef}
       style={horizontal ? { width: size, maxWidth: '100%' } : { height: size, maxHeight: '100%' }}
       className={cn(
-        'relative flex shrink-0 flex-col overflow-hidden bg-card transition-[width,height] duration-200',
+        'relative flex shrink-0 flex-col overflow-hidden bg-card',
+        !dragging && 'transition-[width,height] duration-200',
         side === 'left' && 'border-r border-border',
         side === 'right' && 'border-l border-border',
         side === 'top' && 'border-b border-border',
@@ -519,7 +625,12 @@ function MobilePanel({
         config.className,
       )}
     >
-      {config.content}
+      {side === 'bottom' && grip}
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        {config.content}
+      </div>
+      {side !== 'bottom' && !horizontal && grip}
+      {horizontal && grip}
     </aside>
   );
 }

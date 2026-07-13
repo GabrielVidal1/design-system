@@ -8,6 +8,19 @@ in the [README](README.md): from `0.1.0` on, breaking changes bump the
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-07-13
+
+### Added
+
+- `ResizableLayout`: mobile `'panel'` sides are now drag-resizable from a grip
+  on their inner edge (touch or pointer). The dragged size overrides
+  `mobileWidth`/`mobileHeight` and persists per side under the layout's
+  `autoSaveId`. Opt out per side with `mobileResizable: false`.
+- `RichInput`: new `fill` prop — stretch to the parent's height with the
+  textarea taking all the space the chip/toolbar rows leave, instead of
+  auto-growing between `minRows`/`maxRows`. For hosting the composer inside a
+  resizable panel (e.g. a `FloatingPanel`).
+
 ## [0.1.0] - 2026-07-13
 
 First beta cut — the point where the library stops being a fast-moving grab

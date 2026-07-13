@@ -42,6 +42,13 @@ export interface RichInputProps {
   autoFocus?: boolean;
   minRows?: number;
   maxRows?: number;
+  /**
+   * Stretch to fill the parent's height (the parent must give it one — e.g. a
+   * flex column with `min-h-0 flex-1`, or a resizable panel body). The textarea
+   * takes all the space the chips/toolbar rows leave, instead of auto-growing
+   * between `minRows`/`maxRows`. Default false.
+   */
+  fill?: boolean;
 
   /** Fired once the un-send window elapses (or immediately when it is 0). */
   onSubmit?: (payload: RichSendPayload) => void | Promise<void>;
@@ -110,6 +117,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     autoFocus = false,
     minRows = 2,
     maxRows = 12,
+    fill = false,
     onSubmit,
     undoWindowMs = 3000,
     submitKey = 'enter',
@@ -210,13 +218,18 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     onPick: (tag) => gl.setOn(tag.id, true),
   });
 
-  // Auto-grow the textarea between min/max rows.
+  // Auto-grow the textarea between min/max rows. In `fill` mode the flex layout
+  // owns the height instead.
   useLayoutEffect(() => {
     const el = taRef.current;
     if (!el) return;
+    if (fill) {
+      el.style.height = '';
+      return;
+    }
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, maxRows * LINE_HEIGHT)}px`;
-  }, [value, maxRows]);
+  }, [value, maxRows, fill]);
 
   const clearTimers = useCallback(() => {
     if (queueTimer.current) clearTimeout(queueTimer.current);
@@ -397,7 +410,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
   const canSend = (value.trim().length > 0 || files.files.length > 0) && !busy;
 
   return (
-    <div className={cn('flex flex-col gap-2', className)}>
+    <div className={cn('flex flex-col gap-2', fill && 'h-full min-h-0', className)}>
       {pending ? (
         <UnsendBanner countdown={countdown} onUndo={cancelSend} />
       ) : (
@@ -405,6 +418,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
           {...drop.rootProps}
           className={cn(
             'relative rounded-2xl border border-input bg-card p-2 transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40',
+            fill && 'flex min-h-0 flex-1 flex-col',
             disabled && 'opacity-60',
             drop.dragging && 'border-primary ring-2 ring-primary/40',
           )}
@@ -457,8 +471,11 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
                 void files.add(e.clipboardData.files);
               }
             }}
-            style={{ maxHeight: maxRows * LINE_HEIGHT }}
-            className="w-full resize-none bg-transparent px-2 py-1 text-sm leading-[22px] text-foreground outline-none placeholder:text-muted-foreground"
+            style={fill ? undefined : { maxHeight: maxRows * LINE_HEIGHT }}
+            className={cn(
+              'w-full resize-none bg-transparent px-2 py-1 text-sm leading-[22px] text-foreground outline-none placeholder:text-muted-foreground',
+              fill && 'min-h-0 flex-1',
+            )}
           />
 
           {(guidelinesToggle || (showGuidelines && guidelineToggles.length > 0)) && (
