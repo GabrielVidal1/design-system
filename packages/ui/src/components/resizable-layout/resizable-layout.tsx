@@ -71,6 +71,14 @@ export interface ResizableDrawerConfig {
    */
   mobileCollapsedSize?: string | number;
   /**
+   * Desktop counterpart of `mobileCollapsedSize`, **in pixels**: the height (or
+   * width) the drawer keeps while collapsed, instead of disappearing. For a
+   * drawer whose content is its own way back — a `Dock`'s tab strip and its
+   * "+" button, a collapsed composer bar. Resolved against the layout's live
+   * size, so it stays that many pixels at any viewport. @default 0
+   */
+  collapsedSize?: number;
+  /**
    * `'panel'` mode only: let the user drag the panel's inner edge to resize it
    * (touch or pointer). The dragged size overrides `mobileWidth`/`mobileHeight`
    * while open and is persisted per side under the layout's `autoSaveId`.
@@ -132,6 +140,22 @@ function useMinWidth(min: number): boolean {
     return () => mq.removeEventListener('change', on);
   }, [query]);
   return match;
+}
+
+/** The element's live content box, so px sizes can be expressed as percentages. */
+function useElementSize(ref: React.RefObject<HTMLElement | null>): { width: number; height: number } {
+  const [box, setBox] = useState({ width: 0, height: 0 });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([entry]) => {
+      const r = entry.contentRect;
+      setBox((b) => (b.width === r.width && b.height === r.height ? b : { width: r.width, height: r.height }));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ref]);
+  return box;
 }
 
 const css = (v: string | number) => (typeof v === 'number' ? `${v}px` : v);
@@ -207,6 +231,20 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
     const rightPanel = useRef<ImperativePanelHandle>(null);
     const topPanel = useRef<ImperativePanelHandle>(null);
     const bottomPanel = useRef<ImperativePanelHandle>(null);
+    const rootRef = useRef<HTMLDivElement>(null);
+    const rootBox = useElementSize(rootRef);
+
+    /**
+     * react-resizable-panels sizes in percent, but a collapsed strip is a
+     * pixel thing (a 36px tab bar). Convert against the live layout box.
+     */
+    const collapsedPct = (side: DrawerSide, config?: ResizableDrawerConfig) => {
+      const px = config?.collapsedSize;
+      if (!px) return 0;
+      const axis = isHorizontal(side) ? rootBox.width : rootBox.height;
+      if (!axis) return 0;
+      return Math.min(100, (px / axis) * 100);
+    };
 
     const openBySide = { left: leftOpen, right: rightOpen, top: topOpen, bottom: bottomOpen };
     const panelBySide = { left: leftPanel, right: rightPanel, top: topPanel, bottom: bottomPanel };
@@ -230,13 +268,32 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
     useEffect(() => {
       (['left', 'right', 'top', 'bottom'] as const).forEach((side) => {
         const p = panelBySide[side].current;
-        if (!isDesktop || !p || !configBySide[side]) return;
-        const open = openBySide[side];
-        if (open && p.isCollapsed()) p.expand();
-        else if (!open && p.isExpanded()) p.collapse();
+        const config = configBySide[side];
+        if (!isDesktop || !p || !config) return;
+        if (openBySide[side]) {
+          if (p.isCollapsed()) p.expand();
+          return;
+        }
+        // Collapsed: re-collapse whenever the strip's percentage has drifted
+        // from its pixel size (first measure, viewport resize) — `collapse()`
+        // is the only way to land below `minSize`, and no-ops when already there.
+        const pct = collapsedPct(side, config);
+        if (p.isExpanded() || Math.abs(p.getSize() - pct) > 0.05) p.collapse();
       });
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isDesktop, left, right, top, bottom, leftOpen, rightOpen, topOpen, bottomOpen]);
+    }, [
+      isDesktop,
+      left,
+      right,
+      top,
+      bottom,
+      leftOpen,
+      rightOpen,
+      topOpen,
+      bottomOpen,
+      rootBox.width,
+      rootBox.height,
+    ]);
 
     useImperativeHandle(
       ref,
@@ -309,8 +366,8 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
               ref={leftPanel}
               order={1}
               collapsible
-              collapsedSize={0}
-              defaultSize={leftOpen ? (left.defaultSize ?? 20) : 0}
+              collapsedSize={collapsedPct('left', left)}
+              defaultSize={leftOpen ? (left.defaultSize ?? 20) : collapsedPct('left', left)}
               minSize={left.minSize ?? 12}
               maxSize={left.maxSize ?? 40}
               onCollapse={() => onChange('left', false)}
@@ -348,8 +405,8 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
               ref={rightPanel}
               order={3}
               collapsible
-              collapsedSize={0}
-              defaultSize={rightOpen ? (right.defaultSize ?? 22) : 0}
+              collapsedSize={collapsedPct('right', right)}
+              defaultSize={rightOpen ? (right.defaultSize ?? 22) : collapsedPct('right', right)}
               minSize={right.minSize ?? 12}
               maxSize={right.maxSize ?? 45}
               onCollapse={() => onChange('right', false)}
@@ -365,24 +422,28 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
 
     if (!top && !bottom) {
       return (
-        <div className={cn('h-full w-full min-h-0', className)}>{horizontalGroup}</div>
+        <div ref={rootRef} className={cn('h-full w-full min-h-0', className)}>
+          {horizontalGroup}
+        </div>
       );
     }
 
     return (
-      <PanelGroup
-        direction="vertical"
-        autoSaveId={autoSaveId ? `${autoSaveId}:vertical` : undefined}
-        className={cn('h-full w-full min-h-0', className)}
-      >
+      // The wrapper's box is what `collapsedSize` pixels are measured against.
+      <div ref={rootRef} className={cn('h-full w-full min-h-0', className)}>
+        <PanelGroup
+          direction="vertical"
+          autoSaveId={autoSaveId ? `${autoSaveId}:vertical` : undefined}
+          className="h-full w-full min-h-0"
+        >
         {top && (
           <>
             <Panel
               ref={topPanel}
               order={1}
               collapsible
-              collapsedSize={0}
-              defaultSize={topOpen ? (top.defaultSize ?? 30) : 0}
+              collapsedSize={collapsedPct('top', top)}
+              defaultSize={topOpen ? (top.defaultSize ?? 30) : collapsedPct('top', top)}
               minSize={top.minSize ?? 12}
               maxSize={top.maxSize ?? 60}
               onCollapse={() => onChange('top', false)}
@@ -416,8 +477,8 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
               ref={bottomPanel}
               order={3}
               collapsible
-              collapsedSize={0}
-              defaultSize={bottomOpen ? (bottom.defaultSize ?? 30) : 0}
+              collapsedSize={collapsedPct('bottom', bottom)}
+              defaultSize={bottomOpen ? (bottom.defaultSize ?? 30) : collapsedPct('bottom', bottom)}
               minSize={bottom.minSize ?? 12}
               maxSize={bottom.maxSize ?? 60}
               onCollapse={() => onChange('bottom', false)}
@@ -428,7 +489,8 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
             </Panel>
           </>
         )}
-      </PanelGroup>
+        </PanelGroup>
+      </div>
     );
   },
 );

@@ -156,12 +156,13 @@ export type {
   DrawerSide,
   MobileMode,
 } from './components/resizable-layout';
-export { FloatingPanel, Dock, DockProvider, useDockContext } from './components/floating-panel';
+export { FloatingPanel, Dock, DockProvider, useDockContext, useDock } from './components/floating-panel';
 export type {
   FloatingPanelProps,
   FloatingPanelHandle,
   DockProps,
   DockContextValue,
   PanelPlacement,
+  PanelMeta,
   FloatingGeom,
 } from './components/floating-panel';

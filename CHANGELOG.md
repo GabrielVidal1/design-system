@@ -8,6 +8,36 @@ in the [README](README.md): from `0.1.0` on, breaking changes bump the
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-07-13
+
+### Added
+
+- `FloatingPanel`: **`closable`** — the panel closes itself into the `closed`
+  placement instead of relying on the parent to unmount it. It stays registered,
+  so its `Dock` grows a **"+"** button that brings it back: one closed panel
+  reopens on click, several give a small menu. A parent no longer keeps an
+  `isOpen` flag per panel, and a closed panel can't become unreachable.
+- `FloatingPanel`: `defaultClosed` (start as nothing but a "+" entry),
+  `keepMounted` (keep the body alive while closed, so a half-typed draft
+  survives), `label`, and `open()` / `close()` / `isClosed()` on the imperative
+  handle.
+- `Dock`: `tabs: 'always'` to keep the strip up for a lone panel, a close
+  affordance on each tab, and the "+" button and its menu.
+- `useDock(id)` — a dock's open/closed panels, active tab, and the actions to
+  move panels between those states. Its `isEmpty` is what a host layout watches
+  to collapse the region holding the dock.
+- `ResizableLayout`: desktop **`collapsedSize`** (in pixels, the counterpart of
+  `mobileCollapsedSize`) — a collapsed drawer keeps that many pixels on screen
+  instead of vanishing, which is what lets a dock stay reachable as just its "+"
+  strip. Resolved against the layout's live box, so it holds at any viewport.
+
+### Fixed
+
+- `FloatingPanel`: children no longer remount when a panel moves between
+  placements. The body now rides a stable portal holder that is *moved* between
+  mount points, so component state genuinely survives float ⇄ dock (as the docs
+  already claimed) and close ⇄ open under `keepMounted`.
+
 ## [0.1.1] - 2026-07-13
 
 ### Added

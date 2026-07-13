@@ -66,6 +66,19 @@ import type { ChangelogEntry } from '@gabvdl/ui';
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.1.3',
+    date: '2026-07-13',
+    title: 'Panels open and close like tabs',
+    changes: [
+      'FloatingPanel: `closable` — a panel closes into its dock instead of being unmounted by the parent, and the dock grows a "+" that brings it back',
+      'FloatingPanel: `defaultClosed`, `keepMounted`, and `open()`/`close()`/`isClosed()` on the imperative handle',
+      'FloatingPanel: children now genuinely survive float ⇄ dock (and close ⇄ open with `keepMounted`) — the body rides a stable portal holder instead of remounting',
+      'Dock: `tabs: "always"`, a close affordance on each tab, and a "+" menu listing the closed panels',
+      'Add `useDock(id)` — read a dock\'s open/closed panels and drive them; `isEmpty` is what collapses the region hosting it',
+      'ResizableLayout: desktop `collapsedSize` (px) — a collapsed drawer can keep a strip on screen (a dock\'s "+" bar) instead of vanishing',
+    ],
+  },
+  {
     version: '0.1.0',
     date: '2026-07-13',
     title: 'First beta cut',

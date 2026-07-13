@@ -26,9 +26,14 @@ export interface FloatingPanelHandle {
   dock: (dockId?: string) => void;
   /** Float if docked, dock if floating. */
   toggle: () => void;
+  /** Close the panel — it stays registered, reopenable from its dock's "+". */
+  close: () => void;
+  /** Reopen a closed panel where it was before. */
+  open: () => void;
   /** Move/resize the floating box. */
   setGeom: (geom: Partial<FloatingGeom>) => void;
   isDocked: () => boolean;
+  isClosed: () => boolean;
 }
 
 export interface FloatingPanelProps {
@@ -46,6 +51,23 @@ export interface FloatingPanelProps {
   dockId?: string;
   /** Start docked in `dockId`. @default `true` when `dockId` is set, else `false` */
   defaultDocked?: boolean;
+  /**
+   * Let the panel close itself: the close button puts it in the `closed`
+   * placement instead of leaving it to the parent to unmount. It stays
+   * registered, so its dock's **"+"** button brings it back. Without this, a
+   * close button only fires {@link onClose} and the parent decides what happens.
+   */
+  closable?: boolean;
+  /** Start closed (needs `closable`) — the panel is only its "+" entry. */
+  defaultClosed?: boolean;
+  /**
+   * Keep `children` mounted (hidden) while closed, so their state survives a
+   * close/reopen — a half-typed message in a composer, say. Off by default: a
+   * closed panel usually should stop doing whatever it was doing.
+   */
+  keepMounted?: boolean;
+  /** Plain-text name, used for the "+" button's tooltip. Falls back to a string `title`. */
+  label?: string;
   /** Initial floating box; unset fields fall back to a bottom-right default. */
   defaultGeom?: Partial<FloatingGeom>;
   minWidth?: number;
@@ -54,7 +76,7 @@ export interface FloatingPanelProps {
   resizable?: boolean;
   /** Allow header dragging. @default true */
   draggable?: boolean;
-  /** Show a close button in the header. */
+  /** Show a close button. Fired on close — with `closable`, after the panel closes itself. */
   onClose?: () => void;
   /** Extra header controls, rendered before the dock/close buttons. */
   actions?: ReactNode;
@@ -105,14 +127,20 @@ const RESIZE_HANDLES: { edge: ResizeEdge; cursor: string; style: CSSProperties }
  * {@link Dock}. Drag the header onto a dock's drop area to snap in; drag its tab
  * back out to float again. Multiple panels sharing one dock become tabs.
  *
+ * With `closable`, a panel also closes like a tab: it stays mounted and
+ * registered, and its dock grows a **"+"** button that brings it back — so the
+ * parent no longer has to keep an `isOpen` flag per panel, and a closed panel
+ * can never become unreachable.
+ *
  * Works standalone (no {@link DockProvider}) as a plain floating window, or —
  * inside a provider, with a `dockId` — as a dockable panel. The children keep
  * their React state across float ⇄ dock (the DOM node moves via a portal, the
- * component instances do not remount).
+ * component instances do not remount); across close ⇄ open only with
+ * `keepMounted`.
  *
  * ```tsx
  * <DockProvider>
- *   <FloatingPanel id="terminal" dockId="bottom" title="Terminal">
+ *   <FloatingPanel id="terminal" dockId="bottom" title="Terminal" closable>
  *     <TerminalBody />
  *   </FloatingPanel>
  *   <Dock id="bottom" className="h-64" />
@@ -126,6 +154,10 @@ export function FloatingPanel({
   children,
   dockId,
   defaultDocked,
+  closable,
+  defaultClosed,
+  keepMounted,
+  label,
   defaultGeom,
   minWidth = MIN_W,
   minHeight = MIN_H,
@@ -141,40 +173,59 @@ export function FloatingPanel({
 }: FloatingPanelProps) {
   const dockCtx = useDockContext();
   const canDock = !!dockCtx && !!dockId;
+  const name = label ?? (typeof title === 'string' ? title : undefined);
 
   const initialPlacement = useMemo<PanelPlacement>(() => {
+    if (defaultClosed) return { mode: 'closed', dockId };
     const docked = defaultDocked ?? !!dockId;
     if (canDock && docked && dockId) return { mode: 'docked', dockId };
     return { mode: 'floating', ...seedGeom(defaultGeom, minWidth, minHeight) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Placement: owned by the provider when docking is available, else local.
+  // Placement: owned by the provider when there is one, else local.
   const [localPlacement, setLocalPlacement] = useState<PanelPlacement>(initialPlacement);
-  const placement = (canDock ? dockCtx!.getPlacement(id) : undefined) ?? localPlacement;
+  const placement = (dockCtx ? dockCtx.getPlacement(id) : undefined) ?? localPlacement;
 
   const applyPlacement = useCallback(
     (next: PanelPlacement) => {
-      if (canDock) dockCtx!.setPlacement(id, next);
+      if (dockCtx) dockCtx.setPlacement(id, next);
       else setLocalPlacement(next);
-      onPlacementChange?.(next);
     },
-    [canDock, dockCtx, id, onPlacementChange],
+    [dockCtx, id],
   );
 
   // Register with the provider once so it appears in dock tab order.
   useEffect(() => {
     if (!dockCtx) return;
-    dockCtx.registerPanel(id, initialPlacement);
+    dockCtx.registerPanel(id, initialPlacement, { homeDockId: dockId, label: name });
     return () => dockCtx.unregisterPanel(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Report placement changes from any source — our own drag, or the dock's "+".
+  const notified = useRef<PanelPlacement | null>(null);
+  useEffect(() => {
+    if (notified.current === null) {
+      notified.current = placement; // initial placement is not a change
+      return;
+    }
+    if (notified.current === placement) return;
+    notified.current = placement;
+    onPlacementChange?.(placement);
+  }, [placement, onPlacementChange]);
 
   // Last floating box, so docking then re-floating restores size/position.
   const lastGeom = useRef<FloatingGeom>(
     placement.mode === 'floating' ? placement : seedGeom(defaultGeom, minWidth, minHeight),
   );
   if (placement.mode === 'floating') lastGeom.current = placement;
+
+  // Last non-closed placement, so reopening puts the panel back where it was.
+  const lastOpen = useRef<PanelPlacement | null>(
+    initialPlacement.mode === 'closed' ? null : initialPlacement,
+  );
+  if (placement.mode !== 'closed') lastOpen.current = placement;
 
   const floatTo = useCallback(
     (geom?: Partial<FloatingGeom>) => {
@@ -193,16 +244,31 @@ export function FloatingPanel({
     [applyPlacement, dockId],
   );
 
+  const closeSelf = useCallback(() => {
+    if (closable) applyPlacement({ mode: 'closed', dockId });
+    onClose?.();
+  }, [closable, applyPlacement, dockId, onClose]);
+
+  const openSelf = useCallback(() => {
+    const prev = lastOpen.current;
+    if (prev && prev.mode !== 'closed') applyPlacement(prev);
+    else if (canDock && dockId) dockTo(dockId);
+    else floatTo();
+  }, [applyPlacement, canDock, dockId, dockTo, floatTo]);
+
   useImperativeHandle(
     apiRef,
     () => ({
       float: () => floatTo(),
       dock: (d?: string) => dockTo(d),
       toggle: () => (placement.mode === 'docked' ? floatTo() : dockTo()),
+      close: () => applyPlacement({ mode: 'closed', dockId }),
+      open: () => openSelf(),
       setGeom: (g: Partial<FloatingGeom>) => floatTo(g),
       isDocked: () => placement.mode === 'docked',
+      isClosed: () => placement.mode === 'closed',
     }),
-    [floatTo, dockTo, placement.mode],
+    [floatTo, dockTo, applyPlacement, dockId, openSelf, placement.mode],
   );
 
   // Keep floating box on-screen when the viewport shrinks.
@@ -328,7 +394,44 @@ export function FloatingPanel({
     [resizable, placement, applyPlacement, minWidth, minHeight],
   );
 
+  // ---- Body holder ---------------------------------------------------------
+  // The body lives in one detached div that is *moved* between mount points
+  // (dock content, floating window, nowhere while closed). Because the portal
+  // container never changes identity, React never remounts `children`: their
+  // state survives float ⇄ dock, and — with `keepMounted` — close ⇄ open too.
+  const holderRef = useRef<HTMLDivElement | null>(null);
+  if (holderRef.current === null && typeof document !== 'undefined') {
+    const el = document.createElement('div');
+    el.style.cssText = 'display:flex;flex-direction:column;min-height:0;height:100%;width:100%';
+    holderRef.current = el;
+  }
+  const holder = holderRef.current;
+
+  /** Adopt the holder into whichever mount point the current placement renders. */
+  const mountBody = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (node && holder && holder.parentNode !== node) node.appendChild(holder);
+    },
+    [holder],
+  );
+
+  const bodyPortal =
+    holder && (placement.mode !== 'closed' || keepMounted)
+      ? createPortal(children, holder)
+      : null;
+
   // ---- Header (shared by floating chrome and dock tab-active bar) -----------
+  const closeButton = (closable || onClose) && (
+    <button
+      type="button"
+      aria-label="Close"
+      onClick={closeSelf}
+      className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+    >
+      <CloseIcon />
+    </button>
+  );
+
   const headerControls = (
     <>
       {actions}
@@ -352,45 +455,74 @@ export function FloatingPanel({
             <DockIcon />
           </button>
         ))}
-      {onClose && (
-        <button
-          type="button"
-          aria-label="Close"
-          onClick={onClose}
-          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          <CloseIcon />
-        </button>
-      )}
+      {closeButton}
     </>
   );
 
-  // ---- Docked rendering: portal tab + (if active) body into the dock --------
-  if (placement.mode === 'docked' && canDock) {
+  // ---- Chrome per placement. The body portal is rendered once, below, so the
+  // ---- children never remount as the panel moves between placements. -------
+  let chrome: ReactNode = null;
+
+  // Closed: nothing on screen but an entry in its dock's "+" menu.
+  if (placement.mode === 'closed') {
+    const dock = placement.dockId ? dockCtx?.getDock(placement.dockId) : undefined;
+    chrome = dock?.menu
+      ? createPortal(
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => dockCtx!.openPanel(id, placement.dockId)}
+            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-muted"
+          >
+            {icon}
+            <span className="truncate">{title ?? name ?? id}</span>
+          </button>,
+          dock.menu,
+        )
+      : null;
+  }
+
+  // Docked: portal a tab, and — if active — the body mount, into the dock.
+  else if (placement.mode === 'docked' && canDock) {
     const dock = dockCtx!.getDock(placement.dockId);
     const isActive = dockCtx!.activeInDock(placement.dockId) === id;
-    const members = dockCtx!.panelsInDock(placement.dockId);
-    const showTab = members.length > 1; // single panel: no tab strip, just body
-    return (
+    const showTab = dockCtx!.dockShowsTabs(placement.dockId); // else: lone panel, own header
+    chrome = (
       <>
         {dock?.tabBar &&
           createPortal(
-            <button
-              type="button"
+            <div
               data-active={isActive}
-              onPointerDown={(e) => beginMove(e, { fromDockTab: true })}
               className={cn(
-                'flex items-center gap-1.5 border-b-2 px-3 py-1.5 text-xs font-medium transition-colors',
-                'touch-none select-none',
-                isActive
-                  ? 'border-primary text-foreground'
-                  : 'border-transparent text-muted-foreground hover:text-foreground',
+                'flex shrink-0 items-center border-b-2 transition-colors',
+                isActive ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground',
                 !showTab && 'hidden',
               )}
             >
-              {icon}
-              <span className="max-w-[16ch] truncate">{title}</span>
-            </button>,
+              <button
+                type="button"
+                onPointerDown={(e) => beginMove(e, { fromDockTab: true })}
+                className={cn(
+                  'flex items-center gap-1.5 py-1.5 pl-3 text-xs font-medium',
+                  'touch-none select-none',
+                  closable ? 'pr-1' : 'pr-3',
+                  !isActive && 'hover:text-foreground',
+                )}
+              >
+                {icon}
+                <span className="max-w-[16ch] truncate">{title}</span>
+              </button>
+              {closable && (
+                <button
+                  type="button"
+                  aria-label={`Close ${name ?? 'panel'}`}
+                  onClick={closeSelf}
+                  className="mr-1.5 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <CloseIcon />
+                </button>
+              )}
+            </div>,
             dock.tabBar,
           )}
         {dock?.content &&
@@ -410,7 +542,10 @@ export function FloatingPanel({
                   {headerControls}
                 </div>
               )}
-              <div className={cn('min-h-0 flex-1 overflow-hidden', bodyClassName)}>{children}</div>
+              <div
+                ref={mountBody}
+                className={cn('min-h-0 flex-1 overflow-hidden', bodyClassName)}
+              />
             </div>,
             dock.content,
           )}
@@ -419,8 +554,7 @@ export function FloatingPanel({
   }
 
   // ---- Floating rendering: portal a fixed window to <body> ------------------
-  if (placement.mode !== 'floating') return null;
-  const win = (
+  const win = placement.mode !== 'floating' ? null : (
     <div
       role="dialog"
       className={cn(
@@ -441,7 +575,7 @@ export function FloatingPanel({
         <span className="flex-1 truncate text-xs font-medium">{title}</span>
         {headerControls}
       </div>
-      <div className={cn('min-h-0 flex-1 overflow-hidden', bodyClassName)}>{children}</div>
+      <div ref={mountBody} className={cn('min-h-0 flex-1 overflow-hidden', bodyClassName)} />
       {resizable &&
         RESIZE_HANDLES.map((h) => (
           <div
@@ -454,7 +588,16 @@ export function FloatingPanel({
     </div>
   );
 
-  return typeof document !== 'undefined' ? createPortal(win, document.body) : win;
+  if (win) chrome = typeof document !== 'undefined' ? createPortal(win, document.body) : win;
+
+  // `bodyPortal` first and unconditional: its container (the holder) is stable,
+  // so React keeps `children` mounted no matter which chrome renders around it.
+  return (
+    <>
+      {bodyPortal}
+      {chrome}
+    </>
+  );
 }
 
 function CloseIcon() {

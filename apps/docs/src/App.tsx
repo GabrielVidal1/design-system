@@ -547,22 +547,35 @@ useEffect(() => {
   {
     id: 'floating-panel',
     name: 'FloatingPanel',
-    sig: 'DockProvider · FloatingPanel · Dock — drag · resize · tabs',
+    sig: 'DockProvider · FloatingPanel · Dock — drag · resize · tabs · close/reopen',
     tag: 'layout',
     Icon: FloatingPanelIcon,
     Demo: FloatingPanelDemo,
     code: `// draggable/resizable windows that snap into a Dock;
 // panels sharing one dock become tabs. Drag a header
 // onto the dock to snap in, drag a tab out to float.
+// \`closable\` panels close like tabs — the dock grows a
+// "+" that brings them back, so a closed panel is never
+// unreachable and the parent keeps no isOpen flags.
 <DockProvider>
-  <FloatingPanel id="terminal" dockId="d1" defaultDocked title="Terminal">
+  <FloatingPanel id="terminal" dockId="d1" title="Terminal" closable>
     <TerminalBody />
   </FloatingPanel>
-  <FloatingPanel id="details" dockId="d1" defaultDocked title="Details">
+  <FloatingPanel id="details" dockId="d1" title="Details" closable defaultClosed>
     <DetailsBody />
   </FloatingPanel>
   <Dock id="d1" className="h-64" />
-</DockProvider>`,
+</DockProvider>
+
+// Collapse the region hosting a dock down to its "+" strip
+// when every panel is closed — \`collapsedSize\` is in pixels.
+const dock = useDock('d1');
+<ResizableLayout
+  bottom={{ content: <Dock id="d1" />, collapsedSize: 36 }}
+  bottomOpen={!dock.isEmpty}
+>
+  {thread}
+</ResizableLayout>`,
   },
   {
     id: 'resizable-layout',
@@ -2232,6 +2245,7 @@ function FloatingPanelDemo() {
           dockId="fp-dock"
           defaultDocked
           title="Terminal"
+          closable
           defaultGeom={{ width: 340, height: 200 }}
         >
           <div className="p-3 mono text-[12px] text-foreground">
@@ -2245,12 +2259,29 @@ function FloatingPanelDemo() {
           dockId="fp-dock"
           defaultDocked
           title="Details"
+          closable
           defaultGeom={{ width: 340, height: 200 }}
         >
           <div className="p-3 text-sm text-foreground">
             <p className="text-muted-foreground">
               Two panels share one dock, so they show up as tabs. Drag a tab out to float it as a
-              window; drag the header back onto the dock to snap it in.
+              window; drag the header back onto the dock to snap it in. Close a tab and the dock
+              grows a <span className="mono text-foreground">+</span> to bring it back.
+            </p>
+          </div>
+        </FloatingPanel>
+        <FloatingPanel
+          id="fp-notes"
+          dockId="fp-dock"
+          title="Notes"
+          closable
+          defaultClosed
+          defaultGeom={{ width: 340, height: 200 }}
+        >
+          <div className="p-3 text-sm text-foreground">
+            <p className="text-muted-foreground">
+              This one started closed (<span className="mono text-foreground">defaultClosed</span>) —
+              it only ever existed as an entry under the dock&rsquo;s +.
             </p>
           </div>
         </FloatingPanel>
@@ -2260,7 +2291,7 @@ function FloatingPanelDemo() {
         />
       </DockProvider>
       <p className="mono text-[11px] text-muted-foreground">
-        drag a tab out to float · drag a header onto the dock to snap in · panels sharing a dock become tabs · a floating panel portals to document.body (position:fixed), so it escapes this card — expected
+        drag a tab out to float · drag a header onto the dock to snap in · panels sharing a dock become tabs · close a tab and reopen it from the dock&rsquo;s + (one closed panel opens straight away, several give you a menu) · a floating panel portals to document.body (position:fixed), so it escapes this card — expected
       </p>
     </div>
   );
