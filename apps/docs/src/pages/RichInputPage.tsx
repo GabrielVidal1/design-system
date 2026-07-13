@@ -346,6 +346,7 @@ function TagListDemo() {
   defaultGuidelinesOn
   onGuidelinesToggle={setGlOn}
   tagListRows={3}           // scroll after 3 rows
+  collapseWhenIdle          // rows hide while empty & unfocused
 />`}
       aside={
         <>
@@ -371,13 +372,16 @@ function TagListDemo() {
         the guideline lines are dropped from the composed prompt (sent as typed) and the chip row
         hides, while <span className="mono text-foreground">group: 'tag'</span> chips (project/service
         locations) stay put in their own scrollable list, capped at{' '}
-        <span className="mono text-foreground">tagListRows</span> rows before it scrolls.
+        <span className="mono text-foreground">tagListRows</span> rows before it scrolls. With{' '}
+        <span className="mono text-foreground">collapseWhenIdle</span> both rows stay hidden while
+        the composer is empty and unfocused — click in (or start a draft) and they appear.
       </Lede>
       <RichInput
         tags={[...GUIDELINE_TAGS, ...LOCATION_TAGS]}
         guidelinesToggle
         onGuidelinesToggle={setGlOn}
         tagListRows={3}
+        collapseWhenIdle
         showMax={4}
         undoWindowMs={0}
         placeholder="Toggle guidelines, pick a location…"

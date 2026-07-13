@@ -93,6 +93,12 @@ export interface RichInputProps {
   onGuidelinesToggle?: (on: boolean) => void;
   /** Height (in chip rows) of the scrollable `group: 'tag'` list. Default 3. */
   tagListRows?: number;
+  /**
+   * Hide the guideline switch and tag chip rows while the composer is idle —
+   * empty (no text, no attachments) and not focused. They appear on focus and
+   * stay while a draft exists. Default false.
+   */
+  collapseWhenIdle?: boolean;
   /** Chips shown before a "+N more" button. */
   showMax?: number;
   /** Mention trigger symbol. Default `#`. */
@@ -136,6 +142,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     defaultGuidelinesOn = true,
     onGuidelinesToggle,
     tagListRows = 3,
+    collapseWhenIdle = false,
     showMax,
     mentionPrefix = '#',
     history: historyEnabled = true,
@@ -168,6 +175,8 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
   const [coarse, setCoarse] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Focus-within tracking, only consulted by `collapseWhenIdle`.
+  const [focused, setFocused] = useState(false);
 
   // Guideline master switch (only surfaced when `guidelinesToggle` is set).
   const [guidelinesOn, setGuidelinesOn] = useState(defaultGuidelinesOn);
@@ -254,6 +263,11 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
   // The guideline chip row shows when there are guideline chips (or forced via
   // `guidelines`), and only while the master switch is on.
   const showGuidelines = (guidelines ?? guidelineToggles.length > 0) && guidelinesActive;
+  // Idle ⇒ both chip rows collapse away; typing, attaching or focusing brings
+  // them back. Selected chips don't count as content — default-on guidelines
+  // would otherwise pin the rows open forever.
+  const idle =
+    collapseWhenIdle && !focused && value.trim().length === 0 && files.files.length === 0;
 
   const buildPayload = useCallback((): RichSendPayload | null => {
     const base = value.trim();
@@ -416,6 +430,12 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
       ) : (
         <div
           {...drop.rootProps}
+          onFocus={() => setFocused(true)}
+          onBlur={(e) => {
+            // Focus-within: ignore blurs that land elsewhere inside the composer
+            // (textarea → chip → toolbar), only a real exit collapses the rows.
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false);
+          }}
           className={cn(
             'relative rounded-2xl border border-input bg-card p-2 transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40',
             fill && 'flex min-h-0 flex-1 flex-col',
@@ -478,7 +498,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
             )}
           />
 
-          {(guidelinesToggle || (showGuidelines && guidelineToggles.length > 0)) && (
+          {!idle && (guidelinesToggle || (showGuidelines && guidelineToggles.length > 0)) && (
             <div className="px-1 pt-1.5">
               <TagChips
                 tags={showGuidelines ? guidelineToggles : []}
@@ -496,7 +516,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
             </div>
           )}
 
-          {tagToggles.length > 0 && (
+          {!idle && tagToggles.length > 0 && (
             <div className="px-1 pt-1.5">
               <TagScrollList
                 tags={tagToggles}
