@@ -5,5 +5,5 @@
     "composite": true,
     "lib": ["ES2023"]
   },
-  "include": ["vite.config.ts"]
+  "include": ["vite.config.ts", "plugins"]
 }

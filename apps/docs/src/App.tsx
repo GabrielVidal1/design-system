@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { HashRouter, Link, Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { HashRouter, Link, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowUpRight, Check, Copy, Inbox, Plus, Save, Trash2 } from 'lucide-react';
 import {
   Badge,
@@ -13,6 +13,7 @@ import {
   EmptyState,
   FloatingPanel,
   FuzzyList,
+  GlobalSearch,
   IframePreview,
   ImageViewerProvider,
   Input,
@@ -68,6 +69,7 @@ import {
   FloatingPanelIcon,
   FormatIcon,
   FuzzyListIcon,
+  GlobalSearchIcon,
   HooksIcon,
   IframePreviewIcon,
   ImageViewerIcon,
@@ -95,8 +97,9 @@ import {
 import { SandpackProvider, SandpackCodeEditor, type SandpackTheme } from '@codesandbox/sandpack-react';
 import { RichInputPage } from './pages/RichInputPage';
 import { changelog, fullUrl, nodes, specimenFulls, specimens, thumbUrl, type Node } from './data';
+import { loadSearchIndex, type IndexEntry } from './search';
 
-const VERSION = '0.12.0';
+const VERSION = '0.13.0';
 const REPO = 'https://gitea.lab.gabvdl.xyz/gabrielvidal/design-system';
 
 /* ─── Groups ──────────────────────────────────────────────────────────────── */
@@ -118,6 +121,7 @@ const GROUP_OF: Record<string, Group> = {
   'viewable-image': 'Media',
   'progressive-image': 'Media',
   'fuzzy-list': 'Data display',
+  'global-search': 'Navigation',
   'virtual-list': 'Data display',
   'progressive-table': 'Data display',
   'status-badge': 'Data display',
@@ -151,7 +155,7 @@ const GROUP_OF: Record<string, Group> = {
 const GROUP_BLURB: Record<Group, string> = {
   Media: 'Images — a full-screen viewer, click-to-open thumbnails, and lazy blur-up loading.',
   'Data display': 'Windowed, searchable and reveal-animated lists and tables for large datasets.',
-  Navigation: 'Spatial, joystick-driven selection over a 2-D field of targets.',
+  Navigation: 'Getting around — a Cmd-K palette over a generated index, and joystick-driven selection over a 2-D field.',
   Inputs: 'Form primitives, the batteries-included composer, and the file/search/copy controls around them.',
   Animation: 'Typewriter text and staggered reveals that share one timeline.',
   Feedback: 'What the app says back — toasts, spinners, skeletons, empty states, release notes.',
@@ -172,6 +176,7 @@ const SOURCE_FILE: Record<string, string> = {
   'viewable-image': 'viewable-image.tsx',
   'progressive-image': 'progressive-image.tsx',
   'fuzzy-list': 'fuzzy-list.tsx',
+  'global-search': 'global-search.tsx',
   'virtual-list': 'virtual-list.tsx',
   'progressive-text': 'progressive-text.tsx',
   'progressive-list': 'progressive-list.tsx',
@@ -285,13 +290,43 @@ open(urls, 0) // full-screen: zoom · pan · swipe`,
   items={nodes}
   keys={['name', 'host', 'desc']}
   getItemKey={(n) => n.name}
+  debounce={400}                 // ms after the last keystroke; 0 = every keystroke
   renderItem={({ highlight }) => (
     <Row>
       <b>{highlight('name')}</b>
       <p>{highlight('desc', { snippet: true })}</p>
     </Row>
   )}
-/>`,
+/>
+
+// The query is quote-aware:
+//   traefik            fuzzy
+//   "traefik"          exact, case-insensitive substring
+//   parser "utils.ts"  fuzzy 'parser' AND contains 'utils.ts'
+// Exact and fuzzy hits are both highlighted. Typing stays instant —
+// only the Fuse pass trails, by 'debounce' ms (default 400).`,
+  },
+  {
+    id: 'global-search',
+    name: 'GlobalSearch',
+    sig: '<T>(items, keys, onSelect, searchKey?)',
+    tag: 'palette',
+    Icon: GlobalSearchIcon,
+    Demo: GlobalSearchDemo,
+    code: `<GlobalSearch
+  searchKey="Ctrl+K"                 // "Mod+K" = ⌘ on Mac, Ctrl elsewhere · null = no shortcut
+  items={loadSearchIndex}            // array, or a loader run on first open
+  keys={['name', 'summary', 'props']}
+  titleKey="name"
+  descriptionKey="summary"
+  badgeKey="kind"
+  onSelect={(e) => navigate(e.route)}
+/>
+
+// Modal + FuzzyList (debounced, quote-aware) + VirtualList.
+// The index above is generated at build time — a Vite plugin walks
+// packages/ui/src with the TypeScript compiler API and writes
+// public/search-index.json: one entry per component, hook, util AND prop.`,
   },
   {
     id: 'virtual-list',
@@ -907,6 +942,69 @@ function ComponentPage() {
   );
 }
 
+/* ─── The catalogue's own Cmd-K palette ────────────────────────────────────── */
+
+/** Ids that have a page — everything else in the index still searches, but lands
+ * back on the catalogue rather than a dead route. */
+const HAS_PAGE = new Set(REGISTRY.map((e) => e.id));
+
+const KIND_LABEL: Record<IndexEntry['kind'], string> = {
+  component: 'component',
+  hook: 'hook',
+  util: 'util',
+  prop: 'prop',
+};
+
+/**
+ * The library searching itself: `GlobalSearch` over `search-index.json`, which
+ * the Vite plugin regenerates from the TypeScript source on every build — so a
+ * new component (and every prop it declares) is discoverable without anyone
+ * touching a list.
+ */
+function DocsSearch({ trigger = 'icon' }: { trigger?: 'icon' | 'bar' }) {
+  const navigate = useNavigate();
+  return (
+    <GlobalSearch<IndexEntry>
+      items={loadSearchIndex}
+      searchKey="Ctrl+K"
+      trigger={trigger}
+      triggerLabel="Search components…"
+      placeholder="Search components, hooks, props…"
+      keys={[
+        { name: 'name', weight: 3 },
+        { name: 'summary', weight: 1 },
+        { name: 'props', weight: 0.8 },
+        { name: 'exports', weight: 0.5 },
+        { name: 'id', weight: 0.5 },
+      ]}
+      getItemKey={(e) => `${e.kind}:${e.name}`}
+      emptyState="Nothing in the index matches."
+      onSelect={(e) => navigate(HAS_PAGE.has(e.id) ? `/c/${e.id}` : '/')}
+      renderItem={({ item, highlight, active }) => (
+        <div
+          className={cn(
+            'flex items-start justify-between gap-3 rounded-lg border px-3 py-2.5 transition-colors',
+            active ? 'border-border bg-muted' : 'border-transparent',
+          )}
+        >
+          <div className="min-w-0">
+            <div className="mono truncate text-sm text-foreground">
+              {highlight('name')}
+              {item.type && <span className="ml-1.5 text-muted-foreground">{item.type}</span>}
+            </div>
+            <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-muted-foreground">
+              {item.summary ? highlight('summary', { snippet: true }) : item.file}
+            </p>
+          </div>
+          <span className="mono shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[color:var(--cyan-deep)]">
+            {KIND_LABEL[item.kind]}
+          </span>
+        </div>
+      )}
+    />
+  );
+}
+
 function Header({ title }: { title?: string }) {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-[color:var(--header-bg)] backdrop-blur-md">
@@ -928,12 +1026,14 @@ function Header({ title }: { title?: string }) {
           )}
           {title && <span className="mono text-sm text-foreground">{title}</span>}
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
           {!title && (
-            <span className="mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            <span className="mono hidden text-[11px] uppercase tracking-[0.18em] text-muted-foreground sm:inline">
               {REGISTRY.length} components
             </span>
           )}
+          {/* Dogfooded: the palette searches this library's own build-time index. */}
+          <DocsSearch />
           {/* The library's own toggle, dogfooded — it themes this page. */}
           <ThemeToggle />
           <a href={REPO} target="_blank" rel="noreferrer">
@@ -955,7 +1055,7 @@ function ImportLine() {
         <span className="text-muted-foreground"> {'{ '}</span>
         <span className="text-foreground">
           ImageViewer, ViewableImage, ProgressiveImage, ProgressiveText, ProgressiveList,
-          ProgressiveTable, FuzzyList, VirtualList, Nav2D, PhonePreview, Modal, useConfirm,
+          ProgressiveTable, FuzzyList, GlobalSearch, VirtualList, Nav2D, PhonePreview, Modal, useConfirm,
           ToastProvider, useToast, ThemeToggle, useTheme, Spinner, Skeleton, EmptyState,
           StatusBadge, RelativeTime, SearchInput, DropZone, CopyButton, Button, Input, RichInput,
           useLocalStorage, useMediaQuery, useLongPress, relTime, fmtBytes, cn
@@ -1156,6 +1256,29 @@ function ProgressiveImageDemo() {
   );
 }
 
+function GlobalSearchDemo() {
+  return (
+    <div className="space-y-4">
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        This is the palette the header runs — press{' '}
+        <kbd className="mono rounded border border-border bg-muted px-1.5 py-0.5 text-[11px]">Ctrl</kbd>{' '}
+        <kbd className="mono rounded border border-border bg-muted px-1.5 py-0.5 text-[11px]">K</kbd> anywhere on
+        this page, or use the bar below. It searches a{' '}
+        <b className="text-foreground">static index generated at build time</b> from the library's TypeScript
+        source, so every component, hook, utility <i>and prop</i> is in it. Try{' '}
+        <code className="mono text-[color:var(--cyan-deep)]">debounce</code>,{' '}
+        <code className="mono text-[color:var(--cyan-deep)]">"overscan"</code> (quoted = exact substring), or{' '}
+        <code className="mono text-[color:var(--cyan-deep)]">zoom</code>.
+      </p>
+      <DocsSearch trigger="bar" />
+      <p className="text-[13px] text-muted-foreground">
+        Modal + FuzzyList + VirtualList, wired together: the results list is windowed, the search is debounced
+        (400 ms) and quote-aware, and the index is fetched lazily on first open.
+      </p>
+    </div>
+  );
+}
+
 function FuzzyListDemo() {
   const kindColor: Record<Node['kind'], string> = {
     service: 'var(--cyan)',
@@ -1167,8 +1290,9 @@ function FuzzyListDemo() {
       items={nodes}
       keys={['name', 'host', 'desc', 'kind']}
       getItemKey={(n) => n.name}
-      placeholder="Search the homelab…"
+      placeholder='Search the homelab… (try "lab" for an exact match)'
       autoFocus
+      debounce={200}
       className="h-[380px]"
       renderItem={({ highlight, active, item }) => (
         <div

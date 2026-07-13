@@ -8,3 +8,6 @@ dist-ssr
 .env.*
 !.env.example
 *.tsbuildinfo
+
+# generated at build time by the search-index Vite plugin
+apps/docs/public/search-index.json

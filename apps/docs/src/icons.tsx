@@ -750,3 +750,81 @@ export function IframePreviewIcon() {
     </Svg>
   );
 }
+
+/** GlobalSearch — ⌘K summons the palette; the query lands on one row. */
+export function GlobalSearchIcon() {
+  return (
+    <Svg>
+      {/* scrim */}
+      <rect x="0" y="0" width="220" height="130" fill={INK} opacity="0.06" />
+      <g className="a-panel">
+        {/* palette */}
+        <rect x="30" y="20" width="160" height="92" rx="10" fill={PAPER} stroke={DIM} strokeWidth="2" />
+        {/* search bar */}
+        <rect x="42" y="30" width="136" height="22" rx="6" fill={CY} fillOpacity="0.06" stroke={CY} strokeWidth="2" />
+        <circle cx="55" cy="41" r="5" stroke={CY} strokeWidth="2" />
+        <line x1="59" y1="45" x2="63" y2="49" stroke={CY} strokeWidth="2" strokeLinecap="round" />
+        <rect
+          className="a-grow"
+          style={v({ '--g0': '0.05', '--dur': '4.4s' })}
+          x="70"
+          y="37"
+          width="52"
+          height="7"
+          rx="3.5"
+          fill={CY}
+          opacity="0.55"
+        />
+        <line className="a-blink" x1="126" y1="35" x2="126" y2="47" stroke={CY} strokeWidth="2" strokeLinecap="round" />
+        {/* the ⌘K badge, pressed */}
+        <rect
+          className="a-fade"
+          style={v({ '--o0': '0.25', '--o1': '1', '--dur': '4.4s' })}
+          x="152"
+          y="34"
+          width="20"
+          height="14"
+          rx="4"
+          stroke={DIM}
+          strokeWidth="1.5"
+        />
+        {/* results — the top one is the active row */}
+        <rect
+          className="a-fade"
+          style={v({ '--o0': '0', '--o1': '1', '--dur': '4.4s', animationDelay: '0.5s' })}
+          x="42"
+          y="60"
+          width="136"
+          height="16"
+          rx="5"
+          fill={CY}
+          fillOpacity="0.12"
+          stroke={CY}
+          strokeWidth="1.5"
+        />
+        <rect x="50" y="65" width="44" height="6" rx="3" fill={CY} opacity="0.8" />
+        <rect x="100" y="65" width="30" height="6" rx="3" fill={DIM} opacity="0.5" />
+        <rect
+          className="a-fade"
+          style={v({ '--o0': '0.15', '--o1': '0.6', '--dur': '4.4s', animationDelay: '0.7s' })}
+          x="50"
+          y="84"
+          width="60"
+          height="6"
+          rx="3"
+          fill={DIM}
+        />
+        <rect
+          className="a-fade"
+          style={v({ '--o0': '0.15', '--o1': '0.6', '--dur': '4.4s', animationDelay: '0.9s' })}
+          x="50"
+          y="98"
+          width="80"
+          height="6"
+          rx="3"
+          fill={DIM}
+        />
+      </g>
+    </Svg>
+  );
+}
