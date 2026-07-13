@@ -8,6 +8,18 @@ in the [README](README.md): from `0.1.0` on, breaking changes bump the
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-07-13
+
+### Fixed
+
+- `ResizableLayout`: a drawer that *mounted* collapsed reopened at `minSize`
+  instead of its `defaultSize` — the panel had no pre-collapse size to restore,
+  so `expand()` fell back to the minimum. Its first expand is now seeded with
+  `defaultSize`; after that the panel's own memory wins, so a deliberately small
+  dragged size still survives a close/open round-trip. Shows up wherever a
+  drawer starts closed — e.g. a `Dock` whose panels are all closed, which opened
+  as a sliver on the first "+".
+
 ## [0.1.3] - 2026-07-13
 
 ### Added

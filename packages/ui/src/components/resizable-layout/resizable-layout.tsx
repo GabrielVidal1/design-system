@@ -37,6 +37,9 @@ export type MobileMode = 'drawer' | 'panel';
 const HORIZONTAL_SIDES = new Set<DrawerSide>(['left', 'right']);
 const isHorizontal = (side: DrawerSide) => HORIZONTAL_SIDES.has(side);
 
+/** Desktop start size per side (percent), when the config doesn't give one. */
+const DEFAULT_SIZE: Record<DrawerSide, number> = { left: 20, right: 22, top: 30, bottom: 30 };
+
 /** Per-drawer configuration. `content` is the whole drawer body (header + list). */
 export interface ResizableDrawerConfig {
   /** The drawer's content — including its own header row, if any. */
@@ -233,6 +236,8 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
     const bottomPanel = useRef<ImperativePanelHandle>(null);
     const rootRef = useRef<HTMLDivElement>(null);
     const rootBox = useElementSize(rootRef);
+    /** Sides that have been open at least once — see the expand() seeding below. */
+    const everOpened = useRef<Partial<Record<DrawerSide, boolean>>>({});
 
     /**
      * react-resizable-panels sizes in percent, but a collapsed strip is a
@@ -271,7 +276,15 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
         const config = configBySide[side];
         if (!isDesktop || !p || !config) return;
         if (openBySide[side]) {
-          if (p.isCollapsed()) p.expand();
+          // `expand()` restores the size the panel had before it collapsed — but
+          // a panel that mounted collapsed has no such size and would open at
+          // `minSize`. Seed that first expand with the configured default; after
+          // that, let the panel's own memory win (a deliberately small drag must
+          // survive a close/open round-trip).
+          if (p.isCollapsed()) {
+            p.expand(everOpened.current[side] ? undefined : (config.defaultSize ?? DEFAULT_SIZE[side]));
+          }
+          everOpened.current[side] = true;
           return;
         }
         // Collapsed: re-collapse whenever the strip's percentage has drifted

@@ -66,6 +66,14 @@ import type { ChangelogEntry } from '@gabvdl/ui';
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.1.4',
+    date: '2026-07-13',
+    title: 'Drawers that mount collapsed',
+    changes: [
+      'ResizableLayout: a drawer that mounted collapsed reopened at minSize instead of its defaultSize — its first expand is now seeded with the configured default',
+    ],
+  },
+  {
     version: '0.1.3',
     date: '2026-07-13',
     title: 'Panels open and close like tabs',
