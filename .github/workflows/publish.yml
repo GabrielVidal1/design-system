@@ -17,9 +17,12 @@ name: Publish to npm
 #      authentication" ticked**. Without that box npm answers EOTP (it wants an
 #      authenticator code), and classic "Automation" tokens no longer exist.
 #
-# The publish step exports NODE_AUTH_TOKEN only when the secret is non-empty:
-# an empty-but-present NODE_AUTH_TOKEN makes npm attempt token auth and skip
-# OIDC entirely.
+# setup-node's `registry-url` is deliberately NOT set: it writes an .npmrc
+# holding `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}`, and with no
+# token that line expands to an empty credential — npm then sends blank auth
+# and the registry answers 404 rather than falling back to OIDC. The token
+# path below writes that line itself, so it only ever exists when there is a
+# token to put in it.
 
 on:
   push:
@@ -38,7 +41,6 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          registry-url: https://registry.npmjs.org
 
       # Node 22 ships npm 10.x; trusted publishing needs >= 11.5.1.
       - run: npm install -g npm@latest
@@ -63,7 +65,7 @@ jobs:
         run: |
           if [ -n "$NPM_TOKEN" ]; then
             echo "publishing with the NPM_TOKEN secret"
-            export NODE_AUTH_TOKEN="$NPM_TOKEN"
+            echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> "$HOME/.npmrc"
           else
             echo "no NPM_TOKEN secret — publishing via trusted publishing (OIDC)"
           fi
