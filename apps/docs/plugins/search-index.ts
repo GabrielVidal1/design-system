@@ -18,6 +18,9 @@ export interface IndexEntry {
   summary: string;
   /** Prop entries: the declared type, printed from source. */
   type?: string;
+  /** Prop entries: the default value — a destructuring initializer in the
+   * component's signature, or an explicit `@default` TSDoc tag. */
+  default?: string;
   /** Component entries: every prop name, space-joined — so a prop name finds its
    * component too, one rank below the prop's own entry. */
   props?: string;
@@ -64,6 +67,17 @@ const flatten = (comment: string | ts.NodeArray<ts.JSDocComment> | undefined): s
 const docOf = (node: ts.Node): string => {
   const docs = ts.getJSDocCommentsAndTags(node).filter(ts.isJSDoc);
   return flatten(docs[0]?.comment);
+};
+
+/** An explicit `@default` / `@defaultValue` TSDoc tag, if the prop carries one. */
+const defaultTagOf = (node: ts.Node): string | undefined => {
+  for (const tag of ts.getJSDocTags(node)) {
+    const name = tag.tagName.text;
+    if (name !== 'default' && name !== 'defaultValue') continue;
+    const text = flatten(tag.comment);
+    if (text) return text;
+  }
+  return undefined;
 };
 
 const isExported = (node: ts.Node): boolean =>
@@ -117,7 +131,7 @@ function extract(
   const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 
   const symbols: { name: string; kind: IndexEntry['kind']; summary: string }[] = [];
-  const propsByOwner = new Map<string, { name: string; type: string; summary: string; optional: boolean }[]>();
+  const propsByOwner = new Map<string, { name: string; type: string; summary: string; optional: boolean; default?: string }[]>();
 
   for (const stmt of sf.statements) {
     if (!isExported(stmt)) continue;
@@ -149,10 +163,33 @@ function extract(
         type: m.type ? m.type.getText(sf).replace(/\s+/g, ' ') : 'unknown',
         summary: docOf(m),
         optional: Boolean(m.questionToken),
+        default: defaultTagOf(m),
       }));
       propsByOwner.set(owner, [...(propsByOwner.get(owner) ?? []), ...props]);
     }
   }
+
+  // Destructuring defaults: `function Foo({ overscan = 6 }: FooProps)` — the
+  // real runtime defaults, found on any function whose param is typed `XProps`.
+  const defaultsByOwner = new Map<string, Map<string, string>>();
+  const visit = (node: ts.Node): void => {
+    if (ts.isFunctionDeclaration(node) || ts.isArrowFunction(node) || ts.isFunctionExpression(node)) {
+      for (const param of node.parameters) {
+        if (!ts.isObjectBindingPattern(param.name) || !param.type) continue;
+        const owner = /^(\w+)Props\b/.exec(param.type.getText(sf))?.[1];
+        if (!owner) continue;
+        const map = defaultsByOwner.get(owner) ?? new Map<string, string>();
+        for (const el of param.name.elements) {
+          if (!el.initializer) continue;
+          const propName = (el.propertyName ?? el.name).getText(sf);
+          map.set(propName, el.initializer.getText(sf).replace(/\s+/g, ' '));
+        }
+        defaultsByOwner.set(owner, map);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
 
   if (symbols.length === 0) return [];
 
@@ -178,6 +215,7 @@ function extract(
         kind: 'prop',
         summary: p.summary,
         type: `${p.optional ? '?' : ''}: ${p.type}`,
+        default: p.default ?? defaultsByOwner.get(sym.name)?.get(p.name),
         file: repoFile,
         route,
       });

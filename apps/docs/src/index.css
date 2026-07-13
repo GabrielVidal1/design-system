@@ -497,3 +497,12 @@ body::before {
 .ide .sp-tabs { border-bottom: 1px solid var(--line) !important; }
 .ide .sp-code-editor,
 .ide .sp-editor { border-radius: 0 !important; }
+
+/* ─── Props table — flash the row the palette jumped to ───────────────────── */
+.prop-flash {
+  animation: prop-flash 1.8s ease-out;
+}
+@keyframes prop-flash {
+  0%, 35% { background-color: var(--tint-strong); }
+  100% { background-color: transparent; }
+}

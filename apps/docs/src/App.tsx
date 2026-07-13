@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { HashRouter, Link, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom';
+import { HashRouter, Link, Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowUpRight, Check, Copy, Inbox, Plus, Save, Trash2 } from 'lucide-react';
 import {
   Badge,
@@ -917,7 +917,12 @@ function ComponentPage() {
       <Header title={entry.name} />
       <main className="pb-24">
         {entry.Page ? (
-          <entry.Page />
+          <>
+            <entry.Page />
+            <div className="mx-auto max-w-3xl px-5">
+              <PropsSection id={entry.id} />
+            </div>
+          </>
         ) : (
           <div className="mx-auto max-w-3xl px-5">
             <div className="py-8">
@@ -934,11 +939,178 @@ function ComponentPage() {
                 <CodeIDE name={entry.name} usage={entry.code} source={fullSource(entry.id)} />
               </div>
             )}
+            <PropsSection id={entry.id} />
           </div>
         )}
       </main>
       <Footer />
     </>
+  );
+}
+
+/* ─── Props tables — generated at build time from the library's TypeScript ─── */
+
+/** One prop row, straight out of the search index: `VirtualList.overscan` → owner + prop. */
+interface PropRow {
+  owner: string;
+  prop: string;
+  /** `?: number` — leading `?` marks an optional prop. */
+  type: string;
+  summary: string;
+  default?: string;
+}
+
+/** Full name as the palette knows it (`VirtualList.overscan`) — the jump target key. */
+const propKey = (p: PropRow) => `${p.owner}.${p.prop}`;
+
+/** TSDoc summaries carry `backtick` spans — render them as real inline code. */
+const inlineCode = (s: string): ReactNode =>
+  s.split(/`([^`]+)`/).map((part, i) =>
+    i % 2 === 1 ? (
+      <code key={i} className="mono text-[0.9em] text-foreground/85">
+        {part}
+      </code>
+    ) : (
+      part
+    ),
+  );
+
+/**
+ * The per-type props tables under a component page's usage block. The data is
+ * the same build-time `search-index.json` the Cmd-K palette searches — the Vite
+ * plugin reads names, types, TSDoc summaries and defaults (destructuring
+ * initializers or `@default` tags) off the library source, so nothing here is
+ * hand-maintained. Desktop gets a table; on mobile each prop collapses to an
+ * `h5` (name + default on one line) with the description below.
+ *
+ * When the palette selects a prop it navigates here with `?prop=Owner.name`,
+ * and the matching row is scrolled into view and flashed.
+ */
+function PropsSection({ id }: { id: string }) {
+  const [rows, setRows] = useState<PropRow[] | null>(null);
+  const [params] = useSearchParams();
+  const target = params.get('prop');
+
+  useEffect(() => {
+    let alive = true;
+    loadSearchIndex()
+      .then((entries) => {
+        if (!alive) return;
+        const optionalLast = (a: PropRow, b: PropRow) =>
+          Number(a.type.startsWith('?')) - Number(b.type.startsWith('?')) ||
+          a.prop.localeCompare(b.prop);
+        setRows(
+          entries
+            .filter((e) => e.kind === 'prop' && e.id === id)
+            .map((e) => {
+              const [owner, ...rest] = e.name.split('.');
+              return { owner, prop: rest.join('.'), type: e.type ?? '', summary: e.summary, default: e.default };
+            })
+            .sort((a, b) => a.owner.localeCompare(b.owner) || optionalLast(a, b)),
+        );
+      })
+      .catch(() => alive && setRows([]));
+    return () => {
+      alive = false;
+    };
+  }, [id]);
+
+  // Jump to the prop the palette selected — the row exists only once the index
+  // has loaded, so this waits on `rows`. Both layouts carry the same data-prop;
+  // scroll whichever one is currently displayed.
+  useEffect(() => {
+    if (!target || !rows?.length) return;
+    const frame = requestAnimationFrame(() => {
+      const els = Array.from(document.querySelectorAll<HTMLElement>(`[data-prop="${CSS.escape(target)}"]`));
+      const el = els.find((e) => e.offsetParent !== null) ?? els[0];
+      if (!el) return;
+      el.scrollIntoView({ block: 'center' });
+      el.classList.add('prop-flash');
+      setTimeout(() => el.classList.remove('prop-flash'), 2000);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [target, rows]);
+
+  if (!rows?.length) return null;
+
+  const owners = [...new Set(rows.map((r) => r.owner))];
+
+  return (
+    <section className="mt-10">
+      <p className="eyebrow mb-2.5 text-muted-foreground">Props</p>
+      <div className="space-y-8">
+        {owners.map((owner) => {
+          const props = rows.filter((r) => r.owner === owner);
+          return (
+            <div key={owner}>
+              {owners.length > 1 && (
+                <h4 className="mono mb-2 text-sm text-foreground">
+                  {owner}
+                  <span className="text-muted-foreground">Props</span>
+                </h4>
+              )}
+
+              {/* Desktop: the table. */}
+              <div className="hidden overflow-x-auto rounded-xl border border-border bg-[var(--surface)] sm:block">
+                <table className="w-full border-collapse text-left text-[13px]">
+                  <thead>
+                    <tr className="border-b border-border">
+                      {['Prop', 'Default', 'Description'].map((h) => (
+                        <th key={h} className="eyebrow px-4 py-2.5 font-normal text-muted-foreground">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {props.map((p) => (
+                      <tr key={p.prop} data-prop={propKey(p)} className="border-b border-border last:border-b-0">
+                        <td className="min-w-36 px-4 py-2.5 align-top">
+                          <span className="mono text-foreground">{p.prop}</span>
+                          {p.type.startsWith('?') && <span className="mono text-muted-foreground">?</span>}
+                          <div className="mono mt-0.5 max-w-56 truncate text-[11px] text-muted-foreground" title={p.type}>
+                            {p.type.replace(/^\??: /, '')}
+                          </div>
+                        </td>
+                        <td className="mono max-w-40 px-4 py-2.5 align-top text-[12px] text-[color:var(--cyan-deep)]">
+                          {p.default ?? '—'}
+                        </td>
+                        <td className="px-4 py-2.5 align-top leading-snug text-muted-foreground">
+                          {inlineCode(p.summary)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile: name + default on one line, description below — no table. */}
+              <div className="divide-y divide-border rounded-xl border border-border bg-[var(--surface)] px-4 sm:hidden">
+                {props.map((p) => (
+                  <div key={p.prop} data-prop={propKey(p)} className="py-3">
+                    <h5 className="flex items-baseline justify-between gap-3 text-[13px]">
+                      <span className="mono min-w-0 truncate text-foreground">
+                        {p.prop}
+                        {p.type.startsWith('?') && <span className="text-muted-foreground">?</span>}
+                      </span>
+                      {p.default && (
+                        <span className="mono shrink-0 text-[12px] text-[color:var(--cyan-deep)]">= {p.default}</span>
+                      )}
+                    </h5>
+                    <div className="mono mt-0.5 truncate text-[11px] text-muted-foreground">
+                      {p.type.replace(/^\??: /, '')}
+                    </div>
+                    {p.summary && (
+                      <p className="mt-1 leading-snug text-[13px] text-muted-foreground">{inlineCode(p.summary)}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -979,7 +1151,11 @@ function DocsSearch({ trigger = 'icon' }: { trigger?: 'icon' | 'bar' }) {
       ]}
       getItemKey={(e) => `${e.kind}:${e.name}`}
       emptyState="Nothing in the index matches."
-      onSelect={(e) => navigate(HAS_PAGE.has(e.id) ? `/c/${e.id}` : '/')}
+      onSelect={(e) => {
+        if (!HAS_PAGE.has(e.id)) return navigate('/');
+        // A prop lands on its row in the page's props table, not just the page.
+        navigate(e.kind === 'prop' ? `/c/${e.id}?prop=${encodeURIComponent(e.name)}` : `/c/${e.id}`);
+      }}
       renderItem={({ item, highlight, active }) => (
         <div
           className={cn(

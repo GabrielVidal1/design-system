@@ -12,6 +12,8 @@ export interface IndexEntry {
   summary: string;
   /** Prop entries only — the declared type, e.g. `?: number`. */
   type?: string;
+  /** Prop entries only — destructuring default or `@default` tag. */
+  default?: string;
   /** Component entries only — every prop name, space-joined. */
   props?: string;
   /** Component entries only — the other symbols exported from the same module. */
