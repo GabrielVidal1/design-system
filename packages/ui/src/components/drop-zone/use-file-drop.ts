@@ -68,30 +68,32 @@ export function useFileDrop({
 
   const rootProps = {
     onDragEnter: (e: React.DragEvent) => {
-      if (disabled) return;
+      if (disabled || !isFileDrag(e.dataTransfer)) return;
       e.preventDefault();
       depth.current += 1;
       setDragging(true);
     },
     onDragOver: (e: React.DragEvent) => {
-      if (disabled) return;
+      if (disabled || !isFileDrag(e.dataTransfer)) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = 'copy';
     },
     onDragLeave: (e: React.DragEvent) => {
-      if (disabled) return;
+      if (disabled || !isFileDrag(e.dataTransfer)) return;
       e.preventDefault();
       depth.current -= 1;
       if (depth.current <= 0) reset();
     },
     onDrop: async (e: React.DragEvent) => {
-      if (disabled) return;
+      if (disabled || !isFileDrag(e.dataTransfer)) return;
       e.preventDefault();
       reset();
-      const files = recursive
-        ? await walkItems(e.dataTransfer.items)
-        : [...e.dataTransfer.files];
-      take(files);
+      // Read the flat list up front: the DataTransfer is dead once we await.
+      const plain = [...e.dataTransfer.files];
+      // The entries API is the only way to see inside a dropped folder, but it
+      // is non-standard — where it gives us nothing, take the flat list.
+      const walked = recursive ? await walkItems(e.dataTransfer.items) : [];
+      take(walked.length > 0 ? walked : plain);
     },
   };
 
@@ -112,6 +114,15 @@ export function useFileDrop({
   const open = React.useCallback(() => input.current?.click(), []);
 
   return { dragging, rootProps, inputProps, open };
+}
+
+/**
+ * A drag only concerns us when it carries files. Text dragged from elsewhere on
+ * the page reports no `Files` type, and must be left alone so it can still drop
+ * into whatever the zone wraps (a textarea, say).
+ */
+function isFileDrag(dt: DataTransfer | null): boolean {
+  return !!dt && Array.from(dt.types ?? []).includes('Files');
 }
 
 function parseAccept(accept?: string): string[] {

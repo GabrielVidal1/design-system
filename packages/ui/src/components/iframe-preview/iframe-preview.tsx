@@ -289,7 +289,7 @@ export function IframePreviewOverlay({
 }
 
 export interface IframePreviewProps
-  extends Omit<IframePreviewOverlayProps, 'open' | 'onClose' | 'url'> {
+  extends Omit<IframePreviewOverlayProps, 'open' | 'onClose' | 'url' | 'children'> {
   /** Initial URL. The field can navigate away from it; reopening resets to it. */
   url: string;
   /** Controlled open state. Omit to let the component own it. */

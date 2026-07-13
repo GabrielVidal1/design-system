@@ -232,6 +232,7 @@ function FilesDemo() {
       code={`<RichInput
   accept="image/*,.pdf"
   maxFiles={4}
+  // fileDrop      — on by default
   // uploadFiles={uploadToServer}
   onSubmit={(p) => post(p.text, p.files)}
 />`}
@@ -257,13 +258,17 @@ function FilesDemo() {
         <span className="mono text-foreground">maxFiles</span> filter the picks (try a 5th file, or a
         non-image); a <span className="mono text-foreground">fileFilter</span> callback can reject
         with a reason. Pass <span className="mono text-foreground">uploadFiles</span> to POST to a
-        server — omitted here, so files stay client-side as object URLs. You can also paste an image.
+        server — omitted here, so files stay client-side as object URLs. You can also paste an image,
+        or <strong className="text-foreground">drop files (and whole folders) anywhere on the box</strong>{' '}
+        — dropped files go through the very same checks. Turn that off with{' '}
+        <span className="mono text-foreground">fileDrop={'{false}'}</span>; dragged <em>text</em> still
+        drops into the textarea.
       </Lede>
       <RichInput
         accept="image/*,.pdf"
         maxFiles={4}
         undoWindowMs={0}
-        placeholder="Attach up to 4 images or PDFs…"
+        placeholder="Attach up to 4 images or PDFs — or drop them here…"
         onSubmit={(p) => setLast(p.files)}
       />
     </Section>

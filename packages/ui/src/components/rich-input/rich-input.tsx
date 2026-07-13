@@ -9,9 +9,10 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react';
-import { History, Loader2, Paperclip, SendHorizontal } from 'lucide-react';
+import { History, Loader2, Paperclip, SendHorizontal, Upload } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
+import { useFileDrop } from '../drop-zone/use-file-drop';
 import { defaultComposePrompt } from './compose';
 import { useDraft } from './use-draft';
 import { useFileUpload } from './use-file-upload';
@@ -58,6 +59,15 @@ export interface RichInputProps {
   accept?: string;
   maxFiles?: number;
   fileFilter?: (file: File) => boolean | string;
+  /**
+   * Attach files dropped anywhere on the composer. On by default whenever file
+   * support is (i.e. one of `uploadFiles` / `accept` / `maxFiles` is set); the
+   * drops go through the same `accept` / `maxFiles` / `fileFilter` checks as the
+   * paperclip. Dragged text still drops into the textarea as usual.
+   */
+  fileDrop?: boolean;
+  /** Expand dropped folders into their files (Chromium/WebKit). Default true. */
+  dropDirectories?: boolean;
 
   /** Guideline / mention tags. */
   tags?: GuidelineTag[];
@@ -109,6 +119,8 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     accept,
     maxFiles,
     fileFilter,
+    fileDrop,
+    dropDirectories = true,
     tags = [],
     onTagsChange,
     guidelines,
@@ -132,6 +144,18 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
   const gl = useGuidelines(tags);
   const files = useFileUpload({ upload: uploadFiles, accept, maxFiles, filter: fileFilter });
   const hist = useInputHistory(historyEnabled ? (cacheKey ?? 'default') : null);
+
+  const filesEnabled = uploadFiles !== undefined || accept !== undefined || maxFiles !== undefined;
+  const busy = disabled || files.uploading;
+
+  // A drop is just another way to pick files: useFileDrop only hands us the
+  // dragged files (expanding folders), `files.add` still runs the accept /
+  // maxFiles / fileFilter checks and surfaces the same errors as the paperclip.
+  const drop = useFileDrop({
+    onFiles: (list) => void files.add(list),
+    disabled: !(fileDrop ?? filesEnabled) || busy,
+    recursive: dropDirectories,
+  });
 
   const [coarse, setCoarse] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -370,7 +394,6 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     [mention, historyEnabled, openReverse, value.length, recallPrev, recallNext, hist.browsing, submitKey, coarse, submit],
   );
 
-  const busy = disabled || files.uploading;
   const canSend = (value.trim().length > 0 || files.files.length > 0) && !busy;
 
   return (
@@ -379,11 +402,20 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
         <UnsendBanner countdown={countdown} onUndo={cancelSend} />
       ) : (
         <div
+          {...drop.rootProps}
           className={cn(
-            'rounded-2xl border border-input bg-card p-2 transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40',
+            'relative rounded-2xl border border-input bg-card p-2 transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40',
             disabled && 'opacity-60',
+            drop.dragging && 'border-primary ring-2 ring-primary/40',
           )}
         >
+          {drop.dragging && (
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-primary/60 bg-card/80 text-xs font-medium text-primary">
+              <Upload className="size-4" />
+              Drop files to attach
+            </div>
+          )}
+
           {rsearch ? (
             <ReverseSearchBar
               query={rsearch.query}
