@@ -30,6 +30,8 @@ import {
   ProgressiveTable,
   ProgressiveText,
   RelativeTime,
+  ResizableLayout,
+  type ResizableLayoutHandle,
   SearchInput,
   Skeleton,
   SkeletonText,
@@ -79,6 +81,7 @@ import {
   ProgressiveTableIcon,
   ProgressiveTextIcon,
   RelativeTimeIcon,
+  ResizableLayoutIcon,
   RichInputIcon,
   SearchInputIcon,
   SkeletonIcon,
@@ -93,7 +96,7 @@ import { SandpackProvider, SandpackCodeEditor, type SandpackTheme } from '@codes
 import { RichInputPage } from './pages/RichInputPage';
 import { changelog, fullUrl, nodes, specimenFulls, specimens, thumbUrl, type Node } from './data';
 
-const VERSION = '0.10.0';
+const VERSION = '0.12.0';
 const REPO = 'https://gitea.lab.gabvdl.xyz/gabrielvidal/design-system';
 
 /* ─── Groups ──────────────────────────────────────────────────────────────── */
@@ -137,6 +140,7 @@ const GROUP_OF: Record<string, Group> = {
   'phone-preview': 'Layout',
   'iframe-preview': 'Layout',
   'floating-panel': 'Layout',
+  'resizable-layout': 'Layout',
   modal: 'Layout',
   hooks: 'Hooks',
   cn: 'Utilities',
@@ -177,6 +181,7 @@ const SOURCE_FILE: Record<string, string> = {
   'phone-preview': 'phone-preview.tsx',
   'iframe-preview': 'iframe-preview.tsx',
   'floating-panel': 'floating-panel.tsx',
+  'resizable-layout': 'resizable-layout.tsx',
   'nav-2d': 'nav-2d.tsx',
   button: 'button.tsx',
   input: 'input.tsx',
@@ -478,6 +483,32 @@ ref.current?.skipToEnd()
   </FloatingPanel>
   <Dock id="d1" className="h-64" />
 </DockProvider>`,
+  },
+  {
+    id: 'resizable-layout',
+    name: 'ResizableLayout',
+    sig: 'left · right · top · bottom drawers — resizable on desktop, swipeable on mobile',
+    tag: 'layout',
+    Icon: ResizableLayoutIcon,
+    Demo: ResizableLayoutDemo,
+    code: `// four-slot shell: drag to resize on desktop, swipe to
+// open/close on mobile. Any side is optional; each is
+// independently controlled + collapsible via the ref.
+const ref = useRef<ResizableLayoutHandle>(null)
+
+<ResizableLayout
+  ref={ref}
+  autoSaveId="app:shell"
+  left={{ content: <Nav />, defaultSize: 20, minSize: 12, maxSize: 40 }}
+  right={{ content: <Info />, defaultSize: 24, mobileWidth: '85%' }}
+  bottom={{ content: <Composer />, defaultSize: 30, mobileHeight: '55%', edgeSwipeToOpen: true }}
+  leftOpen={leftOpen} onLeftOpenChange={setLeftOpen}
+  bottomOpen={bottomOpen} onBottomOpenChange={setBottomOpen}
+>
+  <Thread />
+</ResizableLayout>
+
+ref.current?.toggle('bottom')`,
   },
   {
     id: 'button',
@@ -1723,6 +1754,67 @@ function FloatingPanelDemo() {
       </DockProvider>
       <p className="mono text-[11px] text-muted-foreground">
         drag a tab out to float · drag a header onto the dock to snap in · panels sharing a dock become tabs · a floating panel portals to document.body (position:fixed), so it escapes this card — expected
+      </p>
+    </div>
+  );
+}
+
+function ResizableLayoutDemo() {
+  const layoutRef = useRef<ResizableLayoutHandle>(null);
+  const [leftOpen, setLeftOpen] = useState(true);
+  const [rightOpen, setRightOpen] = useState(true);
+  const [bottomOpen, setBottomOpen] = useState(true);
+
+  const swatch = (label: string) => (
+    <div className="flex h-full flex-col gap-2 p-3">
+      <p className="mono text-[11px] font-medium text-muted-foreground">{label}</p>
+      <div className="h-2 w-3/4 rounded-full bg-border" />
+      <div className="h-2 w-1/2 rounded-full bg-border" />
+    </div>
+  );
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="outline" onClick={() => layoutRef.current?.toggle('left')}>
+          {leftOpen ? 'Collapse' : 'Expand'} left
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => layoutRef.current?.toggle('right')}>
+          {rightOpen ? 'Collapse' : 'Expand'} right
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => layoutRef.current?.toggle('bottom')}>
+          {bottomOpen ? 'Collapse' : 'Expand'} bottom
+        </Button>
+      </div>
+      <div className="h-80 overflow-hidden rounded-lg border border-border">
+        <ResizableLayout
+          ref={layoutRef}
+          left={{ content: swatch('Nav'), defaultSize: 26, minSize: 18, maxSize: 40, mobileWidth: '70%' }}
+          right={{ content: swatch('Info'), defaultSize: 26, minSize: 18, maxSize: 40, mobileWidth: '70%' }}
+          bottom={{
+            content: swatch('Composer'),
+            defaultSize: 32,
+            minSize: 18,
+            maxSize: 55,
+            mobileHeight: '50%',
+            edgeSwipeToOpen: true,
+          }}
+          leftOpen={leftOpen}
+          onLeftOpenChange={setLeftOpen}
+          rightOpen={rightOpen}
+          onRightOpenChange={setRightOpen}
+          bottomOpen={bottomOpen}
+          onBottomOpenChange={setBottomOpen}
+          desktopBreakpoint={0}
+        >
+          <div className="flex h-full min-h-0 flex-col overflow-y-auto p-3">
+            {swatch('Thread (scrollable center)')}
+          </div>
+        </ResizableLayout>
+      </div>
+      <p className="mono text-[11px] text-muted-foreground">
+        drag a handle to resize · click a handle's chevron or the buttons above to collapse · shrink the window below
+        the breakpoint to see left/right/top/bottom become swipeable overlays instead
       </p>
     </div>
   );

@@ -7,8 +7,9 @@ import {
   useState,
   type CSSProperties,
   type ReactNode,
+  type TouchEvent,
 } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react';
 import {
   Panel,
   PanelGroup,
@@ -18,26 +19,35 @@ import {
 
 import { cn } from '../../lib/utils';
 
-export type DrawerSide = 'left' | 'right';
+export type DrawerSide = 'left' | 'right' | 'top' | 'bottom';
+
+const HORIZONTAL_SIDES = new Set<DrawerSide>(['left', 'right']);
+const isHorizontal = (side: DrawerSide) => HORIZONTAL_SIDES.has(side);
 
 /** Per-drawer configuration. `content` is the whole drawer body (header + list). */
 export interface ResizableDrawerConfig {
   /** The drawer's content — including its own header row, if any. */
   content: ReactNode;
-  /** Desktop start width, as a percentage of the group (0–100). */
+  /** Desktop start size, as a percentage of its axis (0–100). */
   defaultSize?: number;
-  /** Desktop minimum width before it snaps closed, as a percentage. */
+  /** Desktop minimum size before it snaps closed, as a percentage. */
   minSize?: number;
-  /** Desktop maximum width, as a percentage. */
+  /** Desktop maximum size, as a percentage. */
   maxSize?: number;
   /**
-   * Mobile overlay width. A number is treated as pixels, a string is used
-   * verbatim (`'85%'`, `'100%'`, `'320px'`). Defaults to `'85%'`.
+   * Mobile overlay width, for `left`/`right` drawers. A number is treated as
+   * pixels, a string is used verbatim (`'85%'`, `'100%'`, `'320px'`). Defaults
+   * to `'85%'`.
    */
   mobileWidth?: string | number;
-  /** Extra classes on the drawer surface (desktop panel + mobile aside). */
+  /**
+   * Mobile overlay height, for `top`/`bottom` drawers. A number is treated as
+   * pixels, a string is used verbatim. Defaults to `'45%'`.
+   */
+  mobileHeight?: string | number;
+  /** Extra classes on the drawer surface (desktop panel + mobile overlay). */
   className?: string;
-  /** Allow a horizontal swipe on the drawer to close it on mobile. Default true. */
+  /** Allow an in-axis swipe on the drawer to close it on mobile. Default true. */
   swipeToClose?: boolean;
   /** Show an off-screen edge zone that opens the drawer on an inward swipe. Default false. */
   edgeSwipeToOpen?: boolean;
@@ -53,11 +63,17 @@ export interface ResizableLayoutHandle {
 export interface ResizableLayoutProps {
   left?: ResizableDrawerConfig;
   right?: ResizableDrawerConfig;
+  top?: ResizableDrawerConfig;
+  bottom?: ResizableDrawerConfig;
   /** Controlled open state of the left drawer (collapse on desktop, overlay on mobile). */
   leftOpen?: boolean;
   onLeftOpenChange?: (open: boolean) => void;
   rightOpen?: boolean;
   onRightOpenChange?: (open: boolean) => void;
+  topOpen?: boolean;
+  onTopOpenChange?: (open: boolean) => void;
+  bottomOpen?: boolean;
+  onBottomOpenChange?: (open: boolean) => void;
   /** The scrollable center. Give its inner scroll region `min-h-0 flex-1 overflow-y-auto`. */
   children: ReactNode;
   className?: string;
@@ -86,21 +102,28 @@ function useMinWidth(min: number): boolean {
   return match;
 }
 
-function widthStyle(w: string | number | undefined): CSSProperties {
-  const value = w == null ? '85%' : typeof w === 'number' ? `${w}px` : w;
-  return { width: value, maxWidth: '100%' };
+function sizeStyle(side: DrawerSide, config: ResizableDrawerConfig): CSSProperties {
+  if (isHorizontal(side)) {
+    const w = config.mobileWidth;
+    const value = w == null ? '85%' : typeof w === 'number' ? `${w}px` : w;
+    return { width: value, maxWidth: '100%' };
+  }
+  const h = config.mobileHeight;
+  const value = h == null ? '45%' : typeof h === 'number' ? `${h}px` : h;
+  return { height: value, maxHeight: '100%' };
 }
 
 /**
- * A three-slot application layout — a left drawer, a scrollable center, and a
- * right drawer — that adapts to the viewport:
+ * A four-slot application layout — left/right/top/bottom drawers around a
+ * scrollable center — that adapts to the viewport:
  *
  * - **Desktop** (≥ `desktopBreakpoint`): the drawers are real shadcn-style
- *   resizable panels (react-resizable-panels). Each can be dragged to any width
- *   between `minSize`/`maxSize`, collapsed completely (to zero) via the handle
- *   button or the imperative ref, and its size is persisted with `autoSaveId`.
- * - **Mobile**: the drawers become fixed, swipeable overlays with a backdrop and
- *   a per-side custom `mobileWidth` (e.g. `'100%'`, `'320px'`), exactly like a
+ *   resizable panels (react-resizable-panels). Each can be dragged between
+ *   `minSize`/`maxSize`, collapsed completely (to zero) via the handle button
+ *   or the imperative ref, and its size is persisted with `autoSaveId`.
+ * - **Mobile**: the drawers become fixed, swipeable overlays with a backdrop —
+ *   `left`/`right` slide in horizontally, `top`/`bottom` slide in vertically —
+ *   each with a per-side custom `mobileWidth`/`mobileHeight`, exactly like a
  *   native slide-in sheet.
  *
  * The center is always a `min-h-0` flex column, so a child with
@@ -116,10 +139,16 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
     {
       left,
       right,
+      top,
+      bottom,
       leftOpen = true,
       onLeftOpenChange,
       rightOpen = true,
       onRightOpenChange,
+      topOpen = true,
+      onTopOpenChange,
+      bottomOpen = true,
+      onBottomOpenChange,
       children,
       className,
       autoSaveId,
@@ -131,35 +160,46 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
     const isDesktop = useMinWidth(desktopBreakpoint);
     const leftPanel = useRef<ImperativePanelHandle>(null);
     const rightPanel = useRef<ImperativePanelHandle>(null);
+    const topPanel = useRef<ImperativePanelHandle>(null);
+    const bottomPanel = useRef<ImperativePanelHandle>(null);
+
+    const openBySide = { left: leftOpen, right: rightOpen, top: topOpen, bottom: bottomOpen };
+    const panelBySide = { left: leftPanel, right: rightPanel, top: topPanel, bottom: bottomPanel };
+    const configBySide = { left, right, top, bottom };
 
     const onChange = useCallback(
       (side: DrawerSide, open: boolean) => {
-        (side === 'left' ? onLeftOpenChange : onRightOpenChange)?.(open);
+        (
+          {
+            left: onLeftOpenChange,
+            right: onRightOpenChange,
+            top: onTopOpenChange,
+            bottom: onBottomOpenChange,
+          }[side]
+        )?.(open);
       },
-      [onLeftOpenChange, onRightOpenChange],
+      [onLeftOpenChange, onRightOpenChange, onTopOpenChange, onBottomOpenChange],
     );
 
     // Keep each collapsible panel in sync with its controlled `open` prop.
     useEffect(() => {
-      const p = leftPanel.current;
-      if (!isDesktop || !p || !left) return;
-      if (leftOpen && p.isCollapsed()) p.expand();
-      else if (!leftOpen && p.isExpanded()) p.collapse();
-    }, [isDesktop, left, leftOpen]);
-    useEffect(() => {
-      const p = rightPanel.current;
-      if (!isDesktop || !p || !right) return;
-      if (rightOpen && p.isCollapsed()) p.expand();
-      else if (!rightOpen && p.isExpanded()) p.collapse();
-    }, [isDesktop, right, rightOpen]);
+      (['left', 'right', 'top', 'bottom'] as const).forEach((side) => {
+        const p = panelBySide[side].current;
+        if (!isDesktop || !p || !configBySide[side]) return;
+        const open = openBySide[side];
+        if (open && p.isCollapsed()) p.expand();
+        else if (!open && p.isExpanded()) p.collapse();
+      });
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isDesktop, left, right, top, bottom, leftOpen, rightOpen, topOpen, bottomOpen]);
 
     useImperativeHandle(
       ref,
       () => {
-        const panelFor = (s: DrawerSide) => (s === 'left' ? leftPanel : rightPanel).current;
+        const panelFor = (s: DrawerSide) => panelBySide[s].current;
         const isCollapsed = (s: DrawerSide) => {
           if (isDesktop) return panelFor(s)?.isCollapsed() ?? true;
-          return !(s === 'left' ? leftOpen : rightOpen);
+          return !openBySide[s];
         };
         return {
           collapse: (s) => {
@@ -174,30 +214,49 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
           isCollapsed,
         };
       },
-      [isDesktop, leftOpen, rightOpen, onChange],
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [isDesktop, leftOpen, rightOpen, topOpen, bottomOpen, onChange],
     );
 
-    // ---- Mobile: fixed swipeable overlays over a full-width center ----------
+    // ---- Mobile: fixed swipeable overlays over a full-bleed center ----------
     if (!isDesktop) {
       return (
-        <div className={cn('relative flex h-full w-full min-h-0 overflow-hidden', className)}>
-          {left && (
+        <div className={cn('relative flex h-full w-full min-h-0 flex-col overflow-hidden', className)}>
+          {top && (
             <MobileDrawer
-              side="left"
-              config={left}
-              open={leftOpen}
-              onOpenChange={(o) => onChange('left', o)}
+              side="top"
+              config={top}
+              open={topOpen}
+              onOpenChange={(o) => onChange('top', o)}
             />
           )}
-          <div className="relative grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-1 overflow-hidden">
-            {children}
+          <div className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
+            {left && (
+              <MobileDrawer
+                side="left"
+                config={left}
+                open={leftOpen}
+                onOpenChange={(o) => onChange('left', o)}
+              />
+            )}
+            <div className="relative grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-1 overflow-hidden">
+              {children}
+            </div>
+            {right && (
+              <MobileDrawer
+                side="right"
+                config={right}
+                open={rightOpen}
+                onOpenChange={(o) => onChange('right', o)}
+              />
+            )}
           </div>
-          {right && (
+          {bottom && (
             <MobileDrawer
-              side="right"
-              config={right}
-              open={rightOpen}
-              onOpenChange={(o) => onChange('right', o)}
+              side="bottom"
+              config={bottom}
+              open={bottomOpen}
+              onOpenChange={(o) => onChange('bottom', o)}
             />
           )}
         </div>
@@ -205,11 +264,11 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
     }
 
     // ---- Desktop: resizable panels -----------------------------------------
-    return (
+    const horizontalGroup = (
       <PanelGroup
         direction="horizontal"
         autoSaveId={autoSaveId}
-        className={cn('h-full w-full min-h-0', className)}
+        className="h-full w-full min-h-0"
       >
         {left && (
           <>
@@ -270,6 +329,74 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
         )}
       </PanelGroup>
     );
+
+    if (!top && !bottom) {
+      return (
+        <div className={cn('h-full w-full min-h-0', className)}>{horizontalGroup}</div>
+      );
+    }
+
+    return (
+      <PanelGroup
+        direction="vertical"
+        autoSaveId={autoSaveId ? `${autoSaveId}:vertical` : undefined}
+        className={cn('h-full w-full min-h-0', className)}
+      >
+        {top && (
+          <>
+            <Panel
+              ref={topPanel}
+              order={1}
+              collapsible
+              collapsedSize={0}
+              defaultSize={topOpen ? (top.defaultSize ?? 30) : 0}
+              minSize={top.minSize ?? 12}
+              maxSize={top.maxSize ?? 60}
+              onCollapse={() => onChange('top', false)}
+              onExpand={() => onChange('top', true)}
+              className={cn('flex min-h-0 flex-col overflow-hidden', top.className)}
+            >
+              {top.content}
+            </Panel>
+            <ResizeHandle
+              side="top"
+              showButton={showCollapseButtons}
+              onToggle={() => onChange('top', !topOpen)}
+              open={topOpen}
+            />
+          </>
+        )}
+
+        <Panel order={2} minSize={20} className="relative min-h-0 w-full overflow-hidden">
+          {horizontalGroup}
+        </Panel>
+
+        {bottom && (
+          <>
+            <ResizeHandle
+              side="bottom"
+              showButton={showCollapseButtons}
+              onToggle={() => onChange('bottom', !bottomOpen)}
+              open={bottomOpen}
+            />
+            <Panel
+              ref={bottomPanel}
+              order={3}
+              collapsible
+              collapsedSize={0}
+              defaultSize={bottomOpen ? (bottom.defaultSize ?? 30) : 0}
+              minSize={bottom.minSize ?? 12}
+              maxSize={bottom.maxSize ?? 60}
+              onCollapse={() => onChange('bottom', false)}
+              onExpand={() => onChange('bottom', true)}
+              className={cn('flex min-h-0 flex-col overflow-hidden', bottom.className)}
+            >
+              {bottom.content}
+            </Panel>
+          </>
+        )}
+      </PanelGroup>
+    );
   },
 );
 
@@ -286,13 +413,35 @@ function ResizeHandle({
   open: boolean;
 }) {
   // Which way the chevron points to "put the drawer away".
-  const CollapseIcon = side === 'left' ? ChevronLeft : ChevronRight;
-  const ExpandIcon = side === 'left' ? ChevronRight : ChevronLeft;
-  const Icon = open ? CollapseIcon : ExpandIcon;
+  const collapseIcons: Record<DrawerSide, typeof ChevronLeft> = {
+    left: ChevronLeft,
+    right: ChevronRight,
+    top: ChevronUp,
+    bottom: ChevronDown,
+  };
+  const expandIcons: Record<DrawerSide, typeof ChevronLeft> = {
+    left: ChevronRight,
+    right: ChevronLeft,
+    top: ChevronDown,
+    bottom: ChevronUp,
+  };
+  const Icon = open ? collapseIcons[side] : expandIcons[side];
+  const horizontal = isHorizontal(side);
+
   return (
-    <PanelResizeHandle className="group relative w-px bg-border transition-colors hover:bg-primary/50 data-[resize-handle-state=drag]:bg-primary">
-      {/* widen the hit area without taking layout width */}
-      <div className="absolute inset-y-0 -left-1 -right-1 z-10" />
+    <PanelResizeHandle
+      className={cn(
+        'group relative bg-border transition-colors hover:bg-primary/50 data-[resize-handle-state=drag]:bg-primary',
+        horizontal ? 'w-px' : 'h-px',
+      )}
+    >
+      {/* widen the hit area without taking layout width/height */}
+      <div
+        className={cn(
+          'absolute z-10',
+          horizontal ? 'inset-y-0 -left-1 -right-1' : 'inset-x-0 -top-1 -bottom-1',
+        )}
+      />
       {showButton && (
         <button
           type="button"
@@ -302,8 +451,10 @@ function ResizeHandle({
           }}
           title={open ? 'Collapse' : 'Expand'}
           className={cn(
-            'absolute top-1/2 z-20 flex h-8 w-4 -translate-y-1/2 items-center justify-center rounded-sm border border-border bg-card text-muted-foreground opacity-0 shadow-sm transition-opacity hover:text-foreground group-hover:opacity-100',
-            side === 'left' ? '-left-2' : '-right-2',
+            'absolute z-20 flex items-center justify-center rounded-sm border border-border bg-card text-muted-foreground opacity-0 shadow-sm transition-opacity hover:text-foreground group-hover:opacity-100',
+            horizontal
+              ? cn('top-1/2 h-8 w-4 -translate-y-1/2', side === 'left' ? '-left-2' : '-right-2')
+              : cn('left-1/2 h-4 w-8 -translate-x-1/2', side === 'top' ? '-top-2' : '-bottom-2'),
           )}
         >
           <Icon className="h-3.5 w-3.5" />
@@ -325,9 +476,13 @@ function MobileDrawer({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const touchX = useRef<number | null>(null);
-  const edgeX = useRef<number | null>(null);
+  const horizontal = isHorizontal(side);
+  const touchPos = useRef<number | null>(null);
+  const edgePos = useRef<number | null>(null);
   const swipeClose = config.swipeToClose ?? true;
+
+  const clientPos = (e: TouchEvent) =>
+    horizontal ? e.touches[0].clientX : e.touches[0].clientY;
 
   return (
     <>
@@ -343,36 +498,55 @@ function MobileDrawer({
       {/* off-screen edge zone that opens the drawer on an inward swipe */}
       {config.edgeSwipeToOpen && !open && (
         <div
-          className={cn('fixed inset-y-0 z-20 w-4', side === 'left' ? 'left-0' : 'right-0')}
-          onTouchStart={(e) => (edgeX.current = e.touches[0].clientX)}
+          className={cn(
+            'fixed z-20',
+            horizontal
+              ? cn('inset-y-0 w-4', side === 'left' ? 'left-0' : 'right-0')
+              : cn('inset-x-0 h-4', side === 'top' ? 'top-0' : 'bottom-0'),
+          )}
+          onTouchStart={(e) => (edgePos.current = clientPos(e))}
           onTouchMove={(e) => {
-            if (edgeX.current === null) return;
-            const dx = e.touches[0].clientX - edgeX.current;
-            if ((side === 'left' && dx > 50) || (side === 'right' && dx < -50)) {
+            if (edgePos.current === null) return;
+            const d = clientPos(e) - edgePos.current;
+            const opens =
+              (side === 'left' && d > 50) ||
+              (side === 'right' && d < -50) ||
+              (side === 'top' && d > 50) ||
+              (side === 'bottom' && d < -50);
+            if (opens) {
               onOpenChange(true);
-              edgeX.current = null;
+              edgePos.current = null;
             }
           }}
-          onTouchEnd={() => (edgeX.current = null)}
+          onTouchEnd={() => (edgePos.current = null)}
         />
       )}
 
       <aside
-        style={widthStyle(config.mobileWidth)}
-        onTouchStart={(e) => swipeClose && (touchX.current = e.touches[0].clientX)}
+        style={sizeStyle(side, config)}
+        onTouchStart={(e) => swipeClose && (touchPos.current = clientPos(e))}
         onTouchMove={(e) => {
-          if (!swipeClose || touchX.current === null) return;
-          const dx = e.touches[0].clientX - touchX.current;
-          if ((side === 'left' && dx < -60) || (side === 'right' && dx > 60)) {
+          if (!swipeClose || touchPos.current === null) return;
+          const d = clientPos(e) - touchPos.current;
+          const closes =
+            (side === 'left' && d < -60) ||
+            (side === 'right' && d > 60) ||
+            (side === 'top' && d < -60) ||
+            (side === 'bottom' && d > 60);
+          if (closes) {
             onOpenChange(false);
-            touchX.current = null;
+            touchPos.current = null;
           }
         }}
-        onTouchEnd={() => (touchX.current = null)}
+        onTouchEnd={() => (touchPos.current = null)}
         className={cn(
-          'fixed inset-y-0 z-40 flex flex-col bg-card transition-transform duration-200',
-          side === 'left' ? 'left-0 border-r border-border' : 'right-0 border-l border-border',
-          open ? 'translate-x-0' : cn(closedX(side), 'pointer-events-none'),
+          'fixed z-40 flex flex-col bg-card transition-transform duration-200',
+          horizontal ? 'inset-y-0' : 'inset-x-0',
+          side === 'left' && 'left-0 border-r border-border',
+          side === 'right' && 'right-0 border-l border-border',
+          side === 'top' && 'top-0 border-b border-border',
+          side === 'bottom' && 'bottom-0 border-t border-border',
+          open ? 'translate-x-0 translate-y-0' : cn(closedTransform(side), 'pointer-events-none'),
           config.className,
         )}
       >
@@ -382,6 +556,15 @@ function MobileDrawer({
   );
 }
 
-function closedX(side: DrawerSide): string {
-  return side === 'left' ? '-translate-x-full' : 'translate-x-full';
+function closedTransform(side: DrawerSide): string {
+  switch (side) {
+    case 'left':
+      return '-translate-x-full';
+    case 'right':
+      return 'translate-x-full';
+    case 'top':
+      return '-translate-y-full';
+    case 'bottom':
+      return 'translate-y-full';
+  }
 }

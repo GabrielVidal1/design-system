@@ -446,6 +446,27 @@ export function FloatingPanelIcon() {
   );
 }
 
+/** ResizableLayout — side and bottom drawers breathe open against the frame. */
+export function ResizableLayoutIcon() {
+  return (
+    <Svg>
+      <rect x="34" y="22" width="152" height="86" rx="8" stroke={DIM} strokeWidth="2" opacity="0.55" />
+      <g className="a-grow" style={v({ '--g0': '0.2', '--dur': '4.6s' })}>
+        <rect x="34" y="22" width="44" height="86" rx="0" fill={CY} fillOpacity="0.14" />
+        <line x1="78" y1="22" x2="78" y2="108" stroke={CY} strokeWidth="2.5" />
+      </g>
+      <rect x="152" y="22" width="34" height="86" fill={INK} fillOpacity="0.06" />
+      <line x1="152" y1="22" x2="152" y2="108" stroke={DIM} strokeWidth="2" opacity="0.6" />
+      <g className="a-drift" style={v({ '--dy': '-5px', '--dur': '4.2s' })}>
+        <rect x="78" y="82" width="74" height="26" fill={CY} fillOpacity="0.16" />
+        <line x1="78" y1="82" x2="152" y2="82" stroke={CY} strokeWidth="2.5" />
+      </g>
+      <rect x="90" y="34" width="30" height="6" rx="3" fill={DIM} opacity="0.5" />
+      <rect x="90" y="46" width="46" height="5" rx="2.5" fill={DIM} opacity="0.35" />
+    </Svg>
+  );
+}
+
 /** Toast — a card slides up from the corner, holds, slips away. */
 export function ToastIcon() {
   return (
