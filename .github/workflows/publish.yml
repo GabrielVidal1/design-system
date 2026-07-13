@@ -6,8 +6,20 @@ name: Publish to npm
 #
 # The tag must match packages/ui/package.json's version exactly (guarded
 # below). Pre-release tags (v1.0.0-rc.1) publish under the `next` dist-tag
-# so they never become `latest`. Needs the NPM_TOKEN repo secret (granular
-# token with read+write on @gabvdl/*).
+# so they never become `latest`.
+#
+# Auth, in order of preference:
+#
+#   1. Trusted publishing (OIDC) — no secret at all. Register this workflow at
+#      npmjs.com/package/@gabvdl/ui/access once the package exists, then delete
+#      the NPM_TOKEN secret: npm authenticates from the id-token below.
+#   2. NPM_TOKEN secret — a *granular* access token with **"Bypass two-factor
+#      authentication" ticked**. Without that box npm answers EOTP (it wants an
+#      authenticator code), and classic "Automation" tokens no longer exist.
+#
+# The publish step exports NODE_AUTH_TOKEN only when the secret is non-empty:
+# an empty-but-present NODE_AUTH_TOKEN makes npm attempt token auth and skip
+# OIDC entirely.
 
 on:
   push:
@@ -15,7 +27,7 @@ on:
 
 permissions:
   contents: write # create the GitHub Release
-  id-token: write # npm --provenance
+  id-token: write # npm provenance + trusted publishing (OIDC)
 
 jobs:
   publish:
@@ -27,6 +39,9 @@ jobs:
           node-version: 22
           cache: npm
           registry-url: https://registry.npmjs.org
+
+      # Node 22 ships npm 10.x; trusted publishing needs >= 11.5.1.
+      - run: npm install -g npm@latest
 
       - name: Check tag matches package version
         run: |
@@ -44,8 +59,14 @@ jobs:
       - name: Publish @gabvdl/ui
         working-directory: packages/ui
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            echo "publishing with the NPM_TOKEN secret"
+            export NODE_AUTH_TOKEN="$NPM_TOKEN"
+          else
+            echo "no NPM_TOKEN secret — publishing via trusted publishing (OIDC)"
+          fi
           TAG="${GITHUB_REF_NAME#v}"
           case "$TAG" in
             *-*) DIST_TAG=next ;;
