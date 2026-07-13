@@ -5,6 +5,8 @@ import { Search } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { highlightAll, highlightSnippet } from '../../lib/highlight';
 import { runSearch, type SearchResult } from '../../lib/search';
+import { useDebouncedValue } from '../../hooks/use-debounced-value';
+import { Spinner } from '../spinner';
 import { VirtualList, type VirtualListHandle } from '../virtual-list';
 
 type Result<T> = SearchResult<T>;
@@ -57,10 +59,19 @@ export interface FuzzyListProps<T> {
   overscan?: number;
   /** Show the "N of M" count line above the list. */
   showCount?: boolean;
+  /**
+   * How long to wait (ms) after the last keystroke before re-running the search.
+   * The input stays instant; only the Fuse pass and the re-render of the list
+   * trail behind it, which is what keeps a big index from stuttering while
+   * typing. Default 400. Set `0` to search on every keystroke.
+   */
+  debounce?: number;
   /** Extra Fuse options, merged over the defaults. */
   fuseOptions?: IFuseOptions<T>;
   /** Anything to render inline to the right of the search box. */
   toolbar?: ReactNode;
+  /** Called with the live (un-debounced) query on every keystroke. */
+  onQueryChange?: (query: string) => void;
   className?: string;
   inputClassName?: string;
   listClassName?: string;
@@ -120,8 +131,10 @@ export function FuzzyList<T>({
   estimateSize = 60,
   overscan = 8,
   showCount = true,
+  debounce = 400,
   fuseOptions,
   toolbar,
+  onQueryChange,
   className,
   inputClassName,
   listClassName,
@@ -130,14 +143,17 @@ export function FuzzyList<T>({
   const [active, setActive] = useState(0);
   const apiRef = useRef<VirtualListHandle>(null);
 
+  // The input is always live; the search trails it by `debounce` ms.
+  const [searched, pending] = useDebouncedValue(query, debounce);
+
   const fuse = useMemo(
     () => new Fuse(items, { ...DEFAULTS, ...fuseOptions, keys }),
     [items, keys, fuseOptions],
   );
 
   const results = useMemo<Result<T>[]>(
-    () => runSearch(fuse, items, keys, query, limit),
-    [fuse, query, items, keys, limit],
+    () => runSearch(fuse, items, keys, searched, limit),
+    [fuse, searched, items, keys, limit],
   );
 
   // Keep the keyboard cursor in range as the result set changes.
@@ -169,7 +185,9 @@ export function FuzzyList<T>({
     }
   };
 
-  const q = query.trim();
+  // Everything downstream (count line, highlighting, empty state) describes the
+  // results, so it reads the searched query, not the one still being typed.
+  const q = searched.trim();
 
   return (
     <div className={cn('flex min-h-0 flex-col', className)}>
@@ -178,7 +196,10 @@ export function FuzzyList<T>({
         <input
           value={query}
           autoFocus={autoFocus}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            onQueryChange?.(e.target.value);
+          }}
           onKeyDown={onKeyDown}
           placeholder={placeholder}
           spellCheck={false}
@@ -187,6 +208,7 @@ export function FuzzyList<T>({
             inputClassName,
           )}
         />
+        {pending && <Spinner className="size-3.5 shrink-0 text-muted-foreground" />}
         {toolbar}
       </div>
 

@@ -1,5 +1,7 @@
 export { useCopyToClipboard } from './use-copy-to-clipboard';
 export type { UseCopyOptions } from './use-copy-to-clipboard';
+export { useDebouncedValue } from './use-debounced-value';
+export type { UseDebouncedValueOptions } from './use-debounced-value';
 export { useInfiniteScroll, useIntersection } from './use-intersection';
 export type { UseInfiniteScrollOptions } from './use-intersection';
 export { useLocalStorage } from './use-local-storage';

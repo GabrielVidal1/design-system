@@ -24,7 +24,12 @@ export interface ModalProps {
   size?: ModalSize;
   /** Clicking the scrim closes. Turn off for destructive flows. */
   dismissable?: boolean;
+  /** Drop the title/close bar entirely — for panels that own their whole chrome
+   * (a command palette, say). Escape and scrim-click still close. */
+  hideHeader?: boolean;
   className?: string;
+  /** Overrides the body's default padding/scroll wrapper classes. */
+  bodyClassName?: string;
   children?: React.ReactNode;
 }
 
@@ -42,7 +47,9 @@ export function Modal({
   footer,
   size = 'md',
   dismissable = true,
+  hideHeader = false,
   className,
+  bodyClassName,
   children,
 }: ModalProps) {
   const panel = React.useRef<HTMLDivElement>(null);
@@ -96,7 +103,7 @@ export function Modal({
           className,
         )}
       >
-        {(title || dismissable) && (
+        {!hideHeader && (title || dismissable) && (
           <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
             <div className="min-w-0">
               {title && <h2 className="truncate text-base font-medium">{title}</h2>}
@@ -114,7 +121,9 @@ export function Modal({
             )}
           </div>
         )}
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        <div className={cn('min-h-0 flex-1 overflow-y-auto px-5 py-4', bodyClassName)}>
+          {children}
+        </div>
         {footer && (
           <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">{footer}</div>
         )}

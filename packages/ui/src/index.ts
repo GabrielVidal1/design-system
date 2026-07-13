@@ -18,6 +18,7 @@ export type { TimeInput } from './lib/format';
 
 export {
   useCopyToClipboard,
+  useDebouncedValue,
   useEscape,
   useInfiniteScroll,
   useIntersection,
@@ -34,6 +35,7 @@ export {
 export type {
   LongPressPoint,
   UseCopyOptions,
+  UseDebouncedValueOptions,
   UseInfiniteScrollOptions,
   UseLongPressOptions,
 } from './hooks';
@@ -64,6 +66,8 @@ export type { RelativeTimeProps } from './components/relative-time';
 export { ImageViewerProvider, useImageViewer, ViewableImage, ProgressiveImage } from './components/image-viewer';
 export { FuzzyList, highlightAll, highlightSnippet } from './components/fuzzy-list';
 export type { FuzzyListProps, FuzzyRenderContext } from './components/fuzzy-list';
+export { GlobalSearch, formatHotkey, parseHotkey, useHotkey } from './components/global-search';
+export type { GlobalSearchProps, GlobalSearchSource, Hotkey } from './components/global-search';
 export { VirtualList } from './components/virtual-list';
 export type { VirtualListProps, VirtualListHandle } from './components/virtual-list';
 export { Changelog } from './components/changelog';
