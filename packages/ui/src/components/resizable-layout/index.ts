@@ -4,4 +4,5 @@ export type {
   ResizableLayoutHandle,
   ResizableDrawerConfig,
   DrawerSide,
+  MobileMode,
 } from './resizable-layout';

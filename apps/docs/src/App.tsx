@@ -522,21 +522,24 @@ ref.current?.skipToEnd()
   {
     id: 'resizable-layout',
     name: 'ResizableLayout',
-    sig: 'left · right · top · bottom drawers — resizable on desktop, swipeable on mobile',
+    sig: 'left · right · top · bottom — resizable panels on desktop, panel-or-drawer on mobile',
     tag: 'layout',
     Icon: ResizableLayoutIcon,
     Demo: ResizableLayoutDemo,
-    code: `// four-slot shell: drag to resize on desktop, swipe to
-// open/close on mobile. Any side is optional; each is
-// independently controlled + collapsible via the ref.
+    code: `// four-slot shell: drag to resize on desktop. On mobile each
+// side picks its own behaviour with mobileMode — 'drawer' (an
+// overlay with a backdrop, which takes focus) or 'panel' (in
+// flow, splitting the screen, center stays usable).
 const ref = useRef<ResizableLayoutHandle>(null)
 
 <ResizableLayout
   ref={ref}
   autoSaveId="app:shell"
-  left={{ content: <Nav />, defaultSize: 20, minSize: 12, maxSize: 40 }}
-  right={{ content: <Info />, defaultSize: 24, mobileWidth: '85%' }}
-  bottom={{ content: <Composer />, defaultSize: 30, mobileHeight: '55%', edgeSwipeToOpen: true }}
+  // nav: a sheet you open, use, and dismiss
+  left={{ content: <Nav />, defaultSize: 20, mobileMode: 'drawer', mobileWidth: '85%' }}
+  right={{ content: <Info />, defaultSize: 24, mobileMode: 'drawer', mobileWidth: '85%' }}
+  // composer: must stay reachable — never hide it behind a backdrop
+  bottom={{ content: <Composer />, defaultSize: 30, mobileMode: 'panel', mobileHeight: 'auto' }}
   leftOpen={leftOpen} onLeftOpenChange={setLeftOpen}
   bottomOpen={bottomOpen} onBottomOpenChange={setBottomOpen}
 >
@@ -2064,6 +2067,10 @@ function ResizableLayoutDemo() {
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
   const [bottomOpen, setBottomOpen] = useState(true);
+  // Force the mobile branch on, so the two mobile behaviours can be compared
+  // without resizing the browser.
+  const [mobile, setMobile] = useState(false);
+  const [bottomMode, setBottomMode] = useState<'panel' | 'drawer'>('panel');
 
   const swatch = (label: string) => (
     <div className="flex h-full flex-col gap-2 p-3">
@@ -2085,6 +2092,18 @@ function ResizableLayoutDemo() {
         <Button size="sm" variant="outline" onClick={() => layoutRef.current?.toggle('bottom')}>
           {bottomOpen ? 'Collapse' : 'Expand'} bottom
         </Button>
+        <Button size="sm" variant={mobile ? 'default' : 'outline'} onClick={() => setMobile((m) => !m)}>
+          {mobile ? 'Mobile' : 'Desktop'}
+        </Button>
+        {mobile && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setBottomMode((m) => (m === 'panel' ? 'drawer' : 'panel'))}
+          >
+            bottom: {bottomMode}
+          </Button>
+        )}
       </div>
       <div className="h-80 overflow-hidden rounded-lg border border-border">
         <ResizableLayout
@@ -2096,6 +2115,7 @@ function ResizableLayoutDemo() {
             defaultSize: 32,
             minSize: 18,
             maxSize: 55,
+            mobileMode: bottomMode,
             mobileHeight: '50%',
             edgeSwipeToOpen: true,
           }}
@@ -2105,7 +2125,7 @@ function ResizableLayoutDemo() {
           onRightOpenChange={setRightOpen}
           bottomOpen={bottomOpen}
           onBottomOpenChange={setBottomOpen}
-          desktopBreakpoint={0}
+          desktopBreakpoint={mobile ? 99999 : 0}
         >
           <div className="flex h-full min-h-0 flex-col overflow-y-auto p-3">
             {swatch('Thread (scrollable center)')}
@@ -2113,8 +2133,9 @@ function ResizableLayoutDemo() {
         </ResizableLayout>
       </div>
       <p className="mono text-[11px] text-muted-foreground">
-        drag a handle to resize · click a handle's chevron or the buttons above to collapse · shrink the window below
-        the breakpoint to see left/right/top/bottom become swipeable overlays instead
+        desktop: drag a handle to resize · click a handle's chevron or the buttons above to collapse — mobile: each side
+        is either a <b>panel</b> (splits the screen, center stays usable) or a <b>drawer</b> (slides over the center
+        with a backdrop and takes focus). Flip the bottom side between the two above.
       </p>
     </div>
   );

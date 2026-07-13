@@ -126,6 +126,7 @@ export type {
   ResizableLayoutHandle,
   ResizableDrawerConfig,
   DrawerSide,
+  MobileMode,
 } from './components/resizable-layout';
 export { FloatingPanel, Dock, DockProvider, useDockContext } from './components/floating-panel';
 export type {

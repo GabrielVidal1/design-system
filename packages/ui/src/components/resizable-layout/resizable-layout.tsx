@@ -21,6 +21,18 @@ import { cn } from '../../lib/utils';
 
 export type DrawerSide = 'left' | 'right' | 'top' | 'bottom';
 
+/**
+ * How a side behaves below the desktop breakpoint.
+ *
+ * - `'drawer'` — a fixed slide-in overlay with a backdrop. It **takes focus**:
+ *   the center is dimmed and inert until the drawer is dismissed. Right for
+ *   navigation and detail views the user opens, reads, then closes.
+ * - `'panel'` — stays in the layout flow and **splits the screen** with the
+ *   center. No backdrop, no focus steal: the panel and the center are usable at
+ *   the same time. Right for a composer or toolbar that has to stay reachable.
+ */
+export type MobileMode = 'drawer' | 'panel';
+
 const HORIZONTAL_SIDES = new Set<DrawerSide>(['left', 'right']);
 const isHorizontal = (side: DrawerSide) => HORIZONTAL_SIDES.has(side);
 
@@ -35,21 +47,33 @@ export interface ResizableDrawerConfig {
   /** Desktop maximum size, as a percentage. */
   maxSize?: number;
   /**
-   * Mobile overlay width, for `left`/`right` drawers. A number is treated as
-   * pixels, a string is used verbatim (`'85%'`, `'100%'`, `'320px'`). Defaults
-   * to `'85%'`.
+   * Mobile behaviour: a focus-taking `'drawer'` overlay, or an always-visible
+   * split-screen `'panel'`. @default 'drawer'
+   */
+  mobileMode?: MobileMode;
+  /**
+   * Mobile width, for `left`/`right` sides. A number is treated as pixels, a
+   * string is used verbatim (`'85%'`, `'320px'`, or `'auto'` in `'panel'` mode
+   * to hug the content). Defaults to `'85%'`.
    */
   mobileWidth?: string | number;
   /**
-   * Mobile overlay height, for `top`/`bottom` drawers. A number is treated as
-   * pixels, a string is used verbatim. Defaults to `'45%'`.
+   * Mobile height, for `top`/`bottom` sides. A number is treated as pixels, a
+   * string is used verbatim (`'auto'` in `'panel'` mode hugs the content).
+   * Defaults to `'45%'`.
    */
   mobileHeight?: string | number;
+  /**
+   * `'panel'` mode only: the size the panel keeps while closed, so it can leave
+   * a tappable strip (a header, a collapsed composer bar) behind instead of
+   * vanishing with no way back. Number = px, string = verbatim. @default 0
+   */
+  mobileCollapsedSize?: string | number;
   /** Extra classes on the drawer surface (desktop panel + mobile overlay). */
   className?: string;
-  /** Allow an in-axis swipe on the drawer to close it on mobile. Default true. */
+  /** `'drawer'` mode only: swipe in-axis on the drawer to close it. Default true. */
   swipeToClose?: boolean;
-  /** Show an off-screen edge zone that opens the drawer on an inward swipe. Default false. */
+  /** `'drawer'` mode only: off-screen edge zone that opens it on an inward swipe. Default false. */
   edgeSwipeToOpen?: boolean;
 }
 
@@ -102,15 +126,19 @@ function useMinWidth(min: number): boolean {
   return match;
 }
 
+const css = (v: string | number) => (typeof v === 'number' ? `${v}px` : v);
+
+/** The open size of a mobile side along its own axis. */
+function openSize(side: DrawerSide, config: ResizableDrawerConfig): string {
+  if (isHorizontal(side)) return css(config.mobileWidth ?? '85%');
+  return css(config.mobileHeight ?? '45%');
+}
+
 function sizeStyle(side: DrawerSide, config: ResizableDrawerConfig): CSSProperties {
-  if (isHorizontal(side)) {
-    const w = config.mobileWidth;
-    const value = w == null ? '85%' : typeof w === 'number' ? `${w}px` : w;
-    return { width: value, maxWidth: '100%' };
-  }
-  const h = config.mobileHeight;
-  const value = h == null ? '45%' : typeof h === 'number' ? `${h}px` : h;
-  return { height: value, maxHeight: '100%' };
+  const value = openSize(side, config);
+  return isHorizontal(side)
+    ? { width: value, maxWidth: '100%' }
+    : { height: value, maxHeight: '100%' };
 }
 
 /**
@@ -121,10 +149,17 @@ function sizeStyle(side: DrawerSide, config: ResizableDrawerConfig): CSSProperti
  *   resizable panels (react-resizable-panels). Each can be dragged between
  *   `minSize`/`maxSize`, collapsed completely (to zero) via the handle button
  *   or the imperative ref, and its size is persisted with `autoSaveId`.
- * - **Mobile**: the drawers become fixed, swipeable overlays with a backdrop —
- *   `left`/`right` slide in horizontally, `top`/`bottom` slide in vertically —
- *   each with a per-side custom `mobileWidth`/`mobileHeight`, exactly like a
- *   native slide-in sheet.
+ * - **Mobile**: each side picks its own behaviour via `mobileMode`:
+ *   - `'drawer'` (default) — a fixed, swipeable overlay with a backdrop, like a
+ *     native slide-in sheet. It takes focus: the center is dimmed and inert.
+ *   - `'panel'` — stays in the flow and splits the screen with the center, which
+ *     stays fully usable. Use it for anything the user must be able to reach
+ *     without dismissing something first (a composer, a toolbar); a `'drawer'`
+ *     with no on-screen trigger is a drawer the user cannot re-open.
+ *
+ *   Both are sized per side with `mobileWidth`/`mobileHeight` (a `'panel'` may
+ *   also use `'auto'` to hug its content, and `mobileCollapsedSize` to keep a
+ *   tappable strip visible while closed).
  *
  * The center is always a `min-h-0` flex column, so a child with
  * `min-h-0 flex-1 overflow-y-auto` scrolls correctly in both modes — no more
@@ -218,47 +253,35 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
       [isDesktop, leftOpen, rightOpen, topOpen, bottomOpen, onChange],
     );
 
-    // ---- Mobile: fixed swipeable overlays over a full-bleed center ----------
+    // ---- Mobile: per-side overlay drawer or in-flow split panel -------------
     if (!isDesktop) {
+      const mobileSide = (side: DrawerSide) => {
+        const config = configBySide[side];
+        if (!config) return null;
+        const props = {
+          side,
+          config,
+          open: openBySide[side],
+          onOpenChange: (o: boolean) => onChange(side, o),
+        };
+        return (config.mobileMode ?? 'drawer') === 'panel' ? (
+          <MobilePanel {...props} />
+        ) : (
+          <MobileDrawer {...props} />
+        );
+      };
+
       return (
         <div className={cn('relative flex h-full w-full min-h-0 flex-col overflow-hidden', className)}>
-          {top && (
-            <MobileDrawer
-              side="top"
-              config={top}
-              open={topOpen}
-              onOpenChange={(o) => onChange('top', o)}
-            />
-          )}
+          {mobileSide('top')}
           <div className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
-            {left && (
-              <MobileDrawer
-                side="left"
-                config={left}
-                open={leftOpen}
-                onOpenChange={(o) => onChange('left', o)}
-              />
-            )}
+            {mobileSide('left')}
             <div className="relative grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-1 overflow-hidden">
               {children}
             </div>
-            {right && (
-              <MobileDrawer
-                side="right"
-                config={right}
-                open={rightOpen}
-                onOpenChange={(o) => onChange('right', o)}
-              />
-            )}
+            {mobileSide('right')}
           </div>
-          {bottom && (
-            <MobileDrawer
-              side="bottom"
-              config={bottom}
-              open={bottomOpen}
-              onOpenChange={(o) => onChange('bottom', o)}
-            />
-          )}
+          {mobileSide('bottom')}
         </div>
       );
     }
@@ -461,6 +484,43 @@ function ResizeHandle({
         </button>
       )}
     </PanelResizeHandle>
+  );
+}
+
+/**
+ * An in-flow mobile side that splits the screen with the center instead of
+ * overlaying it — no backdrop, so the center stays interactive. Closing it
+ * shrinks it to `mobileCollapsedSize` (0 by default) rather than sliding it
+ * off-screen; the content stays mounted either way, so a composer keeps its
+ * draft across a collapse.
+ */
+function MobilePanel({
+  side,
+  config,
+  open,
+}: {
+  side: DrawerSide;
+  config: ResizableDrawerConfig;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const horizontal = isHorizontal(side);
+  const size = open ? openSize(side, config) : css(config.mobileCollapsedSize ?? 0);
+
+  return (
+    <aside
+      style={horizontal ? { width: size, maxWidth: '100%' } : { height: size, maxHeight: '100%' }}
+      className={cn(
+        'relative flex shrink-0 flex-col overflow-hidden bg-card transition-[width,height] duration-200',
+        side === 'left' && 'border-r border-border',
+        side === 'right' && 'border-l border-border',
+        side === 'top' && 'border-b border-border',
+        side === 'bottom' && 'border-t border-border',
+        config.className,
+      )}
+    >
+      {config.content}
+    </aside>
   );
 }
 
