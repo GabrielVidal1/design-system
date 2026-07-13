@@ -2,6 +2,7 @@ import * as React from 'react';
 
 import { cn } from '../../lib/utils';
 
+/** Everything a native `<input>` takes, plus optional reload persistence. */
 export interface InputProps extends React.ComponentProps<'input'> {
   /**
    * Persist the input's value under this key so it survives a page reload.

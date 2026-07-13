@@ -50,6 +50,17 @@ export function useProgressiveSlot(): ProgressiveSlotValue {
   return useContext(ProgressiveSlotContext);
 }
 
+export interface ProgressiveTimelineSlotProps {
+  /** True while this slot is the head of the timeline — its turn to animate. */
+  active: boolean;
+  /** How long (ms) to hold the slot when no child reports an animation duration. */
+  fallbackMs: number;
+  /** Called once when the slot's turn ends, to advance the timeline. */
+  onComplete: () => void;
+  /** The subtree that reads this slot via {@link useProgressiveSlot}. */
+  children: ReactNode;
+}
+
 /**
  * One slot on a {@link ProgressiveList}'s timeline. Provides the slot context to
  * its subtree and, while `active`, decides when to hand off to the next slot:
@@ -61,12 +72,7 @@ export function ProgressiveTimelineSlot({
   fallbackMs,
   onComplete,
   children,
-}: {
-  active: boolean;
-  fallbackMs: number;
-  onComplete: () => void;
-  children: ReactNode;
-}) {
+}: ProgressiveTimelineSlotProps) {
   const st = useRef({ activatedAt: 0, anyReport: false, maxDuration: 0, completed: false, timer: 0 });
 
   // A slot is mounted exactly when it becomes the head, so its first render is

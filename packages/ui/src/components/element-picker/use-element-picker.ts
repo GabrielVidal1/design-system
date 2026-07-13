@@ -23,6 +23,9 @@ export interface UseElementPickerOptions {
   /** Controlled selection. */
   value?: PickedElement[];
   defaultValue?: PickedElement[];
+  /** Called with the full selection whenever it changes. */
+  onValueChange?: (picked: PickedElement[]) => void;
+  /** @deprecated Use `onValueChange`. */
   onChange?: (picked: PickedElement[]) => void;
   onPick?: (picked: PickedElement) => void;
   /** Controlled picking mode. */
@@ -81,6 +84,7 @@ export function useElementPicker(options: UseElementPickerOptions = {}): UseElem
     multiple = true,
     value,
     defaultValue = [],
+    onValueChange,
     onChange,
     onPick,
     active: activeProp,
@@ -92,6 +96,9 @@ export function useElementPicker(options: UseElementPickerOptions = {}): UseElem
     moveTolerance = 12,
     max,
   } = options;
+
+  // The deprecated `onChange` alias still fires; `onValueChange` wins when both are given.
+  const handleValueChange = onValueChange ?? onChange;
 
   const [activeState, setActiveState] = React.useState(false);
   const active = activeProp ?? activeState;
@@ -121,7 +128,7 @@ export function useElementPicker(options: UseElementPickerOptions = {}): UseElem
     filter,
     ignoreSelector,
     styleProps,
-    onChange,
+    onValueChange: handleValueChange,
     onPick,
     root,
     controlled: value !== undefined,
@@ -135,7 +142,7 @@ export function useElementPicker(options: UseElementPickerOptions = {}): UseElem
     filter,
     ignoreSelector,
     styleProps,
-    onChange,
+    onValueChange: handleValueChange,
     onPick,
     root,
     controlled: value !== undefined,
@@ -182,7 +189,7 @@ export function useElementPicker(options: UseElementPickerOptions = {}): UseElem
 
   const commit = React.useCallback((next: PickedElement[]) => {
     if (!latest.current.controlled) setPickedState(next);
-    latest.current.onChange?.(next);
+    latest.current.onValueChange?.(next);
   }, []);
 
   const pick = React.useCallback(
