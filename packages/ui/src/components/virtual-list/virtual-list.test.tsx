@@ -170,6 +170,50 @@ describe('VirtualList', () => {
         throw new Error(`row ${id} not mounted in ${container.innerHTML}`);
       })();
 
+    it('keeps each row pinned to its DOM slot across a re-sort, so no transition is dropped', () => {
+      // Re-inserting an element (which is what React does when the rendered
+      // order changes) throws away the transform it was interpolating from, so
+      // the row teleports instead of gliding. Rows are positioned purely by
+      // `transform`, so the fix is to keep the DOM order fixed and let only the
+      // style change — this is the regression guard for that.
+      const { container, rerender } = renderList(rowsOf([1, 2, 3, 4]));
+      const nodes = () => [...container.querySelectorAll('.ds-virtual-row')];
+      const texts = () => nodes().map((el) => el.textContent);
+
+      const beforeNodes = nodes();
+      const beforeTexts = texts();
+      const row4Before = rowEl(container, 4);
+      const row4TransformBefore = row4Before.style.transform;
+
+      // Reverse the list: every row changes rank.
+      rerender(
+        <VirtualList
+          items={rowsOf([4, 3, 2, 1])}
+          estimateSize={60}
+          className="h-96"
+          smooth
+          getItemKey={(r) => r.id}
+          renderItem={(r) => <div data-testid="row">{`row-${r.id}`}</div>}
+        />,
+      );
+
+      // Same nodes in the same sibling order — React moved nothing, so no
+      // element was re-inserted and no in-flight transition was discarded.
+      expect(nodes()).toEqual(beforeNodes);
+      expect(texts()).toEqual(beforeTexts);
+
+      // Row 4 kept its DOM node but was repositioned purely by transform: it
+      // went from last to first, so its translateY must have changed.
+      expect(rowEl(container, 4)).toBe(row4Before);
+      expect(rowEl(container, 4).style.transform).not.toBe(row4TransformBefore);
+    });
+
+    it('still paints in rank order when smooth is off (no slot pinning)', () => {
+      const { container } = renderList(rowsOf([3, 1, 2]), { smooth: false });
+      const text = [...container.querySelectorAll('.ds-virtual-row')].map((el) => el.textContent);
+      expect(text).toEqual(['row-3', 'row-1', 'row-2']);
+    });
+
     it('publishes smoothDuration and smoothEasing to the CSS as custom properties', () => {
       const { container } = renderList(rowsOf([1, 2, 3]), {
         smoothDuration: 900,

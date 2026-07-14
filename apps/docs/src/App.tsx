@@ -1929,8 +1929,9 @@ function VirtualListDemo() {
       />
       <p className="mt-2 mono text-[11px] text-muted-foreground">
         48 rows auto-sort by activity · toggle <span className="text-foreground">smooth</span> to see
-        rows glide vs. teleport · a row moving <span className="text-foreground">up</span> passes in
-        front of the ones it overtakes · scroll to see windowing
+        rows glide vs. teleport · every row that moves animates, and one moving{' '}
+        <span className="text-foreground">up</span> passes in front of the ones it displaces · scroll
+        to see windowing
       </p>
     </div>
   );

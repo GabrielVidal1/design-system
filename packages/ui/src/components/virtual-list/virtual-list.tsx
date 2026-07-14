@@ -58,10 +58,12 @@ export interface VirtualListProps<T> {
   /**
    * Animate rows sliding to their new position when the list is re-sorted (e.g.
    * an auto-sort by "updated" date whose value changed), so a reorder glides
-   * instead of teleporting. Only animates while the list is idle — scrolling and
-   * lazy height-measurement never animate. Rows travelling *up* are stacked over
-   * rows travelling down, so a row that overtakes its neighbours passes visibly
-   * in front of them rather than sliding underneath. Requires the stylesheet
+   * instead of teleporting. Every row that moves glides — the ones falling to
+   * make room as much as the one climbing past them. Only animates while the
+   * list is idle — scrolling and lazy height-measurement never animate. Rows
+   * travelling *up* are stacked over rows travelling down, so a row that
+   * overtakes its neighbours passes visibly in front of them rather than
+   * sliding underneath. Requires the stylesheet
    * `@gabvdl/ui/virtual-list.css` (bundled in `styles.css`) and a stable
    * `getItemKey` so React keeps each row's DOM node across the reorder. Honors
    * `prefers-reduced-motion`.
@@ -332,6 +334,49 @@ export function VirtualList<T>({
     if (last && last.index >= rowCount - 1 - endThreshold) onEndReached();
   }, [virtualItems, rowCount, hasMore, loading, endThreshold, onEndReached]);
 
+  // Paint the rows in a STABLE DOM order rather than in rank order.
+  //
+  // The virtualizer hands back `virtualItems` sorted by index, so on a re-sort
+  // the same row arrives at a different array position and React reorders the
+  // DOM nodes to match (`insertBefore`). Re-inserting an element throws away the
+  // transform it was interpolating from, so its transition is dropped and it
+  // teleports — which is why, before this, only *some* rows glided and the rest
+  // snapped to their new slot.
+  //
+  // Rows are absolutely positioned and placed purely by `transform`, so DOM
+  // order has no effect on layout — only on paint order, and that is what the
+  // `--rising` z-index above is for. Keeping each row pinned to a fixed sibling
+  // position means React only ever updates its `style`, and every row (climbing
+  // AND falling) interpolates.
+  //
+  // A row's slot is remembered across renders, so a key that is still in the
+  // window keeps the sibling position it already occupies; keys that scroll out
+  // free their slot for a newcomer. Sorting by index would be simpler but is
+  // exactly what we must avoid — that IS the rank order.
+  const domSlots = useRef(new Map<Key, number>());
+  const orderedItems = useMemo(() => {
+    if (!smooth) return virtualItems;
+
+    // Work on a copy and only publish it at the end: a `useMemo` body must be
+    // pure, or StrictMode's double-invoke would assign each newcomer two
+    // different slots.
+    const slots = new Map(domSlots.current);
+    const live = new Set(virtualItems.map((v) => v.key));
+    for (const key of [...slots.keys()]) if (!live.has(key)) slots.delete(key);
+
+    const taken = new Set(slots.values());
+    let free = 0;
+    for (const v of virtualItems) {
+      if (slots.has(v.key)) continue;
+      while (taken.has(free)) free++;
+      slots.set(v.key, free);
+      taken.add(free);
+    }
+    domSlots.current = slots;
+
+    return [...virtualItems].sort((a, b) => (slots.get(a.key) ?? 0) - (slots.get(b.key) ?? 0));
+  }, [virtualItems, smooth]);
+
   if (items.length === 0 && !loading) {
     return (
       <div ref={parentRef} className={cn('overflow-y-auto', className)} style={style}>
@@ -343,7 +388,7 @@ export function VirtualList<T>({
   return (
     <div ref={parentRef} className={cn('overflow-y-auto', className)} style={style}>
       <div style={{ position: 'relative', width: '100%', height: virtualizer.getTotalSize() }}>
-        {virtualItems.map((v) => (
+        {orderedItems.map((v) => (
           <div
             key={v.key}
             data-index={v.index}

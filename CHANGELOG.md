@@ -8,6 +8,17 @@ in the [README](README.md): from `0.1.0` on, breaking changes bump the
 
 ## [Unreleased]
 
+### Fixed
+
+- **`VirtualList`** — the rows sliding *down* during a `smooth` reorder snapped
+  into place instead of gliding; only the climbing rows animated. The rows are
+  rendered in a **stable DOM order** now, keyed to a remembered sibling slot,
+  instead of in rank order. React was reordering the nodes on every re-sort, and
+  re-inserting an element discards the transform it was interpolating from — so
+  the browser dropped the transition and the row teleported. Rows are positioned
+  purely by `transform`, so pinning the DOM order costs nothing visually (paint
+  order is what the rising z-index governs) and every moving row now glides.
+
 ### Added
 
 - **`VirtualList`** — the `smooth` reorder is now tunable and legible.
