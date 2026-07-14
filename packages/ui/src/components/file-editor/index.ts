@@ -1,0 +1,10 @@
+export { FileEditor } from './file-editor';
+export type { FileEditorProps, FileEditorMode } from './file-editor';
+export { CodeArea } from './code-area';
+export type { CodeAreaProps } from './code-area';
+export { Markdown } from './markdown';
+export type { MarkdownProps } from './markdown';
+export { MenuBar } from './menu-bar';
+export type { FileEditorMenu, FileEditorMenuEntry, FileEditorMenuItem } from './menu-bar';
+export { detectLanguage } from './language';
+export { codeTheme } from './prism-theme';

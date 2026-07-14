@@ -31,6 +31,7 @@ import {
   DockProvider,
   DropZone,
   EmptyState,
+  FileEditor,
   FloatingPanel,
   FuzzyList,
   GlobalSearch,
@@ -138,6 +139,7 @@ import {
   VirtualListIcon,
   ElementPickerIcon,
   TabsIcon,
+  FileEditorIcon,
 } from './icons';
 import pkg from '@gabvdl/ui/package.json';
 import { SandpackProvider, SandpackCodeEditor, type SandpackTheme } from '@codesandbox/sandpack-react';
@@ -197,6 +199,7 @@ const GROUP_OF: Record<string, Group> = {
   slider: 'Inputs',
   'copy-button': 'Inputs',
   'element-picker': 'Inputs',
+  'file-editor': 'Inputs',
   'char-roll': 'Animation',
   'progressive-text': 'Animation',
   'progressive-list': 'Animation',
@@ -276,6 +279,7 @@ const SOURCE_FILE: Record<string, string> = {
   progress: 'progress.tsx',
   'copy-button': 'copy-button.tsx',
   'element-picker': 'element-picker.tsx',
+  'file-editor': 'file-editor.tsx',
   'drop-zone': 'drop-zone.tsx',
   'search-input': 'search-input.tsx',
   'relative-time': 'relative-time.tsx',
@@ -860,6 +864,23 @@ ref.current?.toggle('bottom')`,
 // each entry: the live node + a serializable parse
 picked[0].element  // HTMLElement
 picked[0].info     // { tag, kind, text, selector, hierarchy, styles, … }`,
+  },
+  {
+    id: 'file-editor',
+    name: 'FileEditor',
+    sig: 'menus · gutter · highlighting · preview — ref = textarea',
+    tag: 'input',
+    Icon: FileEditorIcon,
+    Demo: FileEditorDemo,
+    code: `<FileEditor
+  path="scripts/deploy.sh"   // drives language + title
+  value={text} onChange={setText}
+  onSubmit={save}            // Save button · ⌘S · blur
+  menus={[{ label: 'Actions', items: [...] }]}
+/>
+
+// markdown/html get a Preview tab (rendered / sandboxed iframe)
+// <Markdown source={md} /> and <CodeArea /> ship standalone too`,
   },
   {
     id: 'toast',
@@ -2414,6 +2435,122 @@ function SliderDemo() {
 }
 
 const TABS_VARIANTS = ['underline', 'pill', 'segmented'] as const;
+
+/* ─── FileEditor ──────────────────────────────────────────────────────────── */
+
+const EDITOR_FILES: Record<string, string> = {
+  'scripts/deploy.sh': `#!/usr/bin/env bash
+# Blue-green deploy: never touch the live container until
+# the standby answers its health probe.
+set -euo pipefail
+
+IMAGE="homelab-ai-agent:$(git rev-parse --short HEAD)"
+docker build -t "$IMAGE" .
+
+docker run -d --name standby --network main "$IMAGE"
+for i in {1..30}; do
+  curl -fs http://standby:8080/api/health && break
+  sleep 2
+done
+
+echo "✓ standby healthy — cutting over"
+`,
+  'src/queue.ts': `export interface Job<T = unknown> {
+  id: string;
+  status: 'queued' | 'running' | 'done' | 'failed';
+  payload: T;
+}
+
+/** Single-GPU serialization: one job at a time, strictly FIFO. */
+export class JobQueue<T> {
+  private jobs: Job<T>[] = [];
+
+  push(payload: T): Job<T> {
+    const job: Job<T> = { id: crypto.randomUUID(), status: 'queued', payload };
+    this.jobs.push(job);
+    return job;
+  }
+
+  next(): Job<T> | undefined {
+    return this.jobs.find((j) => j.status === 'queued');
+  }
+}
+`,
+  'README.md': `---
+name: file-editor
+status: shipped
+---
+
+# FileEditor
+
+A **generic text-file viewer/editor**: menu-bar nav, line numbers,
+syntax highlighting and a preview tab — this very file renders it.
+
+## Features
+
+- \`File\` / \`Tools\` dropdown menus, plus your own
+- Submit on **blur**, the Save button, or \`⌘S\`
+- The forwarded ref *is* the \`<textarea>\`
+
+\`\`\`tsx
+<FileEditor path="README.md" value={text} onSubmit={save} />
+\`\`\`
+
+| Language | Preview |
+| -------- | ------- |
+| markdown | rendered |
+| html     | sandboxed iframe |
+`,
+};
+
+function FileEditorDemo() {
+  const toast = useToast();
+  const [path, setPath] = useState<keyof typeof EDITOR_FILES>('scripts/deploy.sh');
+  const [files, setFiles] = useState(EDITOR_FILES);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="mono text-[11px] uppercase tracking-wider text-muted-foreground">file</span>
+        <Tabs value={path} onValueChange={(v) => setPath(v as keyof typeof EDITOR_FILES)} variant="segmented" swipe={false}>
+          <TabsList aria-label="Sample file">
+            {Object.keys(EDITOR_FILES).map((p) => (
+              <TabsTrigger key={p} value={p} className="mono text-xs">
+                {p.split('/').pop()}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      </div>
+
+      <FileEditor
+        key={path}
+        path={path}
+        value={files[path]}
+        onChange={(v) => setFiles((f) => ({ ...f, [path]: v }))}
+        onSubmit={(v) => {
+          setFiles((f) => ({ ...f, [path]: v }));
+          toast.success(`${path.split('/').pop()} saved — ${v.length} chars`);
+        }}
+        menus={[
+          {
+            label: 'Demo',
+            items: [
+              { label: 'Reset file', onSelect: () => setFiles((f) => ({ ...f, [path]: EDITOR_FILES[path] })) },
+              'separator',
+              { label: 'Toast the path', onSelect: () => toast.info(path) },
+            ],
+          },
+        ]}
+        className="h-[420px] rounded-xl border border-border"
+      />
+      <p className="text-xs text-muted-foreground">
+        Save with the button, <span className="mono">⌘S</span>, or just click away — a dirty buffer submits on blur.
+        Markdown opens on its rendered preview; flip to the pencil to edit.
+      </p>
+    </div>
+  );
+}
 
 function TabsDemo() {
   const [variant, setVariant] = useState<(typeof TABS_VARIANTS)[number]>('underline');

@@ -199,6 +199,16 @@ export {
   splitBySubparts,
 } from './components/progressive-bash';
 export type { CmdToken, CmdKind, OutputLine, OutputSpan, LineKind, SubCommand } from './components/progressive-bash';
+export { CodeArea, FileEditor, Markdown, MenuBar, codeTheme, detectLanguage } from './components/file-editor';
+export type {
+  CodeAreaProps,
+  FileEditorMenu,
+  FileEditorMenuEntry,
+  FileEditorMenuItem,
+  FileEditorMode,
+  FileEditorProps,
+  MarkdownProps,
+} from './components/file-editor';
 export { ResizableLayout } from './components/resizable-layout';
 export type {
   ResizableLayoutProps,
