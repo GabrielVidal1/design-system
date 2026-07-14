@@ -59,9 +59,12 @@ import {
   ResizableLayout,
   type ResizableLayoutHandle,
   SearchInput,
+  Select,
   Skeleton,
   SkeletonText,
+  Slider,
   Spinner,
+  Switch,
   StatRow,
   StatTile,
   StatusBadge,
@@ -122,8 +125,11 @@ import {
   ResizableLayoutIcon,
   RichInputIcon,
   SearchInputIcon,
+  SelectIcon,
   SkeletonIcon,
+  SliderIcon,
   SpinnerIcon,
+  SwitchIcon,
   StatTileIcon,
   StatusBadgeIcon,
   ThemeToggleIcon,
@@ -186,6 +192,9 @@ const GROUP_OF: Record<string, Group> = {
   'rich-input': 'Inputs',
   'search-input': 'Inputs',
   'drop-zone': 'Inputs',
+  select: 'Inputs',
+  switch: 'Inputs',
+  slider: 'Inputs',
   'copy-button': 'Inputs',
   'element-picker': 'Inputs',
   'char-roll': 'Animation',
@@ -251,6 +260,9 @@ const SOURCE_FILE: Record<string, string> = {
   tabs: 'tabs.tsx',
   button: 'button.tsx',
   input: 'input.tsx',
+  select: 'select.tsx',
+  switch: 'switch.tsx',
+  slider: 'slider.tsx',
   'rich-input': 'rich-input.tsx',
   cn: 'utils.ts',
   toast: 'toast.tsx',
@@ -765,6 +777,56 @@ ref.current?.toggle('bottom')`,
 
 // persists across reloads (localStorage by default)
 <Input cacheKey="draft" cacheLocation="local" />`,
+  },
+  {
+    id: 'select',
+    name: 'Select',
+    sig: 'searchable · icons · bottom sheet on phones',
+    tag: 'input',
+    Icon: SelectIcon,
+    Demo: SelectDemo,
+    code: `<Select
+  label="Model"
+  options={[
+    { value: 'qwen', label: 'Qwen 3', description: 'local · EVOX2' },
+    { value: 'gpt', label: 'GPT-5', disabled: true },
+  ]}
+  value={model}
+  onValueChange={setModel}
+  searchable            // default: on past 7 options
+/>`,
+  },
+  {
+    id: 'switch',
+    name: 'Switch',
+    sig: 'checked · onCheckedChange · labelled row',
+    tag: 'input',
+    Icon: SwitchIcon,
+    Demo: SwitchDemo,
+    code: `<Switch checked={on} onCheckedChange={setOn} />
+
+// the settings-page row: label + hint, all of it tappable
+<Switch
+  label="Push notifications"
+  description="Deploys, finished jobs, asks"
+  defaultChecked
+/>`,
+  },
+  {
+    id: 'slider',
+    name: 'Slider',
+    sig: 'pointer-captured track · arrow/Page/Home/End keys',
+    tag: 'input',
+    Icon: SliderIcon,
+    Demo: SliderDemo,
+    code: `<Slider
+  label="Decimation"
+  min={10_000} max={1_000_000} step={10_000}
+  value={target}
+  onValueChange={setTarget}       // every move
+  onValueCommit={requestPreview}  // once, on release
+  showValue format={(v) => \`\${fmtNum(v)} tris\`}
+/>`,
   },
   {
     id: 'rich-input',
@@ -2247,6 +2309,106 @@ function InputDemo() {
         </p>
       </div>
       <Input disabled placeholder="Disabled" />
+    </div>
+  );
+}
+
+const SELECT_MODELS = [
+  { value: 'qwen3-vl-8b', label: 'Qwen 3 VL 8B', description: 'local · EVOX2 · vision' },
+  { value: 'gemma-3-27b', label: 'Gemma 3 27B', description: 'local · EVOX2' },
+  { value: 'claude-fable-5', label: 'Claude Fable 5', description: 'API' },
+  { value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', description: 'API' },
+  { value: 'gpt-5', label: 'GPT-5', description: 'no key configured', disabled: true },
+];
+
+const SELECT_SERVICES = [
+  'traefik', 'authelia', 'gitea', 'grafana', 'loki', 'prometheus', 'jellyfin',
+  'homepage', 'ai-agent', 'kanban', 'music-dl', '3d-gen', 'image-gen', 'registry',
+].map((s) => ({ value: s, label: s }));
+
+function SelectDemo() {
+  const [model, setModel] = useState<string | null>('qwen3-vl-8b');
+  const [service, setService] = useState<string | null>(null);
+
+  return (
+    <div className="max-w-sm space-y-4">
+      <div>
+        <Select label="Model" options={SELECT_MODELS} value={model} onValueChange={setModel} />
+        <p className="mt-1.5 mono text-[11px] text-muted-foreground">
+          descriptions · disabled options · check on the pick
+        </p>
+      </div>
+      <div>
+        <Select
+          label="Restart a service"
+          options={SELECT_SERVICES}
+          value={service}
+          onValueChange={setService}
+          placeholder="Pick a service…"
+        />
+        <p className="mt-1.5 mono text-[11px] text-muted-foreground">
+          14 options → the filter input appears · bottom sheet on phones
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function SwitchDemo() {
+  const [push, setPush] = useState(true);
+
+  return (
+    <div className="max-w-sm space-y-5">
+      <div className="flex items-center gap-4">
+        <Switch defaultChecked />
+        <Switch />
+        <Switch size="sm" defaultChecked />
+        <Switch disabled defaultChecked />
+      </div>
+      <div className="space-y-4 border-t border-border pt-4">
+        <Switch
+          label="Push notifications"
+          description={push ? 'Deploys, finished jobs, asks' : 'You will miss the deploys'}
+          checked={push}
+          onCheckedChange={setPush}
+        />
+        <Switch label="Wake the GPU box on demand" description="WoL before each queued job" />
+      </div>
+    </div>
+  );
+}
+
+function SliderDemo() {
+  const [tris, setTris] = useState(250_000);
+  const [volume, setVolume] = useState(0.6);
+
+  return (
+    <div className="max-w-sm space-y-6">
+      <Slider
+        label="Decimation target"
+        min={10_000}
+        max={1_000_000}
+        step={10_000}
+        value={tris}
+        onValueChange={setTris}
+        showValue
+        format={(v) => `${fmtNum(v)} tris`}
+      />
+      <Slider
+        label="Volume"
+        min={0}
+        max={1}
+        step={0.05}
+        value={volume}
+        onValueChange={setVolume}
+        showValue
+        format={(v) => `${Math.round(v * 100)}%`}
+      />
+      <Slider label="Disabled" defaultValue={30} disabled />
+      <p className="text-sm text-muted-foreground">
+        Tap anywhere on the track to jump, then drag — the whole strip is the touch target. The
+        thumb takes arrows, Page keys, Home and End.
+      </p>
     </div>
   );
 }

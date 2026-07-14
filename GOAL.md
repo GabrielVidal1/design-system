@@ -54,9 +54,10 @@ Has the `Progressive*` family (text, list, table, timeline, bash),
 
 ### Data entry
 Has `Input`, `RichInput`, `SearchInput`, `DropZone`, `ElementPicker`,
-`CopyButton`.
-- [ ] `Select` / combobox (searchable, mobile sheet mode)
-- [ ] `Checkbox` · `Radio` · `Switch` · `Slider` · `Textarea`
+`CopyButton`, `Select`, `Switch`, `Slider`.
+- [x] `Select` / combobox (searchable, mobile sheet mode)
+- [x] `Switch` · `Slider` (was hand-rolled in 5+ projects each)
+- [ ] `Checkbox` · `Radio` · `Textarea`
 - [ ] `Field` wrapper — label + hint + error, so forms look uniform
 
 ### Navigation
