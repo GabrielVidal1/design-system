@@ -1603,20 +1603,15 @@ function ImportLine() {
 }
 
 function ComponentCard({ entry }: { entry: Entry }) {
-  const { id, name, sig, tag, Icon } = entry;
+  const { id, name, sig, Icon } = entry;
   return (
     <Link to={`/c/${id}`} className="comp-card group block text-left" aria-label={`Open ${name}`}>
       <div className="comp-card__art">
         <Icon />
       </div>
-      <div className="flex items-start justify-between gap-2 p-4">
-        <div className="min-w-0">
-          <div className="mono text-sm text-foreground">{name}</div>
-          <div className="mono mt-1 truncate text-[11px] text-muted-foreground">{sig}</div>
-        </div>
-        <span className="shrink-0 rounded border border-border px-1.5 py-0.5 mono text-[10px] uppercase tracking-[0.12em] text-[color:var(--cyan-deep)]">
-          {tag}
-        </span>
+      <div className="min-w-0 p-4">
+        <div className="mono text-sm text-foreground">{name}</div>
+        <div className="mono mt-1 truncate text-[11px] text-muted-foreground">{sig}</div>
       </div>
     </Link>
   );
