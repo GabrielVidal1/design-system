@@ -29,6 +29,20 @@
   --input: #e7e5e4;
   --ring: #a8a29e;
   --radius: 0.625rem;
+
+  /* syntax highlighting (FileEditor / CodeArea / Markdown code blocks) */
+  --code-foreground: #1c1917;
+  --code-comment: #78716c;
+  --code-keyword: #7c3aed;
+  --code-string: #15803d;
+  --code-number: #b45309;
+  --code-function: #1d4ed8;
+  --code-tag: #be185d;
+  --code-variable: #0e7490;
+  --code-punctuation: #78716c;
+  --code-regex: #b45309;
+  --code-gutter: #a8a29e;
+  --code-selection: rgba(120, 113, 108, 0.25);
 }
 
 .dark {
@@ -51,6 +65,19 @@
   --border: #292524;
   --input: #292524;
   --ring: #57534e;
+
+  --code-foreground: #fafaf9;
+  --code-comment: #a8a29e;
+  --code-keyword: #c4b5fd;
+  --code-string: #86efac;
+  --code-number: #fcd34d;
+  --code-function: #93c5fd;
+  --code-tag: #f9a8d4;
+  --code-variable: #67e8f9;
+  --code-punctuation: #a8a29e;
+  --code-regex: #fcd34d;
+  --code-gutter: #57534e;
+  --code-selection: rgba(168, 162, 158, 0.3);
 }
 
 @theme inline {

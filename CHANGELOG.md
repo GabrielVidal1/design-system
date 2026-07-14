@@ -17,6 +17,18 @@ last release → grouped bullets under Unreleased), then curate the prose.
 
 ### Added
 
+- `FileEditor` — a generic text-file viewer/editor (the shape ai-agent's file
+  tab rebuilds): a menu-bar nav (built-in **File**/**Tools** dropdowns plus
+  consumer-supplied menus), line-number gutter, prism syntax highlighting
+  driven by new `--code-*` theme tokens (light + dark), submit on blur / Save
+  button / ⌘S, and a Preview tab that renders markdown (frontmatter table
+  included) or html (sandboxed iframe). The forwarded ref **is** the
+  underlying `<textarea>`. Ships with standalone pieces: `CodeArea` (the
+  highlighted textarea overlay), `Markdown` (GFM + token-styled elements +
+  highlighted code fences), `MenuBar`, `detectLanguage` and the `codeTheme`
+  Prism theme. Bash/diff/makefile grammars are grafted from prismjs proper
+  (prism-react-renderer doesn't vendor them) via a side-effect module kept
+  alive through `sideEffects`.
 - `Progress` — the determinate progress bar every queue and upload rebuilds.
   `value`/`max` with a smooth eased fill, an optional label row and formatted
   value (`format` for "212 / 512 frames"-style captions), and an indeterminate

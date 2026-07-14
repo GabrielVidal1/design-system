@@ -1101,3 +1101,43 @@ export function DataTableIcon() {
     </Svg>
   );
 }
+
+/** FileEditor — a code buffer types itself while the caret blinks in the gutter's shadow. */
+export function FileEditorIcon() {
+  const codeLine = (y: number, xs: [number, number, string][], delay: string) => (
+    <g className="a-reveal" style={v({ '--dur': '5s', animationDelay: delay })}>
+      {xs.map(([x, w, tone], i) => (
+        <rect key={i} x={x} y={y} width={w} height="4" rx="2" fill={tone} opacity={tone === CY ? '0.85' : '0.5'} />
+      ))}
+    </g>
+  );
+  return (
+    <Svg>
+      <rect x="44" y="22" width="132" height="86" rx="8" stroke={DIM} strokeWidth="2" />
+      {/* menu bar */}
+      <line x1="44" y1="38" x2="176" y2="38" stroke={DIM} strokeWidth="2" />
+      <rect x="52" y="28" width="16" height="4" rx="2" fill={CY} opacity="0.85" />
+      <rect x="74" y="28" width="16" height="4" rx="2" fill={DIM} opacity="0.55" />
+      {/* dropdown unfurling under the File menu */}
+      <g className="a-fade" style={v({ '--dur': '5s' })}>
+        <rect x="50" y="42" width="40" height="26" rx="4" fill={PAPER} stroke={DIM} strokeWidth="1.5" />
+        <rect x="56" y="48" width="24" height="3.5" rx="1.75" fill={CY} opacity="0.8" />
+        <rect x="56" y="56" width="18" height="3.5" rx="1.75" fill={DIM} opacity="0.5" />
+      </g>
+      {/* gutter */}
+      <line x1="60" y1="38" x2="60" y2="108" stroke={DIM} strokeWidth="1.5" opacity="0.6" />
+      {[48, 60, 72, 84, 96].map((y) => (
+        <rect key={y} x="50" y={y} width="5" height="3.5" rx="1.75" fill={DIM} opacity="0.4" />
+      ))}
+      {/* highlighted code lines */}
+      {codeLine(48, [[98, 20, CY], [122, 30, DIM]], '0s')}
+      {codeLine(60, [[104, 34, DIM], [142, 16, CY]], '0.3s')}
+      {codeLine(72, [[98, 14, DIM], [116, 26, CY], [146, 18, DIM]], '0.6s')}
+      {codeLine(84, [[104, 42, DIM]], '0.9s')}
+      {/* the caret, breathing */}
+      <g className="a-breathe" style={v({ '--s': '1', '--dur': '2.2s' })}>
+        <rect x="150" y="94" width="2.5" height="10" rx="1.25" fill={CY} />
+      </g>
+    </Svg>
+  );
+}

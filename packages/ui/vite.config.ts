@@ -32,6 +32,10 @@ export default defineConfig({
         'fuse.js',
         '@tanstack/react-virtual',
         'react-resizable-panels',
+        'prism-react-renderer',
+        /^prismjs/,
+        'react-markdown',
+        'remark-gfm',
       ],
       output: {
         preserveModules: true,
