@@ -162,6 +162,12 @@ export type {
 } from './components/button';
 export { Input } from './components/input';
 export type { InputProps } from './components/input';
+export { Switch } from './components/switch';
+export type { SwitchProps, SwitchSize } from './components/switch';
+export { Slider } from './components/slider';
+export type { SliderProps } from './components/slider';
+export { Select } from './components/select';
+export type { SelectOption, SelectProps } from './components/select';
 export { RichInput, defaultComposePrompt } from './components/rich-input';
 export type {
   RichInputProps,
