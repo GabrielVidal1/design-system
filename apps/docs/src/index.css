@@ -270,13 +270,15 @@ body::before {
 }
 .a-reveal { animation: a-reveal var(--dur, 3.8s) var(--ease-io) infinite; }
 
-/* grow — a bar typing itself out */
+/* grow — a bar typing itself out. The selector needs `.anim-svg` so its
+   left-edge origin outweighs the generic `transform-origin: center` above —
+   with only `.a-grow` the bar scales from its middle, not from the left. */
 @keyframes a-grow {
   0%, 8%   { transform: scaleX(var(--g0, 0.06)); }
   52%, 84% { transform: scaleX(1); }
   100%     { transform: scaleX(var(--g0, 0.06)); }
 }
-.a-grow {
+.anim-svg .a-grow {
   transform-origin: left center;
   animation: a-grow var(--dur, 4s) var(--ease-io) infinite;
 }

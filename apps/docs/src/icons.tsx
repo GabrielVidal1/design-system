@@ -123,8 +123,21 @@ export function FuzzyListIcon() {
   );
 }
 
-/** PhonePreview — a device whose screen scrolls in a slow breath. */
+/** PhonePreview — a device whose screen scrolls in a slow breath, its copy typing in. */
 export function PhonePreviewIcon() {
+  const line = (y: number, w: number, h: number, fill: string, o: string, delay: string) => (
+    <rect
+      className="a-grow"
+      style={v({ '--g0': '0.15', '--dur': '5s', animationDelay: delay })}
+      x="96"
+      y={y}
+      width={w}
+      height={h}
+      rx={h / 2}
+      fill={fill}
+      opacity={o}
+    />
+  );
   return (
     <Svg>
       <rect x="86" y="18" width="48" height="94" rx="12" stroke={DIM} strokeWidth="2" />
@@ -135,13 +148,13 @@ export function PhonePreviewIcon() {
       <g clipPath="url(#pp-scr)">
         <rect x="90" y="33" width="40" height="75" fill={CY} fillOpacity="0.06" />
         <g className="a-drift" style={v({ '--dy': '-28px', '--dur': '5s' })}>
-          <rect x="96" y="40" width="28" height="6" rx="3" fill={CY} opacity="0.6" />
-          <rect x="96" y="52" width="20" height="4" rx="2" fill={DIM} opacity="0.5" />
-          <rect x="96" y="64" width="28" height="6" rx="3" fill={CY} opacity="0.6" />
-          <rect x="96" y="76" width="24" height="4" rx="2" fill={DIM} opacity="0.5" />
-          <rect x="96" y="88" width="28" height="6" rx="3" fill={CY} opacity="0.6" />
-          <rect x="96" y="100" width="18" height="4" rx="2" fill={DIM} opacity="0.5" />
-          <rect x="96" y="112" width="26" height="6" rx="3" fill={CY} opacity="0.6" />
+          {line(40, 28, 6, CY, '0.6', '0s')}
+          {line(52, 20, 4, DIM, '0.5', '0.25s')}
+          {line(64, 28, 6, CY, '0.6', '0.5s')}
+          {line(76, 24, 4, DIM, '0.5', '0.75s')}
+          {line(88, 28, 6, CY, '0.6', '1s')}
+          {line(100, 18, 4, DIM, '0.5', '1.25s')}
+          {line(112, 26, 6, CY, '0.6', '1.5s')}
         </g>
       </g>
     </Svg>
@@ -296,10 +309,10 @@ export function ChangelogIcon() {
     <Svg>
       <rect x="52" y="24" width="104" height="82" rx="8" stroke={DIM} strokeWidth="2" />
       <rect x="64" y="36" width="22" height="12" rx="6" fill={CY} fillOpacity="0.16" stroke={CY} strokeWidth="1.5" />
-      <rect x="94" y="52" width="50" height="5" rx="2.5" fill={DIM} opacity="0.55" />
+      <rect className="a-grow" style={v({ '--g0': '0.15', '--dur': '4.2s' })} x="94" y="52" width="50" height="5" rx="2.5" fill={DIM} opacity="0.55" />
       <rect x="64" y="52" width="22" height="5" rx="2.5" fill={DIM} opacity="0.3" />
-      <rect x="64" y="66" width="80" height="5" rx="2.5" fill={DIM} opacity="0.45" />
-      <rect x="64" y="78" width="64" height="5" rx="2.5" fill={DIM} opacity="0.3" />
+      <rect className="a-grow" style={v({ '--g0': '0.1', '--dur': '4.2s', animationDelay: '0.3s' })} x="64" y="66" width="80" height="5" rx="2.5" fill={DIM} opacity="0.45" />
+      <rect className="a-grow" style={v({ '--g0': '0.1', '--dur': '4.2s', animationDelay: '0.6s' })} x="64" y="78" width="64" height="5" rx="2.5" fill={DIM} opacity="0.3" />
       <g transform="translate(150 30)">
         <circle className="a-ping" style={v({ '--dur': '2.8s' })} r="11" stroke={CY} strokeWidth="2" />
         <circle className="a-breathe" style={v({ '--s': '1.15', '--dur': '2.8s' })} r="6" fill={CY} />
@@ -413,7 +426,7 @@ export function RichInputIcon() {
         stroke={CY}
         strokeWidth="2.5"
       />
-      <rect x="44" y="38" width="70" height="6" rx="3" fill={DIM} opacity="0.6" />
+      <rect className="a-grow" style={v({ '--g0': '0.08', '--dur': '4.4s' })} x="44" y="38" width="70" height="6" rx="3" fill={DIM} opacity="0.6" />
       <line className="a-blink" x1="120" y1="35" x2="120" y2="49" stroke={CY} strokeWidth="2" />
       <g className="a-reveal" style={v({ '--dur': '4.4s', animationDelay: '0.2s' })}>
         <rect x="44" y="80" width="34" height="14" rx="7" fill={CY} fillOpacity="0.16" stroke={CY} strokeWidth="1.5" />
@@ -521,11 +534,11 @@ export function FloatingPanelIcon() {
       <g className="a-drift" style={v({ '--dy': '-6px', '--dur': '4.4s' })}>
         <rect x="62" y="26" width="104" height="66" rx="8" fill={INK} fillOpacity="0.08" stroke={CY} strokeWidth="2.5" />
         <path d="M62 42 h104" stroke={CY} strokeWidth="1.5" opacity="0.7" />
-        <rect x="72" y="32" width="30" height="6" rx="3" fill={CY} opacity="0.8" />
+        <rect className="a-grow" style={v({ '--g0': '0.2', '--dur': '4.4s' })} x="72" y="32" width="30" height="6" rx="3" fill={CY} opacity="0.8" />
         <circle cx="152" cy="35" r="3" fill={CY} opacity="0.7" />
-        <rect x="72" y="52" width="68" height="5" rx="2.5" fill={DIM} opacity="0.5" />
-        <rect x="72" y="64" width="82" height="5" rx="2.5" fill={DIM} opacity="0.4" />
-        <rect x="72" y="76" width="50" height="5" rx="2.5" fill={DIM} opacity="0.3" />
+        <rect className="a-grow" style={v({ '--g0': '0.1', '--dur': '4.4s', animationDelay: '0.25s' })} x="72" y="52" width="68" height="5" rx="2.5" fill={DIM} opacity="0.5" />
+        <rect className="a-grow" style={v({ '--g0': '0.1', '--dur': '4.4s', animationDelay: '0.5s' })} x="72" y="64" width="82" height="5" rx="2.5" fill={DIM} opacity="0.4" />
+        <rect className="a-grow" style={v({ '--g0': '0.1', '--dur': '4.4s', animationDelay: '0.75s' })} x="72" y="76" width="50" height="5" rx="2.5" fill={DIM} opacity="0.3" />
       </g>
     </Svg>
   );
@@ -546,8 +559,8 @@ export function ResizableLayoutIcon() {
         <rect x="78" y="82" width="74" height="26" fill={CY} fillOpacity="0.16" />
         <line x1="78" y1="82" x2="152" y2="82" stroke={CY} strokeWidth="2.5" />
       </g>
-      <rect x="90" y="34" width="30" height="6" rx="3" fill={DIM} opacity="0.5" />
-      <rect x="90" y="46" width="46" height="5" rx="2.5" fill={DIM} opacity="0.35" />
+      <rect className="a-grow" style={v({ '--g0': '0.15', '--dur': '4.6s' })} x="90" y="34" width="30" height="6" rx="3" fill={DIM} opacity="0.5" />
+      <rect className="a-grow" style={v({ '--g0': '0.1', '--dur': '4.6s', animationDelay: '0.3s' })} x="90" y="46" width="46" height="5" rx="2.5" fill={DIM} opacity="0.35" />
     </Svg>
   );
 }
@@ -560,8 +573,8 @@ export function ToastIcon() {
       <g className="a-toast">
         <rect x="86" y="66" width="86" height="30" rx="8" fill={CY} fillOpacity="0.14" stroke={CY} strokeWidth="2.5" />
         <path d="M96 81 l6 6 l10 -12" stroke={CY} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-        <rect x="120" y="74" width="42" height="5" rx="2.5" fill={CY} opacity="0.75" />
-        <rect x="120" y="84" width="28" height="4" rx="2" fill={DIM} opacity="0.6" />
+        <rect className="a-grow" style={v({ '--g0': '0.15', '--dur': '4.2s', animationDelay: '0.4s' })} x="120" y="74" width="42" height="5" rx="2.5" fill={CY} opacity="0.75" />
+        <rect className="a-grow" style={v({ '--g0': '0.12', '--dur': '4.2s', animationDelay: '0.65s' })} x="120" y="84" width="28" height="4" rx="2" fill={DIM} opacity="0.6" />
       </g>
     </Svg>
   );
@@ -575,8 +588,8 @@ export function ModalIcon() {
       <rect className="a-scrim" x="34" y="20" width="152" height="90" rx="8" fill={INK} fillOpacity="0.3" />
       <g className="a-panel">
         <rect x="70" y="40" width="80" height="50" rx="8" fill={PAPER} stroke={CY} strokeWidth="2.5" />
-        <rect x="80" y="52" width="40" height="5" rx="2.5" fill={CY} opacity="0.8" />
-        <rect x="80" y="64" width="52" height="4" rx="2" fill={DIM} opacity="0.6" />
+        <rect className="a-grow" style={v({ '--g0': '0.15', '--dur': '4.2s', animationDelay: '0.35s' })} x="80" y="52" width="40" height="5" rx="2.5" fill={CY} opacity="0.8" />
+        <rect className="a-grow" style={v({ '--g0': '0.1', '--dur': '4.2s', animationDelay: '0.6s' })} x="80" y="64" width="52" height="4" rx="2" fill={DIM} opacity="0.6" />
         <rect x="112" y="74" width="28" height="9" rx="4.5" fill={CY} fillOpacity="0.3" />
       </g>
     </Svg>
@@ -705,8 +718,8 @@ export function CopyButtonIcon() {
       <rect x="64" y="30" width="52" height="62" rx="7" stroke={DIM} strokeWidth="2" />
       <g className="a-copy">
         <rect x="94" y="42" width="52" height="62" rx="7" fill={PAPER} stroke={CY} strokeWidth="2.5" />
-        <rect x="104" y="56" width="32" height="5" rx="2.5" fill={DIM} opacity="0.6" />
-        <rect x="104" y="68" width="24" height="5" rx="2.5" fill={DIM} opacity="0.6" />
+        <rect className="a-grow" style={v({ '--g0': '0.15', '--dur': '3.8s', animationDelay: '0.5s' })} x="104" y="56" width="32" height="5" rx="2.5" fill={DIM} opacity="0.6" />
+        <rect className="a-grow" style={v({ '--g0': '0.12', '--dur': '3.8s', animationDelay: '0.75s' })} x="104" y="68" width="24" height="5" rx="2.5" fill={DIM} opacity="0.6" />
       </g>
       <path className="a-check" d="M152 76 l7 7 l14 -16" stroke={CY} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
@@ -777,7 +790,7 @@ export function RelativeTimeIcon() {
         strokeLinecap="round"
       />
       <circle cx="110" cy="58" r="3" fill={CY} />
-      <rect x="76" y="98" width="68" height="8" rx="4" fill={CY} fillOpacity="0.3" />
+      <rect className="a-grow" style={v({ '--g0': '0.25', '--dur': '5.6s' })} x="76" y="98" width="68" height="8" rx="4" fill={CY} fillOpacity="0.3" />
     </Svg>
   );
 }
@@ -810,7 +823,7 @@ export function FormatIcon() {
       </g>
       <g className="a-fade" style={v({ '--o0': '0.15', '--o1': '1', '--dur': '3.8s' })}>
         <rect x="134" y="46" width="46" height="36" rx="8" fill={CY} fillOpacity="0.16" stroke={CY} strokeWidth="2.5" />
-        <rect x="143" y="61" width="28" height="6" rx="3" fill={CY} opacity="0.8" />
+        <rect className="a-grow" style={v({ '--g0': '0.2', '--dur': '3.8s', animationDelay: '0.4s' })} x="143" y="61" width="28" height="6" rx="3" fill={CY} opacity="0.8" />
       </g>
     </Svg>
   );
@@ -825,12 +838,12 @@ export function IframePreviewIcon() {
       <g className="a-panel">
         <rect x="86" y="26" width="104" height="78" rx="8" fill={CY} fillOpacity="0.08" stroke={CY} strokeWidth="2.5" />
         <line x1="86" y1="46" x2="190" y2="46" stroke={CY} strokeWidth="2" opacity="0.7" />
-        <rect x="104" y="32" width="56" height="8" rx="4" fill={CY} opacity="0.45" />
+        <rect className="a-grow" style={v({ '--g0': '0.2', '--dur': '4.2s' })} x="104" y="32" width="56" height="8" rx="4" fill={CY} opacity="0.45" />
         <circle cx="95" cy="36" r="3" fill={CY} opacity="0.8" />
         <path d="M172 32 l10 0 l0 10" stroke={CY} strokeWidth="2" strokeLinecap="round" />
-        <rect x="96" y="56" width="84" height="8" rx="4" fill={CY} opacity="0.5" />
-        <rect x="96" y="72" width="60" height="6" rx="3" fill={DIM} opacity="0.6" />
-        <rect x="96" y="86" width="72" height="6" rx="3" fill={DIM} opacity="0.6" />
+        <rect className="a-grow" style={v({ '--g0': '0.12', '--dur': '4.2s', animationDelay: '0.25s' })} x="96" y="56" width="84" height="8" rx="4" fill={CY} opacity="0.5" />
+        <rect className="a-grow" style={v({ '--g0': '0.1', '--dur': '4.2s', animationDelay: '0.5s' })} x="96" y="72" width="60" height="6" rx="3" fill={DIM} opacity="0.6" />
+        <rect className="a-grow" style={v({ '--g0': '0.1', '--dur': '4.2s', animationDelay: '0.75s' })} x="96" y="86" width="72" height="6" rx="3" fill={DIM} opacity="0.6" />
       </g>
     </Svg>
   );
@@ -924,8 +937,8 @@ export function ElementPickerIcon() {
 
       <g className="a-fade" style={v({ '--o0': '0.25', '--o1': '1', '--dur': '4.4s' })}>
         <rect x="116" y="50" width="50" height="44" rx="5" fill={CY} fillOpacity="0.18" stroke={CY} strokeWidth="2.5" />
-        <rect x="124" y="58" width="26" height="5" rx="2.5" fill={CY} opacity="0.7" />
-        <rect x="124" y="68" width="34" height="5" rx="2.5" fill={CY} opacity="0.4" />
+        <rect className="a-grow" style={v({ '--g0': '0.15', '--dur': '4.4s', animationDelay: '0.3s' })} x="124" y="58" width="26" height="5" rx="2.5" fill={CY} opacity="0.7" />
+        <rect className="a-grow" style={v({ '--g0': '0.12', '--dur': '4.4s', animationDelay: '0.55s' })} x="124" y="68" width="34" height="5" rx="2.5" fill={CY} opacity="0.4" />
       </g>
 
       <g className="a-drift" style={v({ '--dx': '52px', '--dy': '12px', '--dur': '4.4s' })}>
