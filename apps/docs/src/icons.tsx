@@ -1101,3 +1101,90 @@ export function DataTableIcon() {
     </Svg>
   );
 }
+
+/** Switch — the thumb slides across while the track lights up behind it. */
+export function SwitchIcon() {
+  return (
+    <Svg>
+      <rect x="70" y="45" width="80" height="40" rx="20" stroke={DIM} strokeWidth="2.5" />
+      <rect
+        className="a-fade"
+        style={v({ '--o0': '0', '--o1': '0.18', '--dur': '4.4s' })}
+        x="70"
+        y="45"
+        width="80"
+        height="40"
+        rx="20"
+        fill={CY}
+      />
+      <g className="a-drift" style={v({ '--dx': '40px', '--dur': '4.4s' })}>
+        <circle cx="90" cy="65" r="13" fill={PAPER} stroke={CY} strokeWidth="2.5" />
+      </g>
+    </Svg>
+  );
+}
+
+/** Slider — the thumb sweeps the track and the fill keeps up. */
+export function SliderIcon() {
+  return (
+    <Svg>
+      <rect x="48" y="62" width="124" height="6" rx="3" stroke={DIM} strokeWidth="2" />
+      <rect
+        className="a-grow"
+        style={v({ '--g0': '0.14', '--dur': '5s' })}
+        x="50"
+        y="64"
+        width="100"
+        height="2"
+        rx="1"
+        fill={CY}
+      />
+      <g className="a-drift" style={v({ '--dx': '86px', '--dur': '5s' })}>
+        <circle cx="64" cy="65" r="10" fill={PAPER} stroke={CY} strokeWidth="2.5" />
+      </g>
+      <rect x="48" y="34" width="30" height="5" rx="2.5" fill={DIM} opacity="0.5" />
+      <rect
+        className="a-fade"
+        style={v({ '--o0': '0.35', '--o1': '0.9', '--dur': '5s' })}
+        x="152"
+        y="34"
+        width="20"
+        height="5"
+        rx="2.5"
+        fill={CY}
+      />
+    </Svg>
+  );
+}
+
+/** Select — the list drops open and the highlight walks down to its pick. */
+export function SelectIcon() {
+  return (
+    <Svg>
+      <rect x="52" y="22" width="116" height="24" rx="7" stroke={DIM} strokeWidth="2" />
+      <rect x="62" y="31" width="42" height="5" rx="2.5" fill={DIM} opacity="0.6" />
+      <g className="a-drift" style={v({ '--dy': '3px', '--dur': '4.8s' })}>
+        <path d="M152 31 l6 7 l6 -7" stroke={CY} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+      <g className="a-fade" style={v({ '--o0': '0', '--o1': '1', '--dur': '4.8s' })}>
+        <rect x="52" y="52" width="116" height="56" rx="7" stroke={DIM} strokeWidth="2" fill={PAPER} />
+        <rect x="62" y="60" width="52" height="5" rx="2.5" fill={DIM} opacity="0.5" />
+        <rect x="62" y="94" width="44" height="5" rx="2.5" fill={DIM} opacity="0.5" />
+        {/* the active row's highlight, walking to the picked option */}
+        <g className="a-drift" style={v({ '--dy': '-17px', '--dur': '4.8s' })}>
+          <rect x="57" y="90" width="106" height="14" rx="4" fill={CY} fillOpacity="0.14" />
+        </g>
+        <rect x="62" y="77" width="58" height="5" rx="2.5" fill={CY} opacity="0.9" />
+        <path
+          className="a-fade"
+          style={v({ '--o0': '0', '--o1': '1', '--dur': '4.8s', animationDelay: '0.4s' })}
+          d="M150 77 l4 5 l8 -9"
+          stroke={CY}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
+    </Svg>
+  );
+}

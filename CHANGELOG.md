@@ -17,6 +17,24 @@ last release → grouped bullets under Unreleased), then curate the prose.
 
 ### Added
 
+- `Select` — the searchable select every project rebuilds from a bare
+  `<select>` or a hand-rolled popover. Options carry optional `icon`s,
+  `description`s and `disabled`; an anchored dropdown with full keyboard
+  navigation (arrows skip disabled options, Enter picks, Escape returns focus)
+  on desktop and a scrim-and-sheet picker on phones (via `Modal`, so
+  scroll-lock and focus return come for free). A filter input appears
+  automatically past 7 options (`searchable` to force either way). Controlled
+  or uncontrolled.
+- `Switch` — the `role="switch"` toggle every settings page hand-rolls.
+  Controlled (`checked` + `onCheckedChange`) or uncontrolled
+  (`defaultChecked`), `sm`/`md` sizes, and with `label`/`description` it
+  renders the whole settings row with the text tappable too.
+- `Slider` — a touch-first range input: full-track pointer capture (tap
+  anywhere to jump, then drag), a finger-sized thumb with
+  arrow/Page/Home/End keys, step snapping without float dust, an optional
+  label/value row (`format` for "250,000 tris"-style captions), and
+  `onValueCommit` for fire-once-on-release work.
+
 - `Progress` — the determinate progress bar every queue and upload rebuilds.
   `value`/`max` with a smooth eased fill, an optional label row and formatted
   value (`format` for "212 / 512 frames"-style captions), and an indeterminate
