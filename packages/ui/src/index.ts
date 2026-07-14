@@ -97,7 +97,14 @@ export type { FuzzyListProps, FuzzyRenderContext } from './components/fuzzy-list
 export { GlobalSearch, formatHotkey, parseHotkey, useHotkey } from './components/global-search';
 export type { GlobalSearchProps, GlobalSearchSource, Hotkey } from './components/global-search';
 export { VirtualList } from './components/virtual-list';
-export type { VirtualListProps, VirtualListHandle } from './components/virtual-list';
+export type { VirtualListProps, VirtualListHandle, VirtualListColumns } from './components/virtual-list';
+export { Collection } from './components/collection';
+export type {
+  CollectionProps,
+  CollectionView,
+  CollectionImage,
+  CollectionItemContext,
+} from './components/collection';
 export { Changelog } from './components/changelog';
 export type { ChangelogEntry, ChangelogProps } from './components/changelog';
 export { PhonePreview, IOSStatusBar } from './components/phone-preview';
