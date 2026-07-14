@@ -45,10 +45,12 @@ Has the `Progressive*` family (text, list, table, timeline, bash),
 `VirtualList` (list **or** windowed card grid, via `columns`), `Collection`
 (image+title items, cards ⇄ list toggle, optional fuzzy search), `Badge` /
 `StatusBadge`, `RelativeTime`, `EmptyState`, `Skeleton`, `Changelog`.
-- [ ] `DataTable` — sortable/selectable table with sticky header, card
+- [x] `DataTable` — sortable/selectable table with sticky header, card
       collapse on phones
-- [ ] Stat tile / KPI row (every dashboard rebuilds one)
-- [ ] Progress bar (determinate — jobs, uploads)
+- [x] Stat tile / KPI row (every dashboard rebuilds one) — `StatTile` +
+      `StatRow`, values tick via `CharRoll`
+- [x] Progress bar (determinate — jobs, uploads) — `Progress`, tones shared
+      with `StatusBadge`, indeterminate sweep
 
 ### Data entry
 Has `Input`, `RichInput`, `SearchInput`, `DropZone`, `ElementPicker`,
@@ -91,15 +93,17 @@ The docs site today is a per-component catalogue. Add a **Demos** section:
 complete app screens built *only* from library components, each linking to
 the components it uses.
 
-- [ ] Demos index (a `/demos` route with a card per demo)
-- [ ] **Chat** — an ai-agent-style page: `ResizableLayout` left/right
+- [x] Demos index (a `/demos` route with a card per demo)
+- [x] **Chat** — an ai-agent-style page: `ResizableLayout` left/right
       drawers, animated message list, `RichInput` composer with chips
-- [ ] **Command palette / global search** — `GlobalSearch` + `FuzzyList`,
-      fully keyboard- and touch-driven
-- [ ] **Job queue** — a 3d-gen / music-dl / brain-style service frontend:
+      (`/demos/chat` — "Agent console")
+- [x] **Command palette / global search** — `GlobalSearch` + `FuzzyList`,
+      fully keyboard- and touch-driven (`/demos/search` — "Switchboard")
+- [x] **Job queue** — a 3d-gen / music-dl / brain-style service frontend:
       queue with `StatusBadge` + `RelativeTime` + progress, job detail with
       `ProgressiveBash` logs. *Missing primitives (progress bar, `DataTable`,
-      stat tiles) get built in the library first.*
+      stat tiles) get built in the library first.* (`/demos/jobs` — "Render
+      queue")
 - [ ] **Editor shell** — once the editor toolkit lands: stage + toolbar +
       inspector + layers in one screen
 - [ ] More over time — dashboard, gallery, settings/forms page
