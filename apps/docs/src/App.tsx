@@ -9,6 +9,7 @@ import {
   FileText,
   Inbox,
   Layers,
+  Play,
   Plus,
   Save,
   Settings2,
@@ -152,7 +153,7 @@ import { DemosIndexPage } from './pages/demos/DemosIndexPage';
 import { ChatDemoPage } from './pages/demos/ChatDemoPage';
 import { SearchDemoPage } from './pages/demos/SearchDemoPage';
 import { JobsDemoPage } from './pages/demos/JobsDemoPage';
-import { fullUrl, nodes, specimenFulls, specimens, thumbUrl, type Node } from './data';
+import { fullUrl, nodes, specimenFulls, specimens, storyReel, thumbUrl, type Node } from './data';
 import { loadSearchIndex, type IndexEntry } from './search';
 
 /** Always the published package's version — read from its package.json at build time. */
@@ -317,7 +318,9 @@ const REGISTRY: Entry[] = [
     Icon: ImageViewerIcon,
     Demo: ImageViewerDemo,
     code: `const { open } = useImageViewer()
-open(urls, 0) // full-screen: zoom · pan · swipe`,
+open(urls, 0)                     // full-screen: zoom · pan · swipe
+open([{ kind: 'video', src }, …]) // images and video, same overlay
+open(media, { story: true })      // auto-advancing story + progress bar`,
   },
   {
     id: 'nav-2d',
@@ -1813,20 +1816,35 @@ function Nav2DStage() {
 }
 
 function ImageViewerDemo() {
+  const { open } = useImageViewer();
   return (
-    <div className="grid grid-cols-4 gap-2">
-      {specimens.slice(0, 8).map((s, i) => (
-        <div key={s.id} className="group relative aspect-square overflow-hidden rounded-md border border-border">
-          <ViewableImage
-            images={specimenFulls}
-            index={i}
-            thumb={thumbUrl(s.id)}
-            full={specimenFulls[i]}
-            alt={s.alt}
-            imgClassName="cyanotype group-hover:scale-[1.05]"
-          />
-        </div>
-      ))}
+    <div className="space-y-3">
+      <div className="grid grid-cols-4 gap-2">
+        {specimens.slice(0, 8).map((s, i) => (
+          <div key={s.id} className="group relative aspect-square overflow-hidden rounded-md border border-border">
+            <ViewableImage
+              images={specimenFulls}
+              index={i}
+              thumb={thumbUrl(s.id)}
+              full={specimenFulls[i]}
+              alt={s.alt}
+              imgClassName="cyanotype group-hover:scale-[1.05]"
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* The same overlay, read as a story: a mixed image/video reel that
+          advances itself behind a progress bar. Tap the sides to step, hold to
+          pause. */}
+      <div className="flex items-center gap-3">
+        <Button size="sm" onClick={() => open(storyReel, { story: true })}>
+          <Play /> Play as story
+        </Button>
+        <span className="text-xs text-muted-foreground">
+          4 slides, one of them a video — auto-advances, tap-hold to pause
+        </span>
+      </div>
     </div>
   );
 }

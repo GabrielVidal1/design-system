@@ -98,6 +98,7 @@ export { RelativeTime } from './components/relative-time';
 export type { RelativeTimeProps } from './components/relative-time';
 
 export { ImageViewerProvider, useImageViewer, ViewableImage, ProgressiveImage } from './components/image-viewer';
+export type { ViewerMedia, ViewerMediaKind, ViewerOptions } from './components/image-viewer';
 export { FuzzyList, highlightAll, highlightSnippet } from './components/fuzzy-list';
 export type { FuzzyListProps, FuzzyRenderContext } from './components/fuzzy-list';
 export { GlobalSearch, formatHotkey, parseHotkey, useHotkey } from './components/global-search';

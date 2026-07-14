@@ -3,6 +3,8 @@
 // component. Each has a small `thumb` for the grid and a large `full` the viewer
 // loads on open.
 
+import type { ViewerMedia } from '@gabvdl/ui';
+
 export interface Specimen {
   id: number;
   label: string;
@@ -32,6 +34,18 @@ export const specimens: Specimen[] = [
 
 /** The image URLs in catalogue order — the carousel set the viewer walks. */
 export const specimenFulls = specimens.map((s) => fullUrl(s.id));
+
+/**
+ * A story reel: the same plates, plus a clip, as the `ViewerMedia` slides the
+ * viewer's story mode walks. Short image holds so a visitor sees it advance
+ * without waiting; the video runs for as long as it runs.
+ */
+export const storyReel: ViewerMedia[] = [
+  { kind: 'image', src: fullUrl(1039), alt: specimens[0].alt, durationMs: 3000 },
+  { kind: 'video', src: '/specimen-motion.mp4', poster: '/specimen-motion.jpg' },
+  { kind: 'image', src: fullUrl(1015), alt: specimens[2].alt, durationMs: 3000 },
+  { kind: 'image', src: fullUrl(1074), alt: specimens[5].alt, durationMs: 3000 },
+];
 
 // A JSON dataset for the FuzzyList demo — a slice of the homelab, searched by
 // name / kind / description. Any array of plain objects works the same way.

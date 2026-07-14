@@ -13,6 +13,43 @@ line directly under a version heading becomes that release's display title.
 Draft a release with `gabvdl-changelog draft` (conventional commits since the
 last release → grouped bullets under Unreleased), then curate the prose.
 
+## [0.17.0]
+
+> The image viewer learns to play.
+
+The version jumps 0.7 → 0.17 to clear a run of stale `0.8`–`0.16` tarballs that
+reached the private registry from a branch that never landed; nothing in the
+library changed across that gap, and no consumer resolved past `0.11`.
+
+### Added
+
+- **Story mode in the image viewer.** `open(media, { story: true })` reads the
+  same slides the way Instagram does: a segmented progress bar across the top,
+  images held for a few seconds, videos played to their end, tap the left third
+  to go back and anywhere else to go forward, press-and-hold (or space) to
+  pause, and an auto-close — plus an optional `onComplete` — when the last
+  slide finishes. Zoom is off there: a press means pause, not zoom.
+- **Video slides.** The viewer is no longer image-only. `open()` still takes a
+  list of image URLs, but it now also takes `ViewerMedia` items —
+  `{ kind: 'image' | 'video', src, poster?, alt?, durationMs? }` — so a gallery
+  can mix stills and clips in one overlay. A clip loops in the plain viewer and
+  advances the story in story mode; it starts muted (browsers block unmuted
+  autoplay, and a story that shouts on open is a worse default) with play/mute
+  controls pinned to the clip itself.
+- Two theme tokens for the story bar: `--ds-viewer-story-track` and
+  `--ds-viewer-story-fill`.
+
+The story bar is driven imperatively on a rAF loop rather than through React
+state — repainting the whole overlay 60×/s to move one bar starves the video
+decode. A video slide's bar tracks the clip's own `currentTime`, not wall time,
+so a clip that buffers can't leave the bar running ahead of the picture.
+
+### Compatibility
+
+`open(urls, index)` — the original image-only signature — is unchanged, and
+every existing call site keeps working untouched. The second argument now also
+accepts an options object.
+
 ## [Unreleased]
 
 ### Added
