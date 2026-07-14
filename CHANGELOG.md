@@ -8,6 +8,50 @@ in the [README](README.md): from `0.1.0` on, breaking changes bump the
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-14
+
+### Added
+
+- **`Collection`** — the generic "things with a picture and a name" list, with a
+  **toggle between a card grid and a compact list**. Give it `items`, a
+  `getTitle` and (optionally) a `getImage`; it owns the two layouts, the
+  segmented toggle, lazy image loading, and the empty/loading states.
+  - Generic by design: `renderMeta` / `renderActions` / `renderOverlay` for
+    slots, and `renderCard` / `renderRow` to replace an item outright. Every
+    render prop is told which `view` it's in, so a row and a card can differ.
+  - The toggle is controlled (`view` + `onViewChange`), uncontrolled
+    (`defaultView`), or **persisted** across reloads with `persistKey`.
+  - `emptyState` and `noMatchesState` are separate: "this collection has nothing
+    in it" and "your search matched none of these" are different messages. The
+    search box stays mounted while `loading`, so a typed query survives a
+    refetch, and the placeholders are shaped like the view they stand in for
+    (a card grid, or a stack of rows).
+  - **Composes instead of duplicating**: both views are windowed by `VirtualList`
+    (cards included), pictures blur-up load through `ProgressiveImage` only as
+    they near the viewport, and passing **`searchKeys`** routes the whole thing
+    through `FuzzyList` — adding quote-aware fuzzy search, `<mark>` highlighting
+    (in the item titles) and keyboard navigation, with the toggle docked into the
+    search bar. No second copy of any of that logic.
+
+- **`VirtualList`: `columns`** — lay the items out as a **card grid** instead of
+  a single column, and still window them: items are chunked into rows of N and
+  the virtualizer measures one *row* at a time, so a thousand cards cost what a
+  thousand rows do. Takes a number or a responsive map
+  (`{ base: 2, md: 3, lg: 4 }`); `gap` sets the cell spacing. Defaults to `1`,
+  which takes the original single-column code path unchanged.
+
+- **`FuzzyList`: `columns` / `gap`** — forwarded to `VirtualList`, so search
+  results can be a card grid. The keyboard cursor becomes 2-D in grid mode: ↑/↓
+  move a whole row, ←/→ step one card. Unchanged (±1, ↑/↓ only) in list mode.
+
+### Fixed
+
+- `useMediaQuery` (and everything built on it — `useIsMobile`, `useIsTouch`,
+  `usePrefersDark`, `usePrefersReducedMotion`) threw where `window` exists but
+  `matchMedia` doesn't — some test DOMs and non-browser renderers. It now
+  degrades to `false` (i.e. "no query matches", so a responsive layout falls back
+  to its base breakpoint) rather than crashing the component that called it.
+
 ## [0.1.5] - 2026-07-14
 
 ### Added

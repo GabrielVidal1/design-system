@@ -1,7 +1,8 @@
+import { createRef } from 'react';
 import { render, screen } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { VirtualList } from './virtual-list';
+import { VirtualList, type VirtualListHandle } from './virtual-list';
 
 // @tanstack/react-virtual measures the scroll container via offsetHeight, and
 // renders zero rows whenever that reads 0 — which it always does in jsdom
@@ -142,5 +143,113 @@ describe('VirtualList', () => {
       />,
     );
     expect(onEndReached).not.toHaveBeenCalled();
+  });
+
+  describe('grid mode (columns)', () => {
+    it('lays items out in rows of N and passes the flat index to renderItem', () => {
+      const items = Array.from({ length: 6 }, (_, i) => `item-${i}`);
+      const { container } = render(
+        <VirtualList
+          items={items}
+          columns={3}
+          estimateSize={200}
+          className="h-96"
+          renderItem={(item, i) => <div data-testid="cell">{`${item}@${i}`}</div>}
+        />,
+      );
+
+      // 6 items over 3 columns = 2 measured rows, each a CSS grid of 3 tracks.
+      const gridRows = container.querySelectorAll('[data-index] > div[style*="grid-template-columns"]');
+      expect(gridRows).toHaveLength(2);
+      expect((gridRows[0] as HTMLElement).style.gridTemplateColumns).toBe('repeat(3, minmax(0, 1fr))');
+
+      // Every item is rendered, and each gets its index in the FLAT list — the
+      // second row starts at 3, not back at 0.
+      expect(screen.getAllByTestId('cell')).toHaveLength(6);
+      expect(screen.getByText('item-0@0')).toBeInTheDocument();
+      expect(screen.getByText('item-3@3')).toBeInTheDocument();
+      expect(screen.getByText('item-5@5')).toBeInTheDocument();
+    });
+
+    it('leaves a short trailing row short rather than padding it', () => {
+      const items = Array.from({ length: 5 }, (_, i) => `item-${i}`);
+      render(
+        <VirtualList
+          items={items}
+          columns={3}
+          estimateSize={200}
+          className="h-96"
+          renderItem={(item) => <div data-testid="cell">{item}</div>}
+        />,
+      );
+      // 5 items over 3 columns: a full row + a row of 2. No blank filler cells.
+      expect(screen.getAllByTestId('cell')).toHaveLength(5);
+    });
+
+    it('renders no grid wrapper at all when columns is 1 (the list path is unchanged)', () => {
+      const { container } = render(
+        <VirtualList
+          items={['a', 'b']}
+          columns={1}
+          className="h-96"
+          renderItem={(item) => <div data-testid="row">{item}</div>}
+        />,
+      );
+      expect(container.querySelectorAll('[style*="grid-template-columns"]')).toHaveLength(0);
+      expect(screen.getAllByTestId('row')).toHaveLength(2);
+    });
+
+    it('windows a large grid — mounts a subset of rows, not every card', () => {
+      const items = Array.from({ length: 1200 }, (_, i) => `item-${i}`);
+      render(
+        <VirtualList
+          items={items}
+          columns={4}
+          estimateSize={220}
+          className="h-96"
+          renderItem={(item) => <div data-testid="cell">{item}</div>}
+        />,
+      );
+      const cells = screen.getAllByTestId('cell');
+      expect(cells.length).toBeGreaterThan(0);
+      expect(cells.length).toBeLessThan(items.length);
+      expect(screen.getByText('item-0')).toBeInTheDocument();
+    });
+
+    it('exposes the live column count on the handle, and scrollToIndex takes an ITEM index', () => {
+      const api = createRef<VirtualListHandle>();
+      render(
+        <VirtualList
+          items={Array.from({ length: 40 }, (_, i) => `item-${i}`)}
+          columns={4}
+          estimateSize={200}
+          className="h-96"
+          apiRef={api}
+          renderItem={(item) => <div>{item}</div>}
+        />,
+      );
+      expect(api.current?.columnCount).toBe(4);
+      // Item 9 lives on row 2 — the mapping is the component's job, so callers
+      // (e.g. FuzzyList's keyboard cursor) keep thinking in flat item indices.
+      expect(() => api.current?.scrollToIndex(9)).not.toThrow();
+    });
+
+    it('resolves a responsive columns map against the viewport', () => {
+      // jsdom reports every media query as non-matching, so the `base` entry is
+      // the one that applies — i.e. the phone layout is what we assert here.
+      const items = Array.from({ length: 4 }, (_, i) => `item-${i}`);
+      const { container } = render(
+        <VirtualList
+          items={items}
+          columns={{ base: 2, md: 3, lg: 4 }}
+          estimateSize={200}
+          className="h-96"
+          renderItem={(item) => <div>{item}</div>}
+        />,
+      );
+      const gridRows = container.querySelectorAll('[data-index] > div[style*="grid-template-columns"]');
+      expect((gridRows[0] as HTMLElement).style.gridTemplateColumns).toBe('repeat(2, minmax(0, 1fr))');
+      expect(gridRows).toHaveLength(2); // 4 items / 2 columns
+    });
   });
 });

@@ -1,6 +1,7 @@
 import {
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   type CSSProperties,
   type Key,
@@ -10,12 +11,22 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual';
 
 import { cn } from '../../lib/utils';
+import { useMediaQuery } from '../../hooks/use-media-query';
 
 /** Imperative handle exposed via {@link VirtualListProps.apiRef}. */
 export interface VirtualListHandle {
+  /** Scroll an **item** index into view (in grid mode, its row). */
   scrollToIndex: (index: number, opts?: { align?: 'auto' | 'start' | 'center' | 'end' }) => void;
   scrollToTop: () => void;
+  /** How many items sit on one row right now (1 unless `columns` is set). */
+  columnCount: number;
 }
+
+/**
+ * How many items go on one row. A number is a fixed count; the object form picks
+ * per breakpoint (Tailwind's `sm`/`md`/`lg`), falling back to `base`.
+ */
+export type VirtualListColumns = number | { base?: number; sm?: number; md?: number; lg?: number };
 
 export interface VirtualListProps<T> {
   /** The rows. Only the ones near the viewport are ever in the DOM. */
@@ -53,11 +64,55 @@ export interface VirtualListProps<T> {
    * `prefers-reduced-motion`.
    */
   smooth?: boolean;
+  /**
+   * Lay the items out as a **grid** of this many columns instead of a single
+   * column — the virtualizer then windows one *row of N* at a time, so a card
+   * grid stays as cheap as a list. Responsive: `{ base: 2, md: 3, lg: 4 }`.
+   * Default 1 (a plain list; the grid wrapper isn't rendered at all).
+   *
+   * `renderItem` still receives the flat item index, and `estimateSize` is the
+   * height of one **row**, so bump it when the cells are taller than a row.
+   * Cells in a row should be equal height (fixed aspect + clamped text) — the
+   * virtualizer measures the row, so a ragged row makes the scroll height jump.
+   */
+  columns?: VirtualListColumns;
+  /** Gap between grid cells, px. Only used when `columns` > 1. Default 12. */
+  gap?: number;
   /** The scroll container — MUST be given a bounded height (via `className`). */
   className?: string;
   style?: CSSProperties;
   /** Escape hatch to drive scrolling (e.g. keyboard navigation). */
   apiRef?: Ref<VirtualListHandle>;
+}
+
+/**
+ * Resolve the responsive `columns` prop against the current viewport. Hooks run
+ * unconditionally (one media query per breakpoint) and the widest matching entry
+ * wins, mirroring how Tailwind's min-width breakpoints cascade.
+ */
+function useColumnCount(columns: VirtualListColumns | undefined): number {
+  const sm = useMediaQuery('(min-width: 640px)');
+  const md = useMediaQuery('(min-width: 768px)');
+  const lg = useMediaQuery('(min-width: 1024px)');
+
+  if (columns == null) return 1;
+  if (typeof columns === 'number') return Math.max(1, Math.floor(columns));
+
+  const picked =
+    (lg ? columns.lg : undefined) ??
+    (md ? columns.md ?? columns.sm : undefined) ??
+    (sm ? columns.sm : undefined) ??
+    columns.base ??
+    1;
+  return Math.max(1, Math.floor(picked));
+}
+
+/** Group a flat list into rows of `size` (`[[a,b],[c,d],[e]]`). */
+function chunk<T>(items: T[], size: number): T[][] {
+  if (size <= 1) return items.map((item) => [item]);
+  const rows: T[][] = [];
+  for (let i = 0; i < items.length; i += size) rows.push(items.slice(i, i + size));
+  return rows;
 }
 
 const DefaultLoading = (
@@ -84,6 +139,14 @@ const DefaultLoading = (
  *   renderItem={(row) => <Row {...row} />}
  * />
  * ```
+ *
+ * Pass `columns` to lay the same items out as a **card grid** — the items are
+ * chunked into rows of N and the virtualizer windows one *row* at a time, so a
+ * gallery of a thousand cards costs the same as a list of a thousand rows:
+ *
+ * ```tsx
+ * <VirtualList items={photos} columns={{ base: 2, md: 3, lg: 4 }} estimateSize={220} … />
+ * ```
  */
 export function VirtualList<T>({
   items,
@@ -98,18 +161,35 @@ export function VirtualList<T>({
   loadingIndicator = DefaultLoading,
   emptyState = null,
   smooth = false,
+  columns,
+  gap = 12,
   className,
   style,
   apiRef,
 }: VirtualListProps<T>) {
   const parentRef = useRef<HTMLDivElement>(null);
+  const columnCount = useColumnCount(columns);
+  const isGrid = columnCount > 1;
+
+  // What the virtualizer actually windows: single items in list mode, rows of
+  // `columnCount` items in grid mode. Either way it measures one element per
+  // virtual index, so the windowing logic below is identical for both.
+  const rows = useMemo(() => (isGrid ? chunk(items, columnCount) : null), [items, columnCount, isGrid]);
+  const rowCount = rows ? rows.length : items.length;
 
   const virtualizer = useVirtualizer({
-    count: items.length,
+    count: rowCount,
     getScrollElement: () => parentRef.current,
     estimateSize: () => estimateSize,
     overscan,
-    getItemKey: getItemKey ? (index) => getItemKey(items[index], index) : undefined,
+    // In grid mode a row has no identity of its own — key it by its first cell,
+    // which is stable as long as the caller's `getItemKey` is.
+    getItemKey: getItemKey
+      ? (index) =>
+          rows
+            ? getItemKey(rows[index][0], index * columnCount)
+            : getItemKey(items[index], index)
+      : undefined,
   });
 
   const virtualItems = virtualizer.getVirtualItems();
@@ -123,18 +203,22 @@ export function VirtualList<T>({
   useImperativeHandle(
     apiRef,
     () => ({
-      scrollToIndex: (index, opts) => virtualizer.scrollToIndex(index, { align: opts?.align ?? 'auto' }),
+      // Callers think in item indices (a keyboard cursor walks items, not rows),
+      // so map the item to the row that holds it before scrolling.
+      scrollToIndex: (index, opts) =>
+        virtualizer.scrollToIndex(Math.floor(index / columnCount), { align: opts?.align ?? 'auto' }),
       scrollToTop: () => virtualizer.scrollToOffset(0),
+      columnCount,
     }),
-    [virtualizer],
+    [virtualizer, columnCount],
   );
 
   // Infinite load: pull the next page as the last rows enter range.
   useEffect(() => {
     if (!onEndReached || !hasMore || loading) return;
     const last = virtualItems[virtualItems.length - 1];
-    if (last && last.index >= items.length - 1 - endThreshold) onEndReached();
-  }, [virtualItems, items.length, hasMore, loading, endThreshold, onEndReached]);
+    if (last && last.index >= rowCount - 1 - endThreshold) onEndReached();
+  }, [virtualItems, rowCount, hasMore, loading, endThreshold, onEndReached]);
 
   if (items.length === 0 && !loading) {
     return (
@@ -161,7 +245,23 @@ export function VirtualList<T>({
               transform: `translateY(${v.start}px)`,
             }}
           >
-            {renderItem(items[v.index], v.index)}
+            {rows ? (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+                  gap,
+                  paddingBottom: gap,
+                }}
+              >
+                {rows[v.index].map((item, col) => {
+                  const flat = v.index * columnCount + col;
+                  return <div key={flat}>{renderItem(item, flat)}</div>;
+                })}
+              </div>
+            ) : (
+              renderItem(items[v.index], v.index)
+            )}
           </div>
         ))}
       </div>

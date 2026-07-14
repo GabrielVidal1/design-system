@@ -7,7 +7,7 @@ import { highlightAll, highlightSnippet } from '../../lib/highlight';
 import { runSearch, type SearchResult } from '../../lib/search';
 import { useDebouncedValue } from '../../hooks/use-debounced-value';
 import { Spinner } from '../spinner';
-import { VirtualList, type VirtualListHandle } from '../virtual-list';
+import { VirtualList, type VirtualListColumns, type VirtualListHandle } from '../virtual-list';
 
 type Result<T> = SearchResult<T>;
 
@@ -57,6 +57,15 @@ export interface FuzzyListProps<T> {
   estimateSize?: number;
   /** Off-screen rows kept mounted as a scroll buffer. Default 8. */
   overscan?: number;
+  /**
+   * Render the results as a **card grid** of this many columns instead of a
+   * single column (forwarded to {@link VirtualList}; responsive maps allowed).
+   * Search, highlighting and keyboard nav all still work — the arrow keys just
+   * become 2-D: ↑/↓ move a row, ←/→ move one card.
+   */
+  columns?: VirtualListColumns;
+  /** Gap between grid cells, px. Only used when `columns` > 1. Default 12. */
+  gap?: number;
   /** Show the "N of M" count line above the list. */
   showCount?: boolean;
   /**
@@ -130,6 +139,8 @@ export function FuzzyList<T>({
   limit,
   estimateSize = 60,
   overscan = 8,
+  columns,
+  gap,
   showCount = true,
   debounce = 400,
   fuseOptions,
@@ -174,10 +185,20 @@ export function FuzzyList<T>({
     apiRef.current?.scrollToIndex(next);
   };
   const onKeyDown = (e: React.KeyboardEvent) => {
+    // In grid mode the cursor is 2-D: ↑/↓ jump a whole row, ←/→ step one card.
+    // In list mode the column count is 1, so ↑/↓ collapse back to ∓1 and the
+    // horizontal keys are left alone for text editing in the search box.
+    const cols = apiRef.current?.columnCount ?? 1;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      move(1);
+      move(cols);
     } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      move(-cols);
+    } else if (cols > 1 && e.key === 'ArrowRight') {
+      e.preventDefault();
+      move(1);
+    } else if (cols > 1 && e.key === 'ArrowLeft') {
       e.preventDefault();
       move(-1);
     } else if (e.key === 'Enter') {
@@ -188,6 +209,10 @@ export function FuzzyList<T>({
   // Everything downstream (count line, highlighting, empty state) describes the
   // results, so it reads the searched query, not the one still being typed.
   const q = searched.trim();
+
+  // Whether the caller asked for a grid at all (a number > 1, or any responsive
+  // map). Only affects cell styling; VirtualList resolves the real count.
+  const grid = typeof columns === 'object' || (typeof columns === 'number' && columns > 1);
 
   return (
     <div className={cn('flex min-h-0 flex-col', className)}>
@@ -223,6 +248,8 @@ export function FuzzyList<T>({
         apiRef={apiRef}
         estimateSize={estimateSize}
         overscan={overscan}
+        columns={columns}
+        gap={gap}
         getItemKey={getItemKey ? (r, i) => getItemKey(r.item, i) : undefined}
         className={cn('min-h-0 flex-1 pt-1.5', listClassName)}
         emptyState={<p className="px-2 py-8 text-center text-sm text-muted-foreground">{emptyState}</p>}
@@ -240,7 +267,10 @@ export function FuzzyList<T>({
             <div
               onMouseMove={() => setActive(index)}
               onClick={() => commit(index)}
-              style={{ paddingBottom: 4 }}
+              // List mode spaces its rows here; in grid mode VirtualList's own
+              // `gap` does it, and the cell instead stretches so the cards in a
+              // row share one height.
+              style={grid ? { height: '100%' } : { paddingBottom: 4 }}
             >
               {renderItem({
                 item,
