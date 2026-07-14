@@ -42,7 +42,7 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 
 /* ── conventional commits ────────────────────────────────────────────────── */
 
@@ -551,6 +551,18 @@ export function main(argv = process.argv.slice(2)) {
   else cmdBuild(opts);
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+// Run when invoked as a CLI — including through the npm .bin symlink, where
+// process.argv[1] is the symlink while import.meta.url is the real path, so
+// the naive URL comparison would silently no-op. Resolve both through
+// realpath; swallow resolution errors (then we're being imported, e.g. tests).
+const invokedDirectly = (() => {
+  if (!process.argv[1]) return false;
+  try {
+    return fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
+  } catch {
+    return false;
+  }
+})();
+if (invokedDirectly) {
   main();
 }

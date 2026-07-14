@@ -15,6 +15,17 @@ last release → grouped bullets under Unreleased), then curate the prose.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-07-14
+
+> The CLI actually runs
+
+### Fixed
+
+- `gabvdl-changelog` silently did nothing when invoked through the npm `.bin`
+  symlink (`npx gabvdl-changelog`): the ESM "am I the entrypoint" check
+  compared `import.meta.url` (real path) against `process.argv[1]` (the
+  symlink). Both sides now resolve through `realpath`.
+
 ## [0.4.0] - 2026-07-14
 
 > One changelog everywhere
@@ -354,6 +365,7 @@ publishing a fresh `0.0.x` line with provenance. A follow-up fix worked around
 npm's `EOTP` 2FA requirement (classic "Automation" tokens were retired) by
 supporting both a bypass-2FA granular token and OIDC trusted publishing.
 
-[Unreleased]: https://github.com/GabrielVidal1/design-system/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/GabrielVidal1/design-system/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/GabrielVidal1/design-system/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/GabrielVidal1/design-system/compare/v0.1.0...v0.4.0
 [0.1.0]: https://github.com/GabrielVidal1/design-system/releases/tag/v0.1.0
