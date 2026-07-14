@@ -15,6 +15,8 @@
   --ds-viewer-ctl-bg-hover: rgba(63, 63, 70, 0.7);
   --ds-viewer-ctl-border: rgba(255, 255, 255, 0.14);
   --ds-viewer-accent: rgba(255, 255, 255, 0.4);
+  --ds-viewer-story-track: rgba(255, 255, 255, 0.32);
+  --ds-viewer-story-fill: #fff;
   --ds-viewer-blur: 6px;
   --ds-viewer-z: 200;
   --ds-viewer-font-mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", "Space Mono", monospace;
@@ -64,6 +66,9 @@
 }
 .viewer-stage.is-zoomed { cursor: grab; }
 .viewer-stage.is-zoomed:active { cursor: grabbing; }
+/* A video slide and a story slide are not zoomable, so don't promise a zoom. */
+.viewer-stage.is-static { cursor: default; }
+.viewer-stage.is-story { cursor: pointer; }
 
 .viewer-img {
   max-width: 100%;
@@ -73,6 +78,84 @@
   will-change: transform;
   -webkit-user-drag: none;
   animation: ds-viewer-img-in 0.2s ease both;
+}
+
+/* --------------------------------- video ---------------------------------- */
+
+.viewer-video-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.viewer-video {
+  max-width: 100%;
+  /* The stage is the full viewport; a portrait clip must still fit inside the
+     story bars and the safe-area inset rather than running under them. */
+  max-height: 100%;
+  object-fit: contain;
+  animation: ds-viewer-img-in 0.2s ease both;
+}
+
+/* Play/mute, pinned to the clip itself rather than the viewport, so they sit on
+   the video in letterboxed (portrait-in-landscape) layouts too. */
+.viewer-media-ctls {
+  position: absolute;
+  z-index: calc(var(--ds-viewer-z) + 10);
+  right: 0.75rem;
+  bottom: 0.75rem;
+  display: flex;
+  gap: 0.5rem;
+}
+.viewer-media-ctls .viewer-ctl {
+  position: static;
+  width: 2.4rem;
+  height: 2.4rem;
+}
+
+/* ------------------------------- story mode ------------------------------- */
+
+/* The segmented bar across the top — one segment per slide. Sits above the
+   close button's row and inside the notch/safe area on a phone. */
+.viewer-story-bars {
+  position: absolute;
+  z-index: calc(var(--ds-viewer-z) + 20);
+  top: calc(0.55rem + env(safe-area-inset-top, 0px));
+  left: 0.6rem;
+  right: 0.6rem;
+  display: flex;
+  gap: 0.25rem;
+  pointer-events: none;
+}
+
+.viewer-story-bar {
+  position: relative;
+  flex: 1 1 0;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--ds-viewer-story-track, rgba(255, 255, 255, 0.32));
+}
+
+.viewer-story-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--ds-viewer-story-fill, #fff);
+  border-radius: inherit;
+  /* Driven imperatively by StoryProgress on a rAF loop (scaleX 0→1), so the bar
+     moves without re-rendering the overlay every frame. */
+  transform: scaleX(0);
+  transform-origin: left center;
+  will-change: transform;
+}
+.viewer-story-fill.is-done { transform: scaleX(1); }
+
+/* In story mode the close button clears the progress bar above it. */
+.viewer-overlay.is-story .viewer-close {
+  top: calc(1.4rem + env(safe-area-inset-top, 0px));
 }
 
 .viewer-ctl {
@@ -144,9 +227,16 @@
   .viewer-nav--prev { left: 0.5rem; }
   .viewer-nav--next { right: 0.5rem; }
   .viewer-ctl svg { width: 1.15rem; height: 1.15rem; }
+  .viewer-media-ctls .viewer-ctl { width: 2.1rem; height: 2.1rem; }
+  /* Keep the clip clear of the on-screen controls and the home indicator. */
+  .viewer-media-ctls {
+    right: 0.5rem;
+    bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .viewer-overlay,
-  .viewer-img { animation: none; }
+  .viewer-img,
+  .viewer-video { animation: none; }
 }

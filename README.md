@@ -26,10 +26,13 @@ design-system/
 Tree-shakeable (ESM, `sideEffects` false except CSS), typed (bundled `.d.ts`),
 built on shadcn primitives. Ships today:
 
-- **`ImageViewerProvider` / `useImageViewer`** — a full-screen image viewer with
+- **`ImageViewerProvider` / `useImageViewer`** — a full-screen media viewer with
   wheel/pinch/double-tap zoom, drag-to-pan, a swipe/arrow carousel and
-  drag-to-dismiss. Portalled to `<body>`, scroll-locked, keyboard-driven.
-  Imported from the [Sherlock project](../sherlock-project).
+  drag-to-dismiss. Slides are images *or* videos (`ViewerMedia`), and
+  `open(media, { story: true })` reads them as an auto-advancing story: a
+  segmented progress bar, tap-to-step, hold-to-pause. Portalled to `<body>`,
+  scroll-locked, keyboard-driven. Imported from the
+  [Sherlock project](../sherlock-project).
 - **`ViewableImage`** — a clickable image that opens the viewer over its group.
 - **`ProgressiveImage`** — blurred thumbnail → full-res on scroll, cross-faded.
 - **`Button`** — four variants, three size tiers (`sm`/`md`/`lg`, each with an
