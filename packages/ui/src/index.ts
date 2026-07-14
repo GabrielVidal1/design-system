@@ -137,6 +137,15 @@ export type {
 } from './components/iframe-preview';
 export { Nav2DProvider, Nav2DItem, useNav2D } from './components/nav-2d';
 export type { Nav2DProviderProps, Nav2DItemProps, Nav2DContextValue } from './components/nav-2d';
+export { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
+export type {
+  TabsActivation,
+  TabsContentProps,
+  TabsListProps,
+  TabsProps,
+  TabsTriggerProps,
+  TabsVariant,
+} from './components/tabs';
 export { Button, Tooltip } from './components/button';
 export type {
   ButtonProps,

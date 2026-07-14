@@ -17,13 +17,6 @@ Two audiences, one library:
    editor: canvas/stage surfaces, toolbars, inspector panels, layers,
    selection/transform, zoom-pan, undo/redo.
 
-## Being worked on
-
-<!-- Claims by goal-keeper agents. One bullet per in-flight item; remove
-     yours in the same commit that ticks its checkbox. -->
-
-- [design-system] Navigation → `Tabs` — @2026-07-14T15:38:11Z
-
 ## Principles
 
 1. **Mobile-first, desktop-compatible.** Designed for touch first (gestures,
@@ -65,8 +58,8 @@ Has `Input`, `RichInput`, `SearchInput`, `DropZone`, `ElementPicker`,
 - [ ] `Field` wrapper — label + hint + error, so forms look uniform
 
 ### Navigation
-Has `Nav2D`, `GlobalSearch`, `FuzzyList`.
-- [ ] `Tabs`
+Has `Tabs`, `Nav2D`, `GlobalSearch`, `FuzzyList`.
+- [x] `Tabs` — scrolling strip, swipeable panels, underline/pill/segmented
 - [ ] `Menu` / context menu (long-press on touch)
 - [ ] `Breadcrumbs`, pagination
 

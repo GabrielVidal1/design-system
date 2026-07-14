@@ -1,6 +1,18 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { HashRouter, Link, Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowUpRight, Check, Copy, Inbox, Plus, Save, Trash2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  Check,
+  Copy,
+  FileText,
+  Inbox,
+  Plus,
+  Save,
+  Settings2,
+  Terminal,
+  Trash2,
+} from 'lucide-react';
 import {
   Badge,
   Button,
@@ -45,6 +57,10 @@ import {
   SkeletonText,
   Spinner,
   StatusBadge,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
   ThemeToggle,
   ToastProvider,
   ViewableImage,
@@ -103,6 +119,7 @@ import {
   ViewableImageIcon,
   VirtualListIcon,
   ElementPickerIcon,
+  TabsIcon,
 } from './icons';
 import pkg from '@gabvdl/ui/package.json';
 import { SandpackProvider, SandpackCodeEditor, type SandpackTheme } from '@codesandbox/sandpack-react';
@@ -144,6 +161,7 @@ const GROUP_OF: Record<string, Group> = {
   'status-badge': 'Data display',
   'relative-time': 'Data display',
   'nav-2d': 'Navigation',
+  tabs: 'Navigation',
   button: 'Inputs',
   input: 'Inputs',
   'rich-input': 'Inputs',
@@ -174,7 +192,8 @@ const GROUP_OF: Record<string, Group> = {
 const GROUP_BLURB: Record<Group, string> = {
   Media: 'Images — a full-screen viewer, click-to-open thumbnails, and lazy blur-up loading.',
   'Data display': 'Windowed, searchable and reveal-animated lists and tables for large datasets.',
-  Navigation: 'Getting around — a Cmd-K palette over a generated index, and joystick-driven selection over a 2-D field.',
+  Navigation:
+    'Getting around — tabbed panels, a Cmd-K palette over a generated index, and joystick-driven selection over a 2-D field.',
   Inputs: 'Form primitives, the batteries-included composer, and the file/search/copy controls around them.',
   Animation: 'Typewriter text and staggered reveals that share one timeline.',
   Feedback: 'What the app says back — toasts, spinners, skeletons, empty states, release notes.',
@@ -209,6 +228,7 @@ const SOURCE_FILE: Record<string, string> = {
   'floating-panel': 'floating-panel.tsx',
   'resizable-layout': 'resizable-layout.tsx',
   'nav-2d': 'nav-2d.tsx',
+  tabs: 'tabs.tsx',
   button: 'button.tsx',
   input: 'input.tsx',
   'rich-input': 'rich-input.tsx',
@@ -350,6 +370,30 @@ open(urls, 0) // full-screen: zoom · pan · swipe`,
 // The index above is generated at build time — a Vite plugin walks
 // packages/ui/src with the TypeScript compiler API and writes
 // public/search-index.json: one entry per component, hook, util AND prop.`,
+  },
+  {
+    id: 'tabs',
+    name: 'Tabs',
+    sig: '(value?, defaultValue?, onValueChange?, variant?, activation?, swipe?)',
+    tag: 'navigation',
+    Icon: TabsIcon,
+    Demo: TabsDemo,
+    code: `<Tabs defaultValue="logs" variant="underline">
+  <TabsList aria-label="Job">
+    <TabsTrigger value="logs" icon={<ScrollText />}>Logs</TabsTrigger>
+    <TabsTrigger value="config" badge={<Badge>3</Badge>}>Config</TabsTrigger>
+    <TabsTrigger value="raw" disabled>Raw</TabsTrigger>
+  </TabsList>
+
+  <TabsContent value="logs">…</TabsContent>
+  <TabsContent value="config" keepMounted>…</TabsContent>
+</Tabs>
+
+// variant  underline · pill · segmented   (the indicator slides between tabs)
+// swipe    flick the panel left/right on touch — axis-locked, so it never
+//          hijacks a vertical scroll or a horizontally scrollable child
+// the strip scrolls instead of wrapping · ← → Home End · roving tabindex
+// activation="manual" moves focus without selecting (panels that fetch)`,
   },
   {
     id: 'virtual-list',
@@ -2098,6 +2142,104 @@ function InputDemo() {
         </p>
       </div>
       <Input disabled placeholder="Disabled" />
+    </div>
+  );
+}
+
+const TABS_VARIANTS = ['underline', 'pill', 'segmented'] as const;
+
+function TabsDemo() {
+  const [variant, setVariant] = useState<(typeof TABS_VARIANTS)[number]>('underline');
+  const isMobile = useIsMobile();
+
+  return (
+    <div className="space-y-5">
+      {/* Tabs picking the variant of Tabs — the segmented variant, dogfooded. */}
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="mono text-[11px] uppercase tracking-wider text-muted-foreground">variant</span>
+        <Tabs
+          value={variant}
+          onValueChange={(v) => setVariant(v as (typeof TABS_VARIANTS)[number])}
+          variant="segmented"
+          swipe={false}
+        >
+          <TabsList aria-label="Indicator variant">
+            {TABS_VARIANTS.map((v) => (
+              <TabsTrigger key={v} value={v} className="mono text-xs">
+                {v}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      </div>
+
+      {/* A job-detail panel — the shape every service frontend in the lab rebuilds. */}
+      <Tabs
+        key={variant}
+        defaultValue="logs"
+        variant={variant}
+        className="rounded-xl border border-border bg-card p-3"
+      >
+        <TabsList aria-label="Job detail">
+          <TabsTrigger value="logs" icon={<Terminal />}>
+            Logs
+          </TabsTrigger>
+          <TabsTrigger value="config" icon={<Settings2 />}>
+            Config
+          </TabsTrigger>
+          <TabsTrigger value="files" icon={<FileText />} badge={<Badge tone="sky">3</Badge>}>
+            Files
+          </TabsTrigger>
+          <TabsTrigger value="raw" disabled>
+            Raw
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="logs">
+          <div className="mono space-y-1 rounded-lg bg-muted/60 p-3 text-xs text-muted-foreground">
+            <p>
+              <span className="text-emerald-500">✓</span> pulled trellis2:latest
+            </p>
+            <p>
+              <span className="text-emerald-500">✓</span> gfx1151 · 96 GB unified
+            </p>
+            <p>
+              <Spinner className="inline size-3 align-[-2px]" /> diffusion 37s…
+            </p>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="config">
+          <div className="mono grid gap-1 text-xs">
+            <p>
+              <span className="text-muted-foreground">pipeline_type</span> = <span className="text-foreground">512</span>
+            </p>
+            <p>
+              <span className="text-muted-foreground">decimation</span> = <span className="text-foreground">100_000</span>
+            </p>
+          </div>
+        </TabsContent>
+
+        {/* keepMounted: the panel keeps its state while you tab away. */}
+        <TabsContent value="files" keepMounted>
+          <div className="grid gap-2">
+            {['mesh.glb', 'preview.webp', 'metadata.json'].map((f) => (
+              <div key={f} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+                <span className="mono text-xs">{f}</span>
+                <StatusBadge status="done" />
+              </div>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="raw">unreachable — the trigger is disabled</TabsContent>
+      </Tabs>
+
+      <p className="text-xs text-muted-foreground">
+        {isMobile
+          ? 'Swipe the panel sideways to change tab — the strip scrolls, it never wraps.'
+          : '← → move between tabs (Home / End jump to the ends). On a phone the panel is swipeable and the strip scrolls.'}
+      </p>
     </div>
   );
 }

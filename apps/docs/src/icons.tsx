@@ -164,6 +164,28 @@ export function ButtonIcon() {
   );
 }
 
+/** Tabs — the indicator slides under the strip and the panel swaps with it. */
+export function TabsIcon() {
+  return (
+    <Svg>
+      <rect x="44" y="30" width="132" height="70" rx="8" stroke={DIM} strokeWidth="2" />
+      <line x1="44" y1="52" x2="176" y2="52" stroke={DIM} strokeWidth="2" />
+      <rect x="56" y="38" width="26" height="6" rx="3" fill={DIM} opacity="0.55" />
+      <rect x="94" y="38" width="26" height="6" rx="3" fill={DIM} opacity="0.55" />
+      <rect x="132" y="38" width="26" height="6" rx="3" fill={DIM} opacity="0.55" />
+      {/* the indicator, sliding between the three tab stops */}
+      <g className="a-drift" style={v({ '--dx': '76px', '--dy': '0px', '--dur': '4.4s' })}>
+        <rect x="54" y="49" width="30" height="4" rx="2" fill={CY} />
+      </g>
+      {/* the panel body, cross-fading as the tab changes */}
+      <g className="a-fade" style={v({ '--o0': '0.25', '--o1': '0.9', '--dur': '4.4s' })}>
+        <rect x="58" y="64" width="104" height="7" rx="3.5" fill={CY} opacity="0.5" />
+        <rect x="58" y="78" width="72" height="7" rx="3.5" fill={CY} opacity="0.35" />
+      </g>
+    </Svg>
+  );
+}
+
 /** Input — the focus ring settles while a value types itself out. */
 export function InputIcon() {
   return (
