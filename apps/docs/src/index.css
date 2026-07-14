@@ -506,3 +506,15 @@ body::before {
   0%, 35% { background-color: var(--tint-strong); }
   100% { background-color: transparent; }
 }
+
+/* ─── Full-page demos ────────────────────────────────────────────────────── */
+
+/* a chat message landing — one rise, no loop */
+@keyframes demo-msg-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
+.demo-msg-in { animation: demo-msg-in 260ms var(--ease-io) backwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .demo-msg-in { animation: none; }
+}
