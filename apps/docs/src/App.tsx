@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type Key, type ReactNode } from 'react';
 import { HashRouter, Link, Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   ArrowUpRight,
   Check,
   Copy,
+  Cpu,
   FileText,
   Inbox,
+  Layers,
   Plus,
   Save,
   Settings2,
@@ -23,6 +25,8 @@ import {
   Collection,
   type CollectionView,
   CopyButton,
+  DataTable,
+  type DataTableColumn,
   Dock,
   DockProvider,
   DropZone,
@@ -41,6 +45,7 @@ import {
   useNav2D,
   CharRoll,
   PhonePreview,
+  Progress,
   ProgressiveBash,
   type BashEntry,
   type ProgressiveBashHandle,
@@ -57,6 +62,8 @@ import {
   Skeleton,
   SkeletonText,
   Spinner,
+  StatRow,
+  StatTile,
   StatusBadge,
   Tabs,
   TabsContent,
@@ -90,6 +97,7 @@ import {
   CharRollIcon,
   CollectionIcon,
   CopyButtonIcon,
+  DataTableIcon,
   DropZoneIcon,
   EmptyStateIcon,
   FloatingPanelIcon,
@@ -103,6 +111,7 @@ import {
   ModalIcon,
   Nav2DIcon,
   PhonePreviewIcon,
+  ProgressIcon,
   ProgressiveBashIcon,
   ProgressiveImageIcon,
   ProgressiveListIcon,
@@ -115,6 +124,7 @@ import {
   SearchInputIcon,
   SkeletonIcon,
   SpinnerIcon,
+  StatTileIcon,
   StatusBadgeIcon,
   ThemeToggleIcon,
   ToastIcon,
@@ -130,6 +140,10 @@ import { ElementPickerPage } from './pages/ElementPickerPage';
 import { StartPage } from './pages/StartPage';
 import { ThemingPage } from './pages/ThemingPage';
 import { ChangelogDocPage } from './pages/ChangelogPage';
+import { DemosIndexPage } from './pages/demos/DemosIndexPage';
+import { ChatDemoPage } from './pages/demos/ChatDemoPage';
+import { SearchDemoPage } from './pages/demos/SearchDemoPage';
+import { JobsDemoPage } from './pages/demos/JobsDemoPage';
 import { fullUrl, nodes, specimenFulls, specimens, thumbUrl, type Node } from './data';
 import { loadSearchIndex, type IndexEntry } from './search';
 
@@ -160,6 +174,9 @@ const GROUP_OF: Record<string, Group> = {
   'virtual-list': 'Data display',
   collection: 'Data display',
   'progressive-table': 'Data display',
+  'data-table': 'Data display',
+  'stat-tile': 'Data display',
+  progress: 'Data display',
   'status-badge': 'Data display',
   'relative-time': 'Data display',
   'nav-2d': 'Navigation',
@@ -242,6 +259,9 @@ const SOURCE_FILE: Record<string, string> = {
   skeleton: 'skeleton.tsx',
   'empty-state': 'empty-state.tsx',
   'status-badge': 'status-badge.tsx',
+  'data-table': 'data-table.tsx',
+  'stat-tile': 'stat-tile.tsx',
+  progress: 'progress.tsx',
   'copy-button': 'copy-button.tsx',
   'element-picker': 'element-picker.tsx',
   'drop-zone': 'drop-zone.tsx',
@@ -888,6 +908,59 @@ if (await confirm({ title: 'Delete note?', destructive: true })) remove()
 // accepts ISO strings, Dates, epoch ms *or* epoch seconds`,
   },
   {
+    id: 'progress',
+    name: 'Progress',
+    sig: 'value · max · tone — determinate bar',
+    tag: 'data',
+    Icon: ProgressIcon,
+    Demo: ProgressDemo,
+    code: `<Progress value={job.progress} label={job.name} showValue />
+
+// tones match StatusBadge, so a running job's bar is sky
+<Progress value={62} tone="emerald" size="md" />
+
+// unknown duration — the endless sweep
+<Progress indeterminate label="Waking the GPU box…" />`,
+  },
+  {
+    id: 'stat-tile',
+    name: 'StatTile',
+    sig: 'StatRow · StatTile — label · value · delta',
+    tag: 'data',
+    Icon: StatTileIcon,
+    Demo: StatTileDemo,
+    code: `<StatRow columns={4}>
+  <StatTile label="Jobs today" value={128} delta={12}
+            hint="3 running" Icon={Layers} />
+  <StatTile label="Errors" value={2} delta={-40}
+            goodDirection="down" />
+  <StatTile label="GPU time" value={fmtDuration(12_640_000)} />
+  <StatTile label="Cost" value={fmtCost(1.28)} delta="steady" />
+</StatRow>
+// values tick over with the CharRoll tally animation`,
+  },
+  {
+    id: 'data-table',
+    name: 'DataTable',
+    sig: '<T>(data, columns) — sort · select · cards',
+    tag: 'data',
+    Icon: DataTableIcon,
+    Demo: DataTableDemo,
+    code: `<DataTable
+  data={jobs}
+  columns={[
+    { key: 'name', header: 'Name', sortable: true },
+    { key: 'status', header: 'Status',
+      cell: (j) => <StatusBadge status={j.status} /> },
+    { key: 'duration', header: 'Took', sortable: true,
+      align: 'right', cell: (j) => fmtDuration(j.duration) },
+  ]}
+  getRowKey={(j) => j.id}
+  selectable
+  onRowClick={openJob}
+/>  // sticky header · aria-sort · cards below 640px`,
+  },
+  {
     id: 'search-input',
     name: 'SearchInput',
     sig: 'value · onValueChange · shortcut',
@@ -1033,6 +1106,17 @@ export function App() {
                   </GuidePage>
                 }
               />
+              <Route
+                path="/demos"
+                element={
+                  <GuidePage title="Demos">
+                    <DemosIndexPage />
+                  </GuidePage>
+                }
+              />
+              <Route path="/demos/chat" element={<ChatDemoPage />} />
+              <Route path="/demos/search" element={<SearchDemoPage />} />
+              <Route path="/demos/jobs" element={<JobsDemoPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
             {/* Dogfooded: poll our own changelog.jsonl and prompt a reload
@@ -1467,6 +1551,12 @@ function Header({ title }: { title?: string }) {
                 className="mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
               >
                 Theming
+              </Link>
+              <Link
+                to="/demos"
+                className="mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Demos
               </Link>
               <Link
                 to="/changelog"
@@ -3157,6 +3247,127 @@ function StatusBadgeDemo() {
       <p className="text-sm text-muted-foreground">
         An unknown status degrades to a neutral pill of the raw string —{' '}
         <StatusBadge status="seeding" /> — rather than crashing the row.
+      </p>
+    </div>
+  );
+}
+
+function ProgressDemo() {
+  const [pct, setPct] = useState(8);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setPct((p) => (p >= 100 ? 0 : Math.min(100, p + Math.random() * 16)));
+    }, 900);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div className="max-w-md space-y-6">
+      <Progress value={pct} label="texture-bake.glb" showValue />
+      <Progress
+        value={pct}
+        max={100}
+        tone={pct >= 100 ? 'emerald' : 'sky'}
+        size="md"
+        label="render-scene"
+        showValue
+        format={(v) => `${Math.round((v / 100) * 512)} / 512 frames`}
+      />
+      <Progress indeterminate tone="violet" label="Waking the GPU box…" />
+      <p className="text-sm text-muted-foreground">
+        Same <code className="mono text-xs">Tone</code> scale as{' '}
+        <Link to="/c/status-badge" className="underline underline-offset-2">
+          StatusBadge
+        </Link>{' '}
+        — a running job's bar and pill agree. No value = the indeterminate sweep.
+      </p>
+    </div>
+  );
+}
+
+function StatTileDemo() {
+  const [jobs, setJobs] = useState(128);
+  const [gpuMs, setGpuMs] = useState(12_640_000);
+  const [cost, setCost] = useState(1.28);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setJobs((j) => j + (Math.random() < 0.6 ? 1 : 0));
+      setGpuMs((s) => s + Math.floor(Math.random() * 40_000));
+      setCost((c) => c + Math.random() * 0.02);
+    }, 2400);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div className="space-y-3">
+      <StatRow columns={4}>
+        <StatTile label="Jobs today" value={jobs} delta={12} hint="3 running" Icon={Layers} />
+        <StatTile label="Errors" value={2} delta={-40} goodDirection="down" hint="vs last week" />
+        <StatTile label="GPU time" value={fmtDuration(gpuMs)} Icon={Cpu} hint="EVOX2, single worker" />
+        <StatTile label="Cost" value={fmtCost(cost)} delta="steady" hint="Gemini + local" />
+      </StatRow>
+      <p className="text-sm text-muted-foreground">
+        Values tick over with the <Link to="/c/char-roll" className="underline underline-offset-2">CharRoll</Link>{' '}
+        tally animation as the fake dashboard updates. Deltas colour by <code className="mono text-xs">goodDirection</code> —
+        errors going down is emerald.
+      </p>
+    </div>
+  );
+}
+
+interface DemoJob {
+  id: string;
+  name: string;
+  status: string;
+  created: number;
+  duration: number;
+}
+
+const DEMO_JOBS: DemoJob[] = [
+  { id: 'j1', name: 'render-scene', status: 'done', created: Date.now() - 32 * 60_000, duration: 412 },
+  { id: 'j2', name: 'bake-textures', status: 'running', created: Date.now() - 4 * 60_000, duration: 118 },
+  { id: 'j3', name: 'export-glb', status: 'queued', created: Date.now() - 90_000, duration: 0 },
+  { id: 'j4', name: 'auto-rig', status: 'failed', created: Date.now() - 2 * 3_600_000, duration: 67 },
+  { id: 'j5', name: 'downscale-previews', status: 'done', created: Date.now() - 5 * 3_600_000, duration: 23 },
+];
+
+function DataTableDemo() {
+  const toast = useToast();
+  const [selected, setSelected] = useState<ReadonlySet<Key>>(new Set());
+  const columns: DataTableColumn<DemoJob>[] = [
+    { key: 'name', header: 'Name', sortable: true, cell: (j) => <span className="mono text-xs">{j.name}</span> },
+    { key: 'status', header: 'Status', cell: (j) => <StatusBadge status={j.status} /> },
+    {
+      key: 'created',
+      header: 'Created',
+      sortable: true,
+      hideOnMobile: true,
+      cell: (j) => <RelativeTime date={j.created} className="text-muted-foreground" />,
+    },
+    {
+      key: 'duration',
+      header: 'Took',
+      sortable: true,
+      align: 'right',
+      cell: (j) => (j.duration ? <span className="mono text-xs">{fmtDuration(j.duration)}</span> : '—'),
+    },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <DataTable
+        data={DEMO_JOBS}
+        columns={columns}
+        getRowKey={(j) => j.id}
+        selectable
+        selected={selected}
+        onSelectedChange={setSelected}
+        defaultSort={{ key: 'created', dir: 'desc' }}
+        onRowClick={(j) => toast.info(`Open ${j.name}`)}
+      />
+      <p className="text-sm text-muted-foreground">
+        Click a header to cycle asc → desc → off; rows are keyboardable buttons; {selected.size} selected.
+        Narrow the window below 640px (or open this on a phone) and the rows collapse into cards.
       </p>
     </div>
   );

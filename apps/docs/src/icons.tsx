@@ -1005,3 +1005,86 @@ export function CollectionIcon() {
     </Svg>
   );
 }
+
+/** Progress — a bar fills its track while a percent tick counts along. */
+export function ProgressIcon() {
+  return (
+    <Svg>
+      <rect x="46" y="42" width="128" height="12" rx="6" stroke={DIM} strokeWidth="2" />
+      <rect
+        className="a-grow"
+        style={v({ '--g0': '0.08', '--dur': '4.6s' })}
+        x="50"
+        y="46"
+        width="120"
+        height="4"
+        rx="2"
+        fill={CY}
+      />
+      {/* the indeterminate cousin — a pill sweeping its own track */}
+      <rect x="46" y="76" width="128" height="12" rx="6" stroke={DIM} strokeWidth="2" opacity="0.6" />
+      <g className="a-drift" style={v({ '--dx': '86px', '--dur': '2.6s' })}>
+        <rect x="50" y="80" width="34" height="4" rx="2" fill={DIM} opacity="0.8" />
+      </g>
+      <rect className="a-fade" style={v({ '--o0': '0.2', '--o1': '0.9', '--dur': '4.6s' })} x="150" y="24" width="24" height="8" rx="3" fill={CY} opacity="0.5" />
+    </Svg>
+  );
+}
+
+/** StatTile — the KPI ticks up and its trend arrow lifts off. */
+export function StatTileIcon() {
+  return (
+    <Svg>
+      <rect x="52" y="28" width="116" height="74" rx="9" stroke={DIM} strokeWidth="2" />
+      <rect x="64" y="40" width="44" height="5" rx="2.5" fill={DIM} opacity="0.5" />
+      {/* the big number — digit bars rolling in one after another */}
+      {[0, 1, 2].map((i) => (
+        <rect
+          key={i}
+          className="a-reveal"
+          style={v({ '--dur': '4.2s', animationDelay: `${i * 0.22}s` })}
+          x={64 + i * 15}
+          y="56"
+          width="11"
+          height="20"
+          rx="3"
+          fill={CY}
+          fillOpacity="0.8"
+        />
+      ))}
+      <rect x="64" y="86" width="56" height="4" rx="2" fill={DIM} opacity="0.35" />
+      {/* delta chip drifting upward, the good direction */}
+      <g className="a-drift" style={v({ '--dx': '3px', '--dy': '-6px', '--dur': '4.2s' })}>
+        <rect x="126" y="56" width="30" height="14" rx="7" fill={CY} fillOpacity="0.14" stroke={CY} strokeWidth="1.6" />
+        <path d="M133 66 l6 -6 m0 0 h-4.5 m4.5 0 v4.5" stroke={CY} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+    </Svg>
+  );
+}
+
+/** DataTable — a sort flips and the rows glide into their new order. */
+export function DataTableIcon() {
+  const row = (y: number, w1: number, w2: number, delay: string) => (
+    <g className="a-reveal" style={v({ '--dur': '4.6s', animationDelay: delay })}>
+      <rect x="52" y={y} width="6" height="6" rx="1.5" stroke={DIM} strokeWidth="1.5" />
+      <rect x="66" y={y + 1} width={w1} height="4" rx="2" fill={CY} opacity="0.75" />
+      <rect x="120" y={y + 1} width={w2} height="4" rx="2" fill={DIM} opacity="0.5" />
+    </g>
+  );
+  return (
+    <Svg>
+      <rect x="44" y="26" width="132" height="78" rx="8" stroke={DIM} strokeWidth="2" />
+      {/* sticky header */}
+      <line x1="44" y1="46" x2="176" y2="46" stroke={DIM} strokeWidth="2" />
+      <rect x="66" y="34" width="34" height="5" rx="2.5" fill={CY} opacity="0.85" />
+      <rect x="120" y="34" width="26" height="5" rx="2.5" fill={DIM} opacity="0.55" />
+      {/* the sort chevron breathing at the active header */}
+      <g className="a-breathe" style={v({ '--s': '1.35', '--dur': '4.6s' })}>
+        <path d="M106 39 l4 -5 l4 5" stroke={CY} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+      {row(56, 44, 34, '0s')}
+      {row(70, 36, 40, '0.25s')}
+      {row(84, 48, 28, '0.5s')}
+    </Svg>
+  );
+}
