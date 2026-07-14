@@ -895,3 +895,68 @@ export function ElementPickerIcon() {
     </Svg>
   );
 }
+
+/**
+ * The component *is* the toggle, so the icon is the toggle: a card grid and a
+ * list stack cross-fading in antiphase (one `a-fade` run backwards against the
+ * other), while the segmented control's chip slides between the two glyphs.
+ */
+export function CollectionIcon() {
+  const DUR = '4.6s';
+  // Card grid — 3 across, 2 down. Each card is a picture over a title bar.
+  const cards = [0, 1, 2].flatMap((col) =>
+    [0, 1].map((row) => ({ x: 46 + col * 46, y: 44 + row * 34, key: `${col}-${row}` })),
+  );
+  return (
+    <Svg>
+      {/* the segmented cards/list control */}
+      <rect x="46" y="18" width="42" height="18" rx="5" stroke={DIM} strokeWidth="2" />
+      <rect
+        className="a-drift"
+        style={v({ '--dx': '20px', '--dur': DUR })}
+        x="48"
+        y="20"
+        width="18"
+        height="14"
+        rx="3.5"
+        fill={CY}
+        fillOpacity="0.9"
+      />
+      {/* grid glyph */}
+      {[0, 1].flatMap((r) =>
+        [0, 1].map((c) => (
+          <rect key={`g${r}${c}`} x={53 + c * 6} y={24 + r * 6} width="4" height="4" rx="1" fill={INK} opacity="0.55" />
+        )),
+      )}
+      {/* list glyph */}
+      {[0, 1, 2].map((r) => (
+        <rect key={`l${r}`} x={72} y={24 + r * 4.5} width="10" height="2.5" rx="1.25" fill={DIM} opacity="0.55" />
+      ))}
+
+      {/* cards view — fades out as the list fades in */}
+      <g className="a-fade" style={v({ '--o0': '1', '--o1': '0.05', '--dur': DUR })}>
+        {cards.map(({ x, y, key }) => (
+          <g key={key}>
+            <rect x={x} y={y} width="38" height="28" rx="4" fill={CY} fillOpacity="0.14" stroke={CY} strokeWidth="1.6" />
+            <rect x={x + 4} y={y + 4} width="30" height="14" rx="2" fill={CY} opacity="0.45" />
+            <rect x={x + 4} y={y + 21} width="20" height="3" rx="1.5" fill={DIM} opacity="0.6" />
+          </g>
+        ))}
+      </g>
+
+      {/* list view — the same items, one column, thumbnail + two lines */}
+      <g className="a-fade" style={v({ '--o0': '0.05', '--o1': '1', '--dur': DUR })}>
+        {[0, 1, 2, 3].map((i) => {
+          const y = 44 + i * 17;
+          return (
+            <g key={i}>
+              <rect x="46" y={y} width="14" height="14" rx="3" fill={CY} opacity="0.5" />
+              <rect x="66" y={y + 2} width={i % 2 ? 58 : 74} height="4" rx="2" fill={CY} opacity="0.75" />
+              <rect x="66" y={y + 9} width={i % 2 ? 40 : 50} height="3" rx="1.5" fill={DIM} opacity="0.4" />
+            </g>
+          );
+        })}
+      </g>
+    </Svg>
+  );
+}

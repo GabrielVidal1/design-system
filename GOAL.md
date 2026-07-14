@@ -42,8 +42,9 @@ Has `ResizableLayout` (+ `Dock`), `FloatingPanel`, `PhonePreview`.
 
 ### Data display
 Has the `Progressive*` family (text, list, table, timeline, bash),
-`VirtualList`, `Badge` / `StatusBadge`, `RelativeTime`, `EmptyState`,
-`Skeleton`, `Changelog`.
+`VirtualList` (list **or** windowed card grid, via `columns`), `Collection`
+(image+title items, cards ⇄ list toggle, optional fuzzy search), `Badge` /
+`StatusBadge`, `RelativeTime`, `EmptyState`, `Skeleton`, `Changelog`.
 - [ ] `DataTable` — sortable/selectable table with sticky header, card
       collapse on phones
 - [ ] Stat tile / KPI row (every dashboard rebuilds one)

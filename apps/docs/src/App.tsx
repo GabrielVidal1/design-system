@@ -6,6 +6,8 @@ import {
   Button,
   Changelog,
   type ChangelogEntry,
+  Collection,
+  type CollectionView,
   CopyButton,
   Dock,
   DockProvider,
@@ -16,6 +18,7 @@ import {
   GlobalSearch,
   IframePreview,
   ImageViewerProvider,
+  useImageViewer,
   Input,
   Modal,
   ModalProvider,
@@ -65,6 +68,7 @@ import {
   CnIcon,
   ButtonIcon,
   ChangelogIcon,
+  CollectionIcon,
   CopyButtonIcon,
   DropZoneIcon,
   EmptyStateIcon,
@@ -132,6 +136,7 @@ const GROUP_OF: Record<string, Group> = {
   'fuzzy-list': 'Data display',
   'global-search': 'Navigation',
   'virtual-list': 'Data display',
+  collection: 'Data display',
   'progressive-table': 'Data display',
   'status-badge': 'Data display',
   'relative-time': 'Data display',
@@ -189,6 +194,7 @@ const SOURCE_FILE: Record<string, string> = {
   'fuzzy-list': 'fuzzy-list.tsx',
   'global-search': 'global-search.tsx',
   'virtual-list': 'virtual-list.tsx',
+  collection: 'collection.tsx',
   'progressive-text': 'progressive-text.tsx',
   'progressive-list': 'progressive-list.tsx',
   'progressive-table': 'progressive-table.tsx',
@@ -344,7 +350,7 @@ open(urls, 0) // full-screen: zoom · pan · swipe`,
   {
     id: 'virtual-list',
     name: 'VirtualList',
-    sig: '<T>(items, renderItem, smooth?, onEndReached?)',
+    sig: '<T>(items, renderItem, columns?, smooth?, onEndReached?)',
     tag: 'data',
     Icon: VirtualListIcon,
     Demo: VirtualListDemo,
@@ -358,7 +364,33 @@ open(urls, 0) // full-screen: zoom · pan · swipe`,
   loading={loading}
   onEndReached={loadNextPage}   // infinite lazy load
   renderItem={(row) => <Row {...row} />}
-/>`,
+/>
+
+// …or a windowed CARD GRID — items are chunked into rows of N, so the
+// virtualizer still measures one row at a time:
+<VirtualList items={photos} columns={{ base: 2, md: 3, lg: 4 }} estimateSize={220} … />`,
+  },
+  {
+    id: 'collection',
+    name: 'Collection',
+    sig: '<T>(items, getTitle, getImage?, searchKeys?)',
+    tag: 'data',
+    Icon: CollectionIcon,
+    Demo: CollectionDemo,
+    code: `<Collection
+  items={photos}
+  getTitle={(p) => p.name}
+  getSubtitle={(p) => p.album}
+  getImage={(p) => ({ thumb: p.thumb, full: p.url })}  // lazy blur-up
+  searchKeys={['name', 'album']}   // ← adds the search box (via FuzzyList)
+  persistKey="photos.view"         // ← remembers cards-vs-list across reloads
+  columns={{ base: 2, md: 3, lg: 4 }}
+  onSelect={open}
+  listClassName="h-[600px]"        // windowed — needs a bounded height
+/>
+
+// generic slots: renderMeta · renderActions · renderOverlay
+// full overrides:  renderCard · renderRow`,
   },
   {
     id: 'progressive-text',
@@ -1590,6 +1622,69 @@ function GlobalSearchDemo() {
         Modal + FuzzyList + VirtualList, wired together: the results list is windowed, the search is debounced
         (400 ms) and quote-aware, and the index is fetched lazily on first open.
       </p>
+    </div>
+  );
+}
+
+/** The specimen plates, given the metadata a real collection would carry. */
+const PLATE_KINDS = ['landscape', 'study', 'still life', 'terrain'] as const;
+const plates = specimens.map((s, i) => ({
+  id: s.id,
+  label: s.label,
+  // The alt text reads "Cyanotype specimen — alpine reservoir"; the part after
+  // the dash is the actual subject, which is what's worth searching.
+  subject: s.alt.split('—')[1]?.trim() ?? s.alt,
+  kind: PLATE_KINDS[i % PLATE_KINDS.length],
+  year: 1889 + (i % 7),
+  thumb: thumbUrl(s.id),
+  full: fullUrl(s.id),
+}));
+
+function CollectionDemo() {
+  const [view, setView] = useState<CollectionView>('cards');
+  const { open } = useImageViewer();
+  const fulls = plates.map((p) => p.full);
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        The same twelve plates, two ways — hit the{' '}
+        <b className="text-foreground">toggle on the right of the search bar</b>. Both views are windowed by{' '}
+        <code className="mono text-[color:var(--cyan-deep)]">VirtualList</code> (cards are chunked into rows, so a
+        grid costs what a list costs), every picture blur-up loads through{' '}
+        <code className="mono text-[color:var(--cyan-deep)]">ProgressiveImage</code> only as it nears the viewport,
+        and the search box is <code className="mono text-[color:var(--cyan-deep)]">FuzzyList</code> — so typing{' '}
+        <code className="mono text-[color:var(--cyan-deep)]">hound</code> filters and marks the match in whichever
+        view you're in. Click a plate to open the viewer.
+      </p>
+
+      <Collection
+        items={plates}
+        view={view}
+        onViewChange={setView}
+        getTitle={(p) => p.subject}
+        getSubtitle={(p) => `${p.label} · ${p.year}`}
+        getImage={(p) => ({ thumb: p.thumb, full: p.full, alt: p.subject })}
+        getItemKey={(p) => p.id}
+        titleKey="subject"
+        searchKeys={['subject', 'kind', 'label']}
+        searchPlaceholder="Search the plates… (try “hound”, or “study”)"
+        debounce={200}
+        columns={{ base: 2, md: 3 }}
+        aspect="4 / 3"
+        onSelect={(p) => open(fulls, plates.indexOf(p))}
+        renderOverlay={({ item }) => (
+          <span className="absolute left-1.5 top-1.5 rounded bg-[var(--ink-950)]/70 px-1.5 py-0.5 mono text-[10px] text-[var(--paper)] backdrop-blur-sm">
+            {item.kind}
+          </span>
+        )}
+        renderMeta={({ item, view: v }) =>
+          v === 'list' ? (
+            <span className="mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{item.kind}</span>
+          ) : null
+        }
+        listClassName="h-[420px]"
+      />
     </div>
   );
 }

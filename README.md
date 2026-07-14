@@ -36,6 +36,14 @@ built on shadcn primitives. Ships today:
   icon-only twin), an icon slot, a `loading` state and an optional `tooltip`
   that doubles as the accessible name of an icon-only button.
 - **`Input`** — the shadcn-style basic, styled from shared tokens.
+- **`Collection`** — items that have a picture and a name, with a toggle between
+  a **card grid** and a **compact list**. Generic render slots
+  (`renderMeta`/`renderActions`/`renderOverlay`, or replace the card/row
+  outright), a toggle that can persist across reloads, and — because it's built
+  out of the library rather than beside it — both views windowed by
+  `VirtualList`, pictures lazily blur-up loaded by `ProgressiveImage`, and an
+  optional `searchKeys` that routes the whole thing through `FuzzyList` for
+  fuzzy search + highlighting + keyboard nav.
 - **`cn`** — the `clsx` + `tailwind-merge` class helper.
 
 - **`IframePreview`** — a trigger (button, card, thumbnail…) that opens any page
