@@ -6,6 +6,8 @@ import {
   Button,
   Changelog,
   type ChangelogEntry,
+  NewVersionToast,
+  useChangelog,
   Collection,
   type CollectionView,
   CopyButton,
@@ -108,7 +110,8 @@ import { RichInputPage } from './pages/RichInputPage';
 import { ElementPickerPage } from './pages/ElementPickerPage';
 import { StartPage } from './pages/StartPage';
 import { ThemingPage } from './pages/ThemingPage';
-import { changelog, fullUrl, nodes, specimenFulls, specimens, thumbUrl, type Node } from './data';
+import { ChangelogDocPage } from './pages/ChangelogPage';
+import { fullUrl, nodes, specimenFulls, specimens, thumbUrl, type Node } from './data';
 import { loadSearchIndex, type IndexEntry } from './search';
 
 /** Always the published package's version — read from its package.json at build time. */
@@ -529,19 +532,18 @@ useEffect(() => {
   {
     id: 'changelog',
     name: 'Changelog',
-    sig: 'entries? · trigger · reload toast',
+    sig: 'entries? · trigger · reload toast · ChangelogPage · useChangelog',
     tag: 'feedback',
     Icon: ChangelogIcon,
     Demo: ChangelogDemo,
-    code: `// headless SDK, or pass entries directly
-<Changelog
-  entries={page}
-  hasMore={hasMore}
-  loading={loading}
-  onLoadMore={loadOlder}       // list virtualized + paged
-  newVersion={update}          // drive the reload toast yourself
-  onDismissNewVersion={clear}
-/>  // + a "new version" reload toast`,
+    code: `// npx gabvdl-changelog  → public/changelog.jsonl (bundled CLI,
+// from conventional commits or a curated CHANGELOG.md)
+<Changelog />              // trigger + modal + "new version" reload toast
+<ChangelogPage />          // full release history for a /changelog route
+
+// or build your own UI on the data layer:
+const { entries, newVersion, dismissNewVersion } =
+  useChangelog({ watch: true })`,
   },
   {
     id: 'phone-preview',
@@ -959,13 +961,31 @@ export function App() {
                   </GuidePage>
                 }
               />
+              <Route
+                path="/changelog"
+                element={
+                  <GuidePage title="Changelog">
+                    <ChangelogDocPage />
+                  </GuidePage>
+                }
+              />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+            {/* Dogfooded: poll our own changelog.jsonl and prompt a reload
+                when a new version of the docs ships while the tab is open. */}
+            <UpdateWatcher />
           </ImageViewerProvider>
         </ModalProvider>
       </ToastProvider>
     </HashRouter>
   );
+}
+
+/** Poll the deployed changelog and surface the library's reload toast. */
+function UpdateWatcher() {
+  const { newVersion, dismissNewVersion } = useChangelog({ watch: true });
+  if (!newVersion) return null;
+  return <NewVersionToast entry={newVersion} onDismiss={dismissNewVersion} />;
 }
 
 function Home() {
@@ -1383,6 +1403,12 @@ function Header({ title }: { title?: string }) {
                 className="mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
               >
                 Theming
+              </Link>
+              <Link
+                to="/changelog"
+                className="mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Changelog
               </Link>
             </nav>
           )}
@@ -1940,8 +1966,11 @@ function VirtualListDemo() {
 }
 
 function ChangelogDemo() {
-  const PAGE = 8;
-  const [count, setCount] = useState(8);
+  // Real data, dogfooded: the same /changelog.jsonl this site generates from
+  // CHANGELOG.md at build time — paged into the modal to demo onLoadMore.
+  const { entries: changelog } = useChangelog();
+  const PAGE = 4;
+  const [count, setCount] = useState(4);
   const [loading, setLoading] = useState(false);
   const [update, setUpdate] = useState<ChangelogEntry | null>(null);
   const entries = changelog.slice(0, count);
@@ -1986,6 +2015,13 @@ function ChangelogDemo() {
           Simulate update
         </Button>
       </div>
+      <p className="text-xs text-muted-foreground">
+        Full release history on the{' '}
+        <Link to="/changelog" className="text-primary underline-offset-2 hover:underline">
+          /changelog page
+        </Link>{' '}
+        — same JSONL, rendered by <span className="mono">ChangelogPage</span>.
+      </p>
     </div>
   );
 }

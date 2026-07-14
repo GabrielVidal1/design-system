@@ -14,3 +14,6 @@ apps/docs/public/search-index.json
 
 # generated at build time by the theme-tokens Vite plugin
 apps/docs/public/theme-tokens.json
+
+# generated at build time from CHANGELOG.md by gabvdl-changelog (predev/prebuild)
+apps/docs/public/changelog.jsonl
