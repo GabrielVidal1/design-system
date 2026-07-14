@@ -35,6 +35,8 @@ last release → grouped bullets under Unreleased), then curate the prose.
   label/value row (`format` for "250,000 tris"-style captions), and
   `onValueCommit` for fire-once-on-release work.
 
+- `FileEditor` — `headerStart` slot: content before the menu bar (a sidebar
+  toggle, a back button) for apps embedding the editor next to a file list.
 - `FileEditor` — a generic text-file viewer/editor (the shape ai-agent's file
   tab rebuilds): a menu-bar nav (built-in **File**/**Tools** dropdowns plus
   consumer-supplied menus), line-number gutter, prism syntax highlighting

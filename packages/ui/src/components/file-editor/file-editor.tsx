@@ -57,6 +57,8 @@ export interface FileEditorProps {
   defaultMode?: FileEditorMode;
   /** `sandbox` attribute for the html preview iframe. Default `""` (inert). */
   htmlPreviewSandbox?: string;
+  /** Content before the menu bar (a sidebar toggle, a back button…). */
+  headerStart?: React.ReactNode;
   /** Extra header content, right of the tabs (badges, actions…). */
   headerExtra?: React.ReactNode;
   /** Extra status-bar content, pushed to the right edge. */
@@ -103,6 +105,7 @@ export const FileEditor = React.forwardRef<HTMLTextAreaElement, FileEditorProps>
       renderPreview,
       defaultMode,
       htmlPreviewSandbox = '',
+      headerStart,
       headerExtra,
       statusExtra,
       statusBar = true,
@@ -270,6 +273,7 @@ export const FileEditor = React.forwardRef<HTMLTextAreaElement, FileEditorProps>
       >
         {/* nav */}
         <header className="flex items-center gap-2 border-b border-border px-2 py-1.5">
+          {headerStart}
           <MenuBar menus={[fileMenu, toolsMenu, ...(extraMenus ?? [])]} />
           <FileText className="ml-1 size-4 shrink-0 text-primary" />
           <div className="min-w-0 flex-1">
