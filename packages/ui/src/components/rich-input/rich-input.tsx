@@ -247,7 +247,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
 
   // Auto-grow the textarea between min/max rows. In `fill` mode the flex layout
   // owns the height instead.
-  useLayoutEffect(() => {
+  const measureHeight = useCallback(() => {
     const el = taRef.current;
     if (!el) return;
     if (fill) {
@@ -256,7 +256,27 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     }
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, maxRows * LINE_HEIGHT)}px`;
-  }, [value, maxRows, fill]);
+  }, [maxRows, fill]);
+
+  useLayoutEffect(measureHeight, [value, measureHeight]);
+
+  // Re-measure when the composer's width changes: line wrapping — of the value
+  // and of the placeholder, which Chrome counts into scrollHeight — depends on
+  // it. Without this, mounting inside a panel that starts at zero width (a
+  // ResizableLayout still settling) locks the empty textarea at maxRows.
+  useLayoutEffect(() => {
+    const el = taRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    let lastWidth = el.clientWidth;
+    const ro = new ResizeObserver(() => {
+      const width = el.clientWidth;
+      if (width === lastWidth) return; // our own height writes must not loop
+      lastWidth = width;
+      measureHeight();
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [measureHeight]);
 
   const clearTimers = useCallback(() => {
     if (queueTimer.current) clearTimeout(queueTimer.current);
