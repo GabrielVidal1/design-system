@@ -15,6 +15,20 @@ last release → grouped bullets under Unreleased), then curate the prose.
 
 ## [Unreleased]
 
+### Added
+
+- `Tabs` (`Tabs` · `TabsList` · `TabsTrigger` · `TabsContent`) — the tabbed
+  panel every app rebuilds, touch-first. The strip **scrolls** instead of
+  wrapping and keeps the active tab in view; on touch the panels are
+  **swipeable** (axis-locked on the first decisive movement, so a vertical
+  scroll is never turned into a tab change, and a gesture starting on the strip
+  or inside a horizontally scrollable child is left alone). Three variants —
+  `underline`, `pill`, `segmented` — the first and last moving a measured
+  indicator between tabs. Full ARIA tabs pattern: roving tabindex, `←`/`→`
+  wrapping arrow keys, `Home`/`End`, and `activation="manual"` to move focus
+  without selecting (for panels that fetch on select). `keepMounted` keeps an
+  inactive panel in the DOM so it holds its scroll and form state.
+
 ## [0.4.1] - 2026-07-14
 
 > The CLI actually runs
