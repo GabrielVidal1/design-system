@@ -105,8 +105,28 @@ export type {
   CollectionImage,
   CollectionItemContext,
 } from './components/collection';
-export { Changelog } from './components/changelog';
-export type { ChangelogEntry, ChangelogProps } from './components/changelog';
+export {
+  Changelog,
+  ChangelogEntryView,
+  ChangelogPage,
+  NewVersionToast,
+  compareSemver,
+  fetchChangelog,
+  isSemver,
+  latestEntry,
+  parseChangelog,
+  useChangelog,
+  watchChangelog,
+} from './components/changelog';
+export type {
+  ChangelogEntry,
+  ChangelogPageProps,
+  ChangelogProps,
+  ChangelogSections,
+  UseChangelogOptions,
+  UseChangelogResult,
+  WatchOptions,
+} from './components/changelog';
 export { PhonePreview, IOSStatusBar } from './components/phone-preview';
 export type { PhonePreviewProps } from './components/phone-preview';
 export { IframePreview, IframePreviewOverlay } from './components/iframe-preview';

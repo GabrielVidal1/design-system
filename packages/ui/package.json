@@ -1,6 +1,6 @@
 {
   "name": "@gabvdl/ui",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Gabriel Vidal's personal design system — tree-shakeable React components built on shadcn primitives. Flagship: a full-screen image viewer with zoom, pan and swipe.",
   "type": "module",
   "license": "MIT",
@@ -26,9 +26,13 @@
   ],
   "files": [
     "dist",
+    "bin",
     "README.md",
     "LICENSE"
   ],
+  "bin": {
+    "gabvdl-changelog": "./bin/changelog.mjs"
+  },
   "publishConfig": {
     "access": "public"
   },

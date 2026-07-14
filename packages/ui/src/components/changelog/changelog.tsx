@@ -1,70 +1,27 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Sparkles, X } from 'lucide-react';
 
 import { VirtualList } from '../virtual-list';
 
-const SDK_URL = 'https://changelog-widget.dev.gabvdl.xyz/script.js';
-const DEFAULT_CHANGELOG = '/changelog.jsonl';
+import { DEFAULT_CHANGELOG_URL, type ChangelogEntry } from './core';
+import { ChangelogEntryView } from './entry';
+import { useChangelog } from './use-changelog';
 
-export interface ChangelogEntry {
-  version: string;
-  date?: string;
-  title?: string;
-  changes: string[];
-  sha?: string;
-}
-
-interface ChangelogSDK {
-  fetch(url?: string): Promise<ChangelogEntry[]>;
-  latest(entries: ChangelogEntry[]): ChangelogEntry | null;
-  watch(opts: {
-    url?: string;
-    intervalMs?: number;
-    onUpdate: (latest: ChangelogEntry, entries: ChangelogEntry[]) => void;
-  }): () => void;
-}
-
-/** Read window.Changelog without a global augmentation (keeps this drop-in). */
-function globalSdk(): ChangelogSDK | undefined {
-  return (window as unknown as { Changelog?: ChangelogSDK }).Changelog;
-}
-
-/** Load the SDK script once (idempotent) and resolve window.Changelog. */
-function loadSdk(src: string): Promise<ChangelogSDK> {
-  const present = globalSdk();
-  if (present) return Promise.resolve(present);
-  return new Promise((resolve, reject) => {
-    const done = () => {
-      const sdk = globalSdk();
-      sdk ? resolve(sdk) : reject(new Error('SDK missing'));
-    };
-    const existing = document.querySelector<HTMLScriptElement>(`script[src="${src}"]`);
-    if (existing) {
-      existing.addEventListener('load', done, { once: true });
-      existing.addEventListener('error', () => reject(new Error('SDK failed')), { once: true });
-      const sdk = globalSdk();
-      if (sdk) resolve(sdk);
-      return;
-    }
-    const s = document.createElement('script');
-    s.src = src;
-    s.async = true;
-    s.addEventListener('load', done, { once: true });
-    s.addEventListener('error', () => reject(new Error('SDK failed')), { once: true });
-    document.head.appendChild(s);
-  });
-}
+export type { ChangelogEntry };
 
 export interface ChangelogProps {
   /**
-   * Supply entries directly (controlled). When set, the hosted SDK is not
-   * loaded — pair with `onLoadMore` / `hasMore` / `loading` to page a long
-   * history. Omit to auto-load from the changelog-widget SDK.
+   * Supply entries directly (controlled). When set, nothing is fetched —
+   * pair with `onLoadMore` / `hasMore` / `loading` to page a long history.
+   * Omit to auto-load `url` and poll it for new versions.
    */
   entries?: ChangelogEntry[];
-  /** URL of the JSONL changelog (SDK mode). Default: /changelog.jsonl */
+  /** URL of the JSONL changelog. Default: /changelog.jsonl */
   url?: string;
-  /** URL of the SDK script (SDK mode). Default: the hosted changelog script. */
+  /**
+   * @deprecated The data layer is built in since 0.4.0 — no external SDK
+   * script is loaded any more. The prop is accepted and ignored.
+   */
   sdkUrl?: string;
   /** Modal heading. Default: "Changelog". */
   title?: string;
@@ -82,7 +39,7 @@ export interface ChangelogProps {
   /**
    * Controlled "new version" reload toast. Set to an entry to show the toast
    * for it — useful when you detect an update yourself (e.g. in controlled
-   * mode, where the SDK watcher isn't running). Set to `null`/omit to hide it.
+   * mode, where the watcher isn't running). Set to `null`/omit to hide it.
    */
   newVersion?: ChangelogEntry | null;
   /** Called when the user dismisses the "new version" toast. */
@@ -92,13 +49,14 @@ export interface ChangelogProps {
 /**
  * A changelog trigger + modal + "new version" reload toast, styled from the
  * design tokens. The entry list is a {@link VirtualList}, so a long history
- * scrolls cheaply and can lazily page in via `onLoadMore`. Data comes from the
- * headless changelog-widget SDK by default, or pass `entries` directly.
+ * scrolls cheaply and can lazily page in via `onLoadMore`. Data comes from a
+ * JSONL changelog fetched (and polled) by the built-in data layer, or pass
+ * `entries` directly. Generate the JSONL with the bundled `gabvdl-changelog`
+ * CLI (`npx gabvdl-changelog` at deploy time).
  */
 export function Changelog({
   entries,
-  url = DEFAULT_CHANGELOG,
-  sdkUrl = SDK_URL,
+  url = DEFAULT_CHANGELOG_URL,
   title = 'Changelog',
   trigger,
   onLoadMore,
@@ -108,35 +66,14 @@ export function Changelog({
   onDismissNewVersion,
 }: ChangelogProps) {
   const controlled = entries !== undefined;
-  const [loaded, setLoaded] = useState<ChangelogEntry[]>([]);
   const [open, setOpen] = useState(false);
-  const [update, setUpdate] = useState<ChangelogEntry | null>(null);
-  const stopRef = useRef<() => void>(() => {});
+  const {
+    entries: loaded,
+    newVersion: detected,
+    dismissNewVersion,
+  } = useChangelog({ url, watch: !controlled, enabled: !controlled });
 
   const data = controlled ? entries : loaded;
-
-  useEffect(() => {
-    if (controlled) return;
-    let alive = true;
-    loadSdk(sdkUrl)
-      .then((sdk) => {
-        if (!alive) return;
-        void sdk.fetch(url).then((e) => alive && setLoaded(e));
-        stopRef.current = sdk.watch({
-          url,
-          onUpdate: (latest, all) => {
-            if (!alive) return;
-            setLoaded(all);
-            setUpdate(latest);
-          },
-        });
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-      stopRef.current();
-    };
-  }, [controlled, url, sdkUrl]);
 
   useEffect(() => {
     if (!open) return;
@@ -145,12 +82,12 @@ export function Changelog({
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
 
-  // The controlled `newVersion` prop takes precedence over the SDK watcher's
-  // own detected update, so a consumer can drive the reload toast directly.
-  const activeUpdate = newVersion ?? update;
+  // The controlled `newVersion` prop takes precedence over the watcher's own
+  // detected update, so a consumer can drive the reload toast directly.
+  const activeUpdate = newVersion ?? detected;
   const hasUpdate = activeUpdate !== null;
   const dismissUpdate = () => {
-    setUpdate(null);
+    dismissNewVersion();
     onDismissNewVersion?.();
   };
 
@@ -198,68 +135,64 @@ export function Changelog({
               hasMore={hasMore}
               loading={loading}
               emptyState={<p className="py-6 text-center text-sm text-muted-foreground">No changelog yet.</p>}
-              renderItem={(e) => <Entry entry={e} />}
+              renderItem={(e) => (
+                <ChangelogEntryView entry={e} className="border-b border-border py-4 last:border-none" />
+              )}
             />
           </div>
         </div>
       )}
 
-      {activeUpdate && (
-        <div className="fixed left-1/2 top-3 z-[9999] w-[min(92vw,400px)] -translate-x-1/2">
-          <div className="flex items-start gap-3 rounded-2xl border border-primary/40 bg-card p-3.5 shadow-xl">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-              <Sparkles className="h-4 w-4" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-primary">
-                New version · v{activeUpdate.version}
-              </p>
-              <p className="mt-0.5 text-sm text-foreground">
-                {activeUpdate.title || activeUpdate.changes[0] || 'A new version is available.'}
-              </p>
-              <div className="mt-2 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => location.reload()}
-                  className="rounded-lg bg-primary px-3 py-1 text-xs font-bold text-primary-foreground transition-opacity hover:opacity-90"
-                >
-                  Reload
-                </button>
-                <button
-                  type="button"
-                  onClick={dismissUpdate}
-                  className="rounded-lg px-2 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  Dismiss
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {activeUpdate && <NewVersionToast entry={activeUpdate} onDismiss={dismissUpdate} />}
     </>
   );
 }
 
-function Entry({ entry }: { entry: ChangelogEntry }) {
-  const showTitle = entry.title && !(entry.changes.length === 1 && entry.changes[0] === entry.title);
+/**
+ * The "new version → reload" toast on its own — for apps that don't render a
+ * changelog trigger but still want the update prompt. Pair with
+ * {@link useChangelog}: `const { newVersion, dismissNewVersion } = useChangelog({ watch: true })`.
+ */
+export function NewVersionToast({
+  entry,
+  onDismiss,
+}: {
+  entry: ChangelogEntry;
+  onDismiss?: () => void;
+}) {
   return (
-    <div className="border-b border-border py-4 last:border-none">
-      <div className="mb-1.5 flex items-baseline gap-2">
-        <span className="rounded-md bg-primary/10 px-2 py-0.5 font-mono text-[11px] font-bold text-primary">
-          v{entry.version}
+    <div className="fixed left-1/2 top-3 z-[9999] w-[min(92vw,400px)] -translate-x-1/2">
+      <div className="flex items-start gap-3 rounded-2xl border border-primary/40 bg-card p-3.5 shadow-xl">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+          <Sparkles className="h-4 w-4" />
         </span>
-        {entry.date && <span className="text-xs text-muted-foreground">{entry.date}</span>}
+        <div className="min-w-0 flex-1">
+          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-primary">
+            New version · v{entry.version}
+          </p>
+          <p className="mt-0.5 text-sm text-foreground">
+            {entry.title || entry.changes[0] || 'A new version is available.'}
+          </p>
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => location.reload()}
+              className="rounded-lg bg-primary px-3 py-1 text-xs font-bold text-primary-foreground transition-opacity hover:opacity-90"
+            >
+              Reload
+            </button>
+            {onDismiss && (
+              <button
+                type="button"
+                onClick={onDismiss}
+                className="rounded-lg px-2 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Dismiss
+              </button>
+            )}
+          </div>
+        </div>
       </div>
-      {showTitle && <p className="mb-1.5 text-sm font-semibold text-foreground">{entry.title}</p>}
-      <ul className="space-y-1">
-        {entry.changes.map((c, i) => (
-          <li key={i} className="relative pl-4 text-[13px] leading-snug text-muted-foreground">
-            <span className="absolute left-0 top-2 h-1 w-1 rounded-full bg-primary" />
-            {c}
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }
