@@ -49,6 +49,7 @@
     "./image-viewer.css": "./dist/image-viewer.css",
     "./virtual-list.css": "./dist/virtual-list.css",
     "./overlay.css": "./dist/overlay.css",
+    "./progress.css": "./dist/progress.css",
     "./tooltip.css": "./dist/tooltip.css",
     "./package.json": "./package.json"
   },

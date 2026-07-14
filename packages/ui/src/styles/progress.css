@@ -1,0 +1,26 @@
+/*
+ * Motion for <Progress indeterminate> — the endless sweep.
+ *
+ * Plain CSS — no Tailwind directives — so the animation works whether or not
+ * the consumer's Tailwind config scans this package. Under
+ * `prefers-reduced-motion` the sweep parks as a static partial fill.
+ */
+
+@keyframes ds-progress-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(350%);
+  }
+}
+
+.ds-progress-sweep {
+  animation: ds-progress-sweep 1.4s cubic-bezier(0.4, 0, 0.4, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-progress-sweep {
+    animation: none;
+  }
+}
