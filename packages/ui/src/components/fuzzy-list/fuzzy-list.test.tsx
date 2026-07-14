@@ -170,4 +170,51 @@ describe('FuzzyList', () => {
       expect(kept).toEqual(before.filter((n) => after.includes(n)));
     });
   });
+
+  describe('lazy loading', () => {
+    it('fires onEndReached when the tail is in range and more pages remain', () => {
+      const onEndReached = vi.fn();
+      renderList({ onEndReached, hasMore: true });
+      expect(onEndReached).toHaveBeenCalled();
+    });
+
+    it('never fires without hasMore, or while a page is loading', () => {
+      const onEndReached = vi.fn();
+      const { rerender, unmount } = renderList({ onEndReached, hasMore: false });
+      expect(onEndReached).not.toHaveBeenCalled();
+      unmount();
+      void rerender;
+
+      renderList({ onEndReached, hasMore: true, loadingMore: true });
+      expect(onEndReached).not.toHaveBeenCalled();
+    });
+
+    it('pauses paging while a query is active by default', async () => {
+      const user = userEvent.setup();
+      const onEndReached = vi.fn();
+      renderList({ onEndReached, hasMore: true });
+      onEndReached.mockClear();
+
+      await user.type(screen.getByPlaceholderText('Search…'), 'apple');
+      await screen.findByText('1 of 4+');
+      onEndReached.mockClear();
+      // Any further render with the query active must not page.
+      await user.type(screen.getByPlaceholderText('Search…'), ' pie');
+      expect(onEndReached).not.toHaveBeenCalled();
+    });
+
+    it('keeps paging during a search with loadMoreWhileSearching', async () => {
+      const user = userEvent.setup();
+      const onEndReached = vi.fn();
+      renderList({ onEndReached, hasMore: true, loadMoreWhileSearching: true });
+      await user.type(screen.getByPlaceholderText('Search…'), 'apple');
+      await screen.findByText('1 of 4+');
+      expect(onEndReached).toHaveBeenCalled();
+    });
+
+    it('marks the count line open-ended while more pages remain', () => {
+      renderList({ hasMore: true });
+      expect(screen.getByText('4+ items')).toBeInTheDocument();
+    });
+  });
 });

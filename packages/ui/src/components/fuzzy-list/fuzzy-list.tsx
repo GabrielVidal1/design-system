@@ -52,6 +52,25 @@ export interface FuzzyListProps<T> {
   autoFocus?: boolean;
   /** Cap the number of results (Fuse `limit`). */
   limit?: number;
+  /**
+   * Called when the tail of the list scrolls into range — append the next page
+   * to `items` for a **lazily loaded** list (forwarded to
+   * {@link VirtualListProps.onEndReached}, guarded by `hasMore`/`loading`).
+   * By default it only fires while the query is empty: the search only sees the
+   * rows already loaded, so hitting the end of a *filtered* list says nothing
+   * about the end of the data. Set `loadMoreWhileSearching` to keep paging
+   * during a search — scrolling then progressively widens what the fuzzy match
+   * can find.
+   */
+  onEndReached?: () => void;
+  /** Whether more pages remain (guards `onEndReached`). */
+  hasMore?: boolean;
+  /** Whether a page load is in flight (guards `onEndReached`, shows the indicator). */
+  loadingMore?: boolean;
+  /** Shown at the bottom while `loadingMore`. */
+  loadingIndicator?: ReactNode;
+  /** Keep firing `onEndReached` while a query is active. Off by default. */
+  loadMoreWhileSearching?: boolean;
   /** First-paint row-height guess for the virtual list, px. Default 60 (compact
    * rows). Bump it when rendering taller rows/cards to cut first-paint jank. */
   estimateSize?: number;
@@ -149,6 +168,11 @@ export function FuzzyList<T>({
   emptyState = 'No matches.',
   autoFocus,
   limit,
+  onEndReached,
+  hasMore = false,
+  loadingMore = false,
+  loadingIndicator,
+  loadMoreWhileSearching = false,
   estimateSize = 60,
   overscan = 8,
   columns,
@@ -254,13 +278,19 @@ export function FuzzyList<T>({
 
       {showCount && (
         <div className="px-1 pt-2 mono text-[11px] text-muted-foreground">
-          {q ? `${results.length} of ${items.length}` : `${items.length} items`}
+          {q
+            ? `${results.length} of ${items.length}${hasMore ? '+' : ''}`
+            : `${items.length}${hasMore ? '+' : ''} items`}
         </div>
       )}
 
       <VirtualList
         items={results}
         apiRef={apiRef}
+        onEndReached={q && !loadMoreWhileSearching ? undefined : onEndReached}
+        hasMore={hasMore}
+        loading={loadingMore}
+        {...(loadingIndicator !== undefined ? { loadingIndicator } : {})}
         estimateSize={estimateSize}
         overscan={overscan}
         columns={columns}

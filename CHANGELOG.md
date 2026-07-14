@@ -17,6 +17,22 @@ last release → grouped bullets under Unreleased), then curate the prose.
 
 ### Added
 
+- `TagFilter` — the row of toggleable filter chips that sits above every
+  filterable list in the lab (folders, tags, categories). Single-select by
+  default (a chip replaces the selection; clicking it again clears), or
+  checkbox-style with `multiple`; a leading All chip (`allLabel` to relabel or
+  `false` to drop), per-chip `count`s for live unread/total badges, and a
+  no-scrollbar horizontal scroll on phones (`wrap` to line-break instead).
+- `FuzzyList` — lazy loading: `onEndReached`/`hasMore`/`loadingMore` (plus
+  `loadingIndicator`) forward to the inner `VirtualList`, so a server-paged
+  list can search-as-you-scroll. Paging pauses while a query is active — the
+  end of a *filtered* list says nothing about the end of the data — unless
+  `loadMoreWhileSearching` opts in; the count line reads `N+ items` while more
+  pages remain.
+- Mailbox demo (`/demos/mail`) — the mail.lab screen rebuilt from the library
+  alone: a lazily paged, virtualized inbox over a fake catch-all store,
+  quote-aware fuzzy search across everything loaded, folder chips with live
+  unread counts, and a reading pane that is a drawer on phones.
 - `Select` — the searchable select every project rebuilds from a bare
   `<select>` or a hand-rolled popover. Options carry optional `icon`s,
   `description`s and `disabled`; an anchored dropdown with full keyboard

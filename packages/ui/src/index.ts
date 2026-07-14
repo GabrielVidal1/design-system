@@ -66,6 +66,8 @@ export { DropZone, useFileDrop } from './components/drop-zone';
 export type { DropZoneProps, FileRejection, UseFileDropOptions } from './components/drop-zone';
 export { SearchInput } from './components/search-input';
 export type { SearchInputProps } from './components/search-input';
+export { TagFilter } from './components/tag-filter';
+export type { TagFilterItem, TagFilterProps } from './components/tag-filter';
 export {
   ElementPicker,
   ElementPickerField,

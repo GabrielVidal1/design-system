@@ -84,6 +84,41 @@ function JobsArt() {
   );
 }
 
+/** Mailbox — chips filter the folders while rows stream into the inbox. */
+function MailArt() {
+  return (
+    <Art>
+      {/* folder chips */}
+      {[0, 1, 2].map((i) => (
+        <rect key={i} x={42 + i * 40} y="24" width="34" height="13" rx="6.5" stroke={DIM} strokeWidth="1.6" opacity="0.6" />
+      ))}
+      <rect
+        className="a-drift"
+        style={v({ '--dx': '40px', '--dur': '4.8s' })}
+        x="40"
+        y="22"
+        width="38"
+        height="17"
+        rx="8.5"
+        fill={CY}
+        fillOpacity="0.16"
+        stroke={CY}
+        strokeWidth="2"
+      />
+      {/* inbox rows streaming in */}
+      {[0, 1, 2, 3].map((i) => (
+        <g key={i} className="a-reveal" style={v({ '--dur': '4.8s', animationDelay: `${0.3 + i * 0.35}s` })}>
+          <circle cx="48" cy={53 + i * 15} r="2.5" fill={i < 2 ? CY : DIM} opacity={i < 2 ? 0.9 : 0.4} />
+          <rect x="58" y={49 + i * 15} width={i === 0 ? 96 : 78 - i * 6} height="8" rx="4" fill={DIM} opacity={0.55 - i * 0.08} />
+          <rect x="160" y={50 + i * 15} width="16" height="6" rx="3" fill={DIM} opacity="0.3" />
+        </g>
+      ))}
+      {/* the lazy tail */}
+      <rect className="a-blink" x="58" y="110" width="40" height="6" rx="3" fill={CY} opacity="0.5" />
+    </Art>
+  );
+}
+
 interface DemoCard {
   to: string;
   name: string;
@@ -117,6 +152,14 @@ const DEMOS: DemoCard[] = [
       'A 3d-gen-style service frontend: KPI strip, a live sortable queue, per-job progress, and a terminal replaying each job\'s logs as it runs.',
     proves: 'StatTile · DataTable · Progress · ProgressiveBash · StatusBadge',
     Art: JobsArt,
+  },
+  {
+    to: '/demos/mail',
+    name: 'Mailbox',
+    blurb:
+      'The mail.lab screen: a lazily paged inbox that virtualizes thousands of rows, quote-aware fuzzy search over everything loaded, and folder chips with live unread counts.',
+    proves: 'FuzzyList · VirtualList · TagFilter · Badge · RelativeTime · ResizableLayout',
+    Art: MailArt,
   },
 ];
 

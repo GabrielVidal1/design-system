@@ -61,6 +61,7 @@ import {
   type ResizableLayoutHandle,
   SearchInput,
   Select,
+  TagFilter,
   Skeleton,
   SkeletonText,
   Slider,
@@ -127,6 +128,7 @@ import {
   RichInputIcon,
   SearchInputIcon,
   SelectIcon,
+  TagFilterIcon,
   SkeletonIcon,
   SliderIcon,
   SpinnerIcon,
@@ -152,6 +154,7 @@ import { DemosIndexPage } from './pages/demos/DemosIndexPage';
 import { ChatDemoPage } from './pages/demos/ChatDemoPage';
 import { SearchDemoPage } from './pages/demos/SearchDemoPage';
 import { JobsDemoPage } from './pages/demos/JobsDemoPage';
+import { MailDemoPage } from './pages/demos/MailDemoPage';
 import { fullUrl, nodes, specimenFulls, specimens, thumbUrl, type Node } from './data';
 import { loadSearchIndex, type IndexEntry } from './search';
 
@@ -193,6 +196,7 @@ const GROUP_OF: Record<string, Group> = {
   input: 'Inputs',
   'rich-input': 'Inputs',
   'search-input': 'Inputs',
+  'tag-filter': 'Inputs',
   'drop-zone': 'Inputs',
   select: 'Inputs',
   switch: 'Inputs',
@@ -282,6 +286,7 @@ const SOURCE_FILE: Record<string, string> = {
   'file-editor': 'file-editor.tsx',
   'drop-zone': 'drop-zone.tsx',
   'search-input': 'search-input.tsx',
+  'tag-filter': 'tag-filter.tsx',
   'relative-time': 'relative-time.tsx',
   theme: 'theme.tsx',
   format: 'format.ts',
@@ -1058,6 +1063,23 @@ if (await confirm({ title: 'Delete note?', destructive: true })) remove()
 />`,
   },
   {
+    id: 'tag-filter',
+    name: 'TagFilter',
+    sig: 'items · value · onChange · multiple · allLabel',
+    tag: 'input',
+    Icon: TagFilterIcon,
+    Demo: TagFilterDemo,
+    code: `<TagFilter
+  items={folders.map((f) => ({
+    id: f.id, label: f.name, count: f.unread,
+  }))}
+  value={selected}          // [] = no filter, the All chip
+  onChange={setSelected}
+  multiple                  // checkbox-style; default replaces
+  allLabel="All mail"       // relabel, or false to drop it
+/>  // scrolls horizontally on phones · wrap to line-break`,
+  },
+  {
     id: 'drop-zone',
     name: 'DropZone',
     sig: 'DropZone · useFileDrop — accept · maxSize · folders',
@@ -1200,6 +1222,7 @@ export function App() {
               <Route path="/demos/chat" element={<ChatDemoPage />} />
               <Route path="/demos/search" element={<SearchDemoPage />} />
               <Route path="/demos/jobs" element={<JobsDemoPage />} />
+            <Route path="/demos/mail" element={<MailDemoPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
             {/* Dogfooded: poll our own changelog.jsonl and prompt a reload
@@ -3767,6 +3790,36 @@ function SearchInputDemo() {
             </div>
           ))
         )}
+      </div>
+    </div>
+  );
+}
+
+function TagFilterDemo() {
+  const [picked, setPicked] = useState<string[]>([]);
+  const kinds = [...new Set(nodes.map((n) => n.kind))];
+  const hits = picked.length === 0 ? nodes : nodes.filter((n) => picked.includes(n.kind));
+
+  return (
+    <div className="space-y-3">
+      <TagFilter
+        multiple
+        items={kinds.map((k) => ({ id: k, label: k, count: nodes.filter((n) => n.kind === k).length }))}
+        value={picked}
+        onChange={setPicked}
+      />
+      <div className="max-h-48 overflow-y-auto rounded-lg border border-border bg-[var(--surface)]">
+        {hits.map((n) => (
+          <div
+            key={n.name}
+            className="flex items-center justify-between gap-3 border-b border-border px-4 py-2 last:border-0"
+          >
+            <span className="mono text-sm text-foreground">{n.name}</span>
+            <Badge tone={n.kind === 'service' ? 'sky' : n.kind === 'project' ? 'violet' : 'amber'}>
+              {n.kind}
+            </Badge>
+          </div>
+        ))}
       </div>
     </div>
   );

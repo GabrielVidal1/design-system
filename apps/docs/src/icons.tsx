@@ -123,6 +123,40 @@ export function FuzzyListIcon() {
   );
 }
 
+/** TagFilter — the active pill hands the highlight down the chip row, and the
+ * list below thins out as the filter narrows. */
+export function TagFilterIcon() {
+  const chip = (x: number, w: number) => (
+    <rect x={x} y="30" width={w} height="16" rx="8" stroke={DIM} strokeWidth="2" />
+  );
+  return (
+    <Svg>
+      {chip(44, 34)}
+      {chip(84, 44)}
+      {chip(134, 38)}
+      <rect
+        className="a-drift"
+        style={v({ '--dx': '48px', '--dur': '4.2s' })}
+        x="42"
+        y="28"
+        width="38"
+        height="20"
+        rx="10"
+        fill={CY}
+        fillOpacity="0.16"
+        stroke={CY}
+        strokeWidth="2.5"
+      />
+      {[0, 1, 2].map((i) => (
+        <g key={i} className="a-fade" style={v({ '--o0': '1', '--o1': i === 1 ? '0.15' : '1', '--dur': '4.2s' })}>
+          <rect x="48" y={60 + i * 16} width={104 - i * 18} height="7" rx="3.5" fill={DIM} opacity={0.5 - i * 0.08} />
+        </g>
+      ))}
+      <circle className="a-blink" cx="164" cy="63" r="3.5" fill={CY} />
+    </Svg>
+  );
+}
+
 /** PhonePreview — a device whose screen scrolls in a slow breath, its copy typing in. */
 export function PhonePreviewIcon() {
   const line = (y: number, w: number, h: number, fill: string, o: string, delay: string) => (
