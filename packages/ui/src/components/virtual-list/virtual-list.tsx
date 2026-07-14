@@ -3,6 +3,7 @@ import {
   useImperativeHandle,
   useMemo,
   useRef,
+  useState,
   type CSSProperties,
   type Key,
   type ReactNode,
@@ -58,12 +59,27 @@ export interface VirtualListProps<T> {
    * Animate rows sliding to their new position when the list is re-sorted (e.g.
    * an auto-sort by "updated" date whose value changed), so a reorder glides
    * instead of teleporting. Only animates while the list is idle — scrolling and
-   * lazy height-measurement never animate. Requires the stylesheet
+   * lazy height-measurement never animate. Rows travelling *up* are stacked over
+   * rows travelling down, so a row that overtakes its neighbours passes visibly
+   * in front of them rather than sliding underneath. Requires the stylesheet
    * `@gabvdl/ui/virtual-list.css` (bundled in `styles.css`) and a stable
    * `getItemKey` so React keeps each row's DOM node across the reorder. Honors
    * `prefers-reduced-motion`.
    */
   smooth?: boolean;
+  /**
+   * How long a `smooth` reorder takes, in ms. Default 520 — slow enough to read
+   * a row overtaking its neighbours. Drop it (200–300) for a snappier list, or
+   * raise it for a more deliberate glide.
+   */
+  smoothDuration?: number;
+  /**
+   * The CSS timing function of a `smooth` reorder. Default is an ease-in-out
+   * (`cubic-bezier(0.65, 0, 0.35, 1)`): the row eases away from its old slot and
+   * settles into the new one, which reads as a deliberate move rather than a
+   * snap. Any CSS `transition-timing-function` value works.
+   */
+  smoothEasing?: string;
   /**
    * Lay the items out as a **grid** of this many columns instead of a single
    * column — the virtualizer then windows one *row of N* at a time, so a card
@@ -161,6 +177,8 @@ export function VirtualList<T>({
   loadingIndicator = DefaultLoading,
   emptyState = null,
   smooth = false,
+  smoothDuration = 520,
+  smoothEasing = 'cubic-bezier(0.65, 0, 0.35, 1)',
   columns,
   gap = 12,
   className,
@@ -200,6 +218,100 @@ export function VirtualList<T>({
   // so the target offsets change and the transition plays.
   const animate = smooth && !virtualizer.isScrolling;
 
+  // Which way each row is currently travelling, so the ones climbing can be
+  // stacked over the ones falling — otherwise two rows swapping places cross
+  // in an arbitrary DOM order and the mover can slide *under* the row it is
+  // overtaking, which hides the whole point of the animation.
+  //
+  // The virtualizer gives us each row's target offset; the previous render's
+  // offset for the same key is the slot it is gliding *from*. A row keeps its
+  // layer for the duration of the transition (rather than only for the single
+  // render that moved it) so it stays on top the whole way across; the timer is
+  // rescheduled on every move, and cleared when the row settles.
+  const prevOffsets = useRef(new Map<Key, number>());
+  const [risingKeys, setRisingKeys] = useState<ReadonlySet<Key>>(() => new Set());
+  const risingTimers = useRef(new Map<Key, ReturnType<typeof setTimeout>>());
+
+  useEffect(() => {
+    if (!animate) {
+      // Keep the offsets fresh while scrolling so the first idle render after a
+      // scroll compares against where rows actually are, not where they were
+      // before the scroll — otherwise every row reads as a huge "move".
+      const offsets = new Map<Key, number>();
+      for (const v of virtualItems) offsets.set(v.key, v.start);
+      prevOffsets.current = offsets;
+      return;
+    }
+
+    // Compare each row against the list's OVERALL drift, not against zero: when
+    // a row above the window is lazily measured to its real height, every offset
+    // below it shifts by the same few pixels. Judged absolutely, that uniform
+    // shift makes the entire window look like it is moving (up or down) and
+    // every row gets lifted, which lifts nothing in relative terms. The median
+    // delta is that common shift, so subtracting it leaves only the rows that
+    // actually changed rank — the ones we want on top.
+    const offsets = new Map<Key, number>();
+    const deltas: { key: Key; delta: number }[] = [];
+    for (const v of virtualItems) {
+      offsets.set(v.key, v.start);
+      const before = prevOffsets.current.get(v.key);
+      // A row with no previous offset just entered the window — it has nowhere
+      // to glide from, so it isn't moving in either direction.
+      if (before !== undefined) deltas.push({ key: v.key, delta: v.start - before });
+    }
+    prevOffsets.current = offsets;
+
+    if (deltas.length === 0) return;
+
+    const sorted = deltas.map((d) => d.delta).sort((a, b) => a - b);
+    const drift = sorted[Math.floor(sorted.length / 2)];
+
+    // A row is climbing only if it moved up on BOTH counts: in absolute terms
+    // (it really did travel up the viewport) and relative to the drift (it
+    // out-ran the common shift, i.e. it changed rank). Requiring both is what
+    // keeps a first-paint height measurement — where rows below the first one
+    // all jump down by different amounts — from lifting the rows that merely
+    // moved *least*. The epsilon ignores sub-pixel jitter so rows that are
+    // visually standing still never flicker between layers.
+    const rising = deltas
+      .filter((d) => d.delta < -1 && d.delta - drift < -1)
+      .map((d) => d.key);
+
+    if (rising.length === 0) return;
+
+    setRisingKeys((prev) => {
+      const next = new Set(prev);
+      for (const key of rising) next.add(key);
+      return next;
+    });
+
+    for (const key of rising) {
+      clearTimeout(risingTimers.current.get(key));
+      risingTimers.current.set(
+        key,
+        setTimeout(() => {
+          risingTimers.current.delete(key);
+          setRisingKeys((prev) => {
+            if (!prev.has(key)) return prev;
+            const next = new Set(prev);
+            next.delete(key);
+            return next;
+          });
+        }, smoothDuration),
+      );
+    }
+  }, [virtualItems, animate, smoothDuration]);
+
+  // Drop the timers on unmount so a list torn down mid-reorder doesn't set state
+  // on a dead component.
+  useEffect(() => {
+    const timers = risingTimers.current;
+    return () => {
+      for (const t of timers.values()) clearTimeout(t);
+      timers.clear();
+    };
+  }, []);
+
   useImperativeHandle(
     apiRef,
     () => ({
@@ -236,14 +348,22 @@ export function VirtualList<T>({
             key={v.key}
             data-index={v.index}
             ref={virtualizer.measureElement}
-            className={cn('ds-virtual-row', animate && 'ds-virtual-row--smooth')}
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              transform: `translateY(${v.start}px)`,
-            }}
+            className={cn(
+              'ds-virtual-row',
+              animate && 'ds-virtual-row--smooth',
+              risingKeys.has(v.key) && 'ds-virtual-row--rising',
+            )}
+            style={
+              {
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                transform: `translateY(${v.start}px)`,
+                '--ds-virtual-row-duration': `${smoothDuration}ms`,
+                '--ds-virtual-row-ease': smoothEasing,
+              } as CSSProperties
+            }
           >
             {rows ? (
               <div

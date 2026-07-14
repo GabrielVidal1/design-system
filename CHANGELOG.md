@@ -8,6 +8,25 @@ in the [README](README.md): from `0.1.0` on, breaking changes bump the
 
 ## [Unreleased]
 
+### Added
+
+- **`VirtualList`** — the `smooth` reorder is now tunable and legible.
+  - `smoothDuration` (ms) and `smoothEasing` set the pace and the curve of the
+    glide, published to the CSS as `--ds-virtual-row-duration` /
+    `--ds-virtual-row-ease` on each row.
+  - A row travelling **up** is now stacked over the rows it overtakes (which are,
+    by definition, sliding down to make room), so a swap reads as one card
+    passing in *front* of another instead of disappearing behind it. The lift is
+    held for exactly the length of the transition and released when the row
+    settles.
+
+### Changed
+
+- **`VirtualList`** — `smooth` defaults are slower and eased in *and* out:
+  **520ms** (was 320ms) on a `cubic-bezier(0.65, 0, 0.35, 1)` ease-in-out (was
+  the ease-out `cubic-bezier(0.22, 1, 0.36, 1)`). The old feel is
+  `smoothDuration={320} smoothEasing="cubic-bezier(0.22, 1, 0.36, 1)"`.
+
 ## [0.2.0] - 2026-07-14
 
 ### Added

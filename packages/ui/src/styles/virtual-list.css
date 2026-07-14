@@ -11,15 +11,31 @@
  * The component only adds `--smooth` while the list is idle (not actively being
  * scrolled), so scroll and lazy height-measurement never animate — only genuine
  * reorders do. Honors `prefers-reduced-motion`.
+ *
+ * Duration and easing come from the `smoothDuration` / `smoothEasing` props,
+ * which the component writes onto each row as the two custom properties below;
+ * the fallbacks here are what a row styled without them gets.
  */
 .ds-virtual-row {
   /* base marker class — no styling on its own */
 }
 
 .ds-virtual-row--smooth {
-  transition: transform var(--ds-virtual-row-duration, 320ms)
-    var(--ds-virtual-row-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  transition: transform var(--ds-virtual-row-duration, 520ms)
+    var(--ds-virtual-row-ease, cubic-bezier(0.65, 0, 0.35, 1));
   will-change: transform;
+}
+
+/*
+ * A row travelling *up* passes in FRONT of the rows it overtakes — which are,
+ * by definition, the ones travelling down to make room for it. Without this the
+ * two cross in whatever order the DOM happens to be in, and the climbing row can
+ * slide behind the row it is passing, which reads as a glitch rather than as a
+ * swap. The rows are already `position: absolute`, so `z-index` applies as-is;
+ * the component adds this class for exactly as long as the transition runs.
+ */
+.ds-virtual-row--rising {
+  z-index: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {

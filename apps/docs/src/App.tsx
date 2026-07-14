@@ -350,7 +350,7 @@ open(urls, 0) // full-screen: zoom · pan · swipe`,
   {
     id: 'virtual-list',
     name: 'VirtualList',
-    sig: '<T>(items, renderItem, columns?, smooth?, onEndReached?)',
+    sig: '<T>(items, renderItem, columns?, smooth?, smoothDuration?, onEndReached?)',
     tag: 'data',
     Icon: VirtualListIcon,
     Demo: VirtualListDemo,
@@ -359,12 +359,18 @@ open(urls, 0) // full-screen: zoom · pan · swipe`,
   className="h-96"              // bounded height
   estimateSize={56}             // heights are then measured
   smooth                        // glide rows to their new slot on reorder
+  smoothDuration={520}          // …at your own pace (ms; default 520)
+  smoothEasing="cubic-bezier(0.65, 0, 0.35, 1)"   // ease-in-out by default
   getItemKey={(row) => row.id}  // stable identity — required for smooth
   hasMore={hasMore}
   loading={loading}
   onEndReached={loadNextPage}   // infinite lazy load
   renderItem={(row) => <Row {...row} />}
 />
+
+// A row travelling UP is stacked over the rows it overtakes (which are, by
+// definition, sliding down to make room), so the swap reads as one card
+// passing in front of another rather than vanishing behind it.
 
 // …or a windowed CARD GRID — items are chunked into rows of N, so the
 // virtualizer still measures one row at a time:
@@ -1806,8 +1812,15 @@ const HEAT_LABELS = [
   'search index',
 ];
 
+const VLIST_SPEEDS = [
+  { label: 'brisk', ms: 260 },
+  { label: 'default', ms: 520 },
+  { label: 'languid', ms: 1000 },
+];
+
 function VirtualListDemo() {
   const [smooth, setSmooth] = useState(true);
+  const [speed, setSpeed] = useState(520);
   const [playing, setPlaying] = useState(true);
   const [rows, setRows] = useState<HeatRow[]>(() =>
     Array.from({ length: 48 }, (_, i) => ({
@@ -1831,11 +1844,14 @@ function VirtualListDemo() {
       return next;
     });
 
+  // Leave enough air after the slowest glide that a reorder finishes before the
+  // next one starts, so the auto-play reads as a sequence of moves rather than
+  // as rows never settling.
   useEffect(() => {
     if (!playing) return;
-    const t = setInterval(bump, 1100);
+    const t = setInterval(bump, speed + 700);
     return () => clearInterval(t);
-  }, [playing]);
+  }, [playing, speed]);
 
   const sorted = [...rows].sort((a, b) => b.heat - a.heat);
 
@@ -1865,12 +1881,31 @@ function VirtualListDemo() {
         >
           {playing ? '❚❚ pause' : '▶ auto'}
         </button>
+        <div className="mono flex items-center gap-1 text-[11px] text-muted-foreground">
+          <span className="pl-1 pr-0.5">speed</span>
+          {VLIST_SPEEDS.map((s) => (
+            <button
+              key={s.ms}
+              onClick={() => setSpeed(s.ms)}
+              disabled={!smooth}
+              className={cn(
+                'rounded-md border px-2 py-1.5 text-[11px] transition-colors disabled:opacity-40',
+                speed === s.ms
+                  ? 'border-[color:var(--cyan-deep)] bg-[var(--tint-strong)] text-[color:var(--cyan-deep)]'
+                  : 'border-border text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {s.label} · {s.ms}ms
+            </button>
+          ))}
+        </div>
       </div>
       <VirtualList
         items={sorted}
         className="h-[360px] rounded-lg border border-border"
         estimateSize={48}
         smooth={smooth}
+        smoothDuration={speed}
         getItemKey={(r) => r.id}
         renderItem={(r, i) => (
           <div className="px-2" style={{ paddingBottom: 6 }}>
@@ -1894,7 +1929,8 @@ function VirtualListDemo() {
       />
       <p className="mt-2 mono text-[11px] text-muted-foreground">
         48 rows auto-sort by activity · toggle <span className="text-foreground">smooth</span> to see
-        rows glide vs. teleport · scroll to see windowing
+        rows glide vs. teleport · a row moving <span className="text-foreground">up</span> passes in
+        front of the ones it overtakes · scroll to see windowing
       </p>
     </div>
   );

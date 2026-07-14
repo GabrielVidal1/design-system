@@ -1,5 +1,5 @@
 import { createRef } from 'react';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { VirtualList, type VirtualListHandle } from './virtual-list';
@@ -143,6 +143,108 @@ describe('VirtualList', () => {
       />,
     );
     expect(onEndReached).not.toHaveBeenCalled();
+  });
+
+  describe('smooth reorder', () => {
+    type Row = { id: number };
+    const rowsOf = (ids: number[]) => ids.map((id) => ({ id }));
+
+    // The rows are keyed by id, so re-sorting `items` moves each row's target
+    // offset — which is exactly what the transition glides.
+    const renderList = (items: Row[], props: Partial<Parameters<typeof VirtualList<Row>>[0]> = {}) =>
+      render(
+        <VirtualList
+          items={items}
+          estimateSize={60}
+          className="h-96"
+          smooth
+          getItemKey={(r) => r.id}
+          renderItem={(r) => <div data-testid="row">{`row-${r.id}`}</div>}
+          {...props}
+        />,
+      );
+
+    const rowEl = (container: HTMLElement, id: number) =>
+      (screen.getByText(`row-${id}`).closest('.ds-virtual-row') as HTMLElement) ??
+      (() => {
+        throw new Error(`row ${id} not mounted in ${container.innerHTML}`);
+      })();
+
+    it('publishes smoothDuration and smoothEasing to the CSS as custom properties', () => {
+      const { container } = renderList(rowsOf([1, 2, 3]), {
+        smoothDuration: 900,
+        smoothEasing: 'linear',
+      });
+      const row = rowEl(container, 1);
+      expect(row).toHaveClass('ds-virtual-row--smooth');
+      expect(row.style.getPropertyValue('--ds-virtual-row-duration')).toBe('900ms');
+      expect(row.style.getPropertyValue('--ds-virtual-row-ease')).toBe('linear');
+    });
+
+    it('defaults to a slower ease-in-out than a straight snap', () => {
+      const { container } = renderList(rowsOf([1, 2]));
+      const row = rowEl(container, 1);
+      expect(row.style.getPropertyValue('--ds-virtual-row-duration')).toBe('520ms');
+      expect(row.style.getPropertyValue('--ds-virtual-row-ease')).toBe('cubic-bezier(0.65, 0, 0.35, 1)');
+    });
+
+    it('marks only the rows travelling UP as rising, so they stack over the ones falling', async () => {
+      const { container, rerender } = renderList(rowsOf([1, 2, 3, 4]));
+
+      // Nothing has moved yet — no row is climbing over another.
+      expect(container.querySelectorAll('.ds-virtual-row--rising')).toHaveLength(0);
+
+      // Row 4 jumps to the top: it travels up, and 1/2/3 each slide down a slot.
+      rerender(
+        <VirtualList
+          items={rowsOf([4, 1, 2, 3])}
+          estimateSize={60}
+          className="h-96"
+          smooth
+          getItemKey={(r) => r.id}
+          renderItem={(r) => <div data-testid="row">{`row-${r.id}`}</div>}
+        />,
+      );
+
+      await waitFor(() => expect(rowEl(container, 4)).toHaveClass('ds-virtual-row--rising'));
+      // The rows it overtook are moving down — they must NOT be lifted, or the
+      // climber has nothing to pass in front of.
+      for (const id of [1, 2, 3]) {
+        expect(rowEl(container, id)).not.toHaveClass('ds-virtual-row--rising');
+      }
+    });
+
+    it('drops the rising layer once the transition has run', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        const { container, rerender } = renderList(rowsOf([1, 2, 3]), { smoothDuration: 300 });
+        rerender(
+          <VirtualList
+            items={rowsOf([3, 1, 2])}
+            estimateSize={60}
+            className="h-96"
+            smooth
+            smoothDuration={300}
+            getItemKey={(r) => r.id}
+            renderItem={(r) => <div data-testid="row">{`row-${r.id}`}</div>}
+          />,
+        );
+        await waitFor(() => expect(rowEl(container, 3)).toHaveClass('ds-virtual-row--rising'));
+
+        await act(async () => {
+          vi.advanceTimersByTime(400);
+        });
+        expect(rowEl(container, 3)).not.toHaveClass('ds-virtual-row--rising');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('adds no transition class at all when smooth is off', () => {
+      const { container } = renderList(rowsOf([1, 2]), { smooth: false });
+      expect(container.querySelectorAll('.ds-virtual-row--smooth')).toHaveLength(0);
+      expect(container.querySelectorAll('.ds-virtual-row')).not.toHaveLength(0);
+    });
   });
 
   describe('grid mode (columns)', () => {
