@@ -299,6 +299,25 @@ export function VirtualListIcon() {
   );
 }
 
+/** AnimatedList — two rows trade places, gliding past each other (FLIP). */
+export function AnimatedListIcon() {
+  return (
+    <Svg>
+      <rect x="52" y="26" width="104" height="78" rx="8" stroke={DIM} strokeWidth="2" />
+      {/* bottom row sits still … */}
+      <rect x="64" y="82" width="60" height="8" rx="4" fill={DIM} opacity="0.4" />
+      {/* … while the top two rows swap slots (24px apart) and glide past. */}
+      <g className="a-reorder-up">
+        <rect x="64" y="62" width="60" height="8" rx="4" fill={CY} opacity="0.9" />
+        <circle cx="138" cy="66" r="4" fill={CY} />
+      </g>
+      <g className="a-reorder-down">
+        <rect x="64" y="38" width="44" height="8" rx="4" fill={DIM} opacity="0.45" />
+      </g>
+    </Svg>
+  );
+}
+
 /** Nav2D — the stick rolls its gate while the ray marches to the target. */
 export function Nav2DIcon() {
   return (

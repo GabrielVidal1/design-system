@@ -107,6 +107,8 @@ export { GlobalSearch, formatHotkey, parseHotkey, useHotkey } from './components
 export type { GlobalSearchProps, GlobalSearchSource, Hotkey } from './components/global-search';
 export { VirtualList } from './components/virtual-list';
 export type { VirtualListProps, VirtualListHandle, VirtualListColumns } from './components/virtual-list';
+export { AnimatedList } from './components/animated-list';
+export type { AnimatedListProps } from './components/animated-list';
 export { Collection } from './components/collection';
 export type {
   CollectionProps,

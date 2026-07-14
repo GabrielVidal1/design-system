@@ -79,6 +79,7 @@ import {
   ToastProvider,
   ViewableImage,
   VirtualList,
+  AnimatedList,
   cn,
   fmtBytes,
   fmtCost,
@@ -140,6 +141,7 @@ import {
   ToastIcon,
   ViewableImageIcon,
   VirtualListIcon,
+  AnimatedListIcon,
   ElementPickerIcon,
   TabsIcon,
   FileEditorIcon,
@@ -206,6 +208,7 @@ const GROUP_OF: Record<string, Group> = {
   'element-picker': 'Inputs',
   'file-editor': 'Inputs',
   'char-roll': 'Animation',
+  'animated-list': 'Animation',
   'progressive-text': 'Animation',
   'progressive-list': 'Animation',
   'progressive-bash': 'Animation',
@@ -253,6 +256,7 @@ const SOURCE_FILE: Record<string, string> = {
   'fuzzy-list': 'fuzzy-list.tsx',
   'global-search': 'global-search.tsx',
   'virtual-list': 'virtual-list.tsx',
+  'animated-list': 'animated-list.tsx',
   collection: 'collection.tsx',
   'progressive-text': 'progressive-text.tsx',
   'progressive-list': 'progressive-list.tsx',
@@ -509,6 +513,29 @@ open(media, { story: true })      // auto-advancing story + progress bar`,
 
 // arbitrary strings work too — changed chars flip once
 <CharRoll value={job.status} align="start" />`,
+  },
+  {
+    id: 'animated-list',
+    name: 'AnimatedList',
+    sig: '<T>(items, renderItem, getItemKey, duration?, easing?)',
+    tag: 'animation',
+    Icon: AnimatedListIcon,
+    Demo: AnimatedListDemo,
+    code: `// fit-content, non-virtualized — rows glide (FLIP) to their new
+// slot when the list is re-sorted. For a SHORT list that should take
+// its content's height (a running-agents rail, a live leaderboard).
+<AnimatedList
+  items={sorted}                 // re-sorted live as data changes
+  getItemKey={(c) => c.id}       // stable identity — required
+  duration={460}                 // glide length in ms (default 460)
+  easing="cubic-bezier(0.65, 0, 0.35, 1)"   // ease-in-out by default
+  className="space-y-2"          // your own gap/spacing — no scroll box
+  renderItem={(c) => <Card {...c} />}
+/>
+
+// vs VirtualList: use VirtualList for LONG lists (virtualized, needs a
+// bounded-height scroll container); use AnimatedList when the list is
+// short enough to render whole and should size to its content.`,
   },
   {
     id: 'progressive-text',
@@ -2233,6 +2260,72 @@ function VirtualListDemo() {
         rows glide vs. teleport · every row that moves animates, and one moving{' '}
         <span className="text-foreground">up</span> passes in front of the ones it displaces · scroll
         to see windowing
+      </p>
+    </div>
+  );
+}
+
+function AnimatedListDemo() {
+  const [playing, setPlaying] = useState(true);
+  // A short, fit-content list — six "agents" whose live cost re-sorts them.
+  const [rows, setRows] = useState(() =>
+    ['Deploy', 'Migrate DB', 'Fetch feed', 'Build image', 'Run tests', 'Index files'].map(
+      (label, i) => ({ id: i, label, cost: (i + 1) * 0.4 }),
+    ),
+  );
+
+  const bump = () =>
+    setRows((prev) =>
+      prev.map((r, i) =>
+        // nudge two rows so the order actually changes
+        i % 3 === 0 ? { ...r, cost: r.cost + 0.3 + (i % 2) * 0.5 } : r,
+      ),
+    );
+
+  useEffect(() => {
+    if (!playing) return;
+    const t = setInterval(bump, 1100);
+    return () => clearInterval(t);
+  }, [playing]);
+
+  const sorted = [...rows].sort((a, b) => b.cost - a.cost);
+
+  return (
+    <div>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <button
+          onClick={bump}
+          className="mono rounded-md border border-border px-2.5 py-1.5 text-[11px] text-foreground transition-colors hover:bg-[var(--tint)]"
+        >
+          bump cost
+        </button>
+        <button
+          onClick={() => setPlaying((p) => !p)}
+          className="mono rounded-md border border-border px-2.5 py-1.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {playing ? '❚❚ pause' : '▶ auto'}
+        </button>
+      </div>
+      {/* No fixed height — the list takes exactly its content's height. */}
+      <AnimatedList
+        items={sorted}
+        getItemKey={(r) => r.id}
+        className="space-y-2"
+        renderItem={(r, i) => (
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-[var(--tint)] px-3 py-2.5">
+            <span className="mono w-5 shrink-0 text-[11px] tabular-nums text-[color:var(--cyan-deep)]">
+              {i + 1}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-sm text-foreground">{r.label}</span>
+            <span className="mono shrink-0 text-[11px] tabular-nums text-muted-foreground">
+              ${r.cost.toFixed(2)}
+            </span>
+          </div>
+        )}
+      />
+      <p className="mt-3 mono text-[11px] text-muted-foreground">
+        six rows auto-sort by cost · the list sizes to its content (no scroll box) · rows{' '}
+        <span className="text-foreground">glide</span> to their new slot when the order changes
       </p>
     </div>
   );

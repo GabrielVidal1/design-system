@@ -384,6 +384,20 @@ body::before {
 }
 .a-swap { animation: a-swap 4.6s var(--ease-io) infinite; }
 
+/* AnimatedList — the top two rows trade places (FLIP), then swap back */
+@keyframes a-reorder-up {
+  0%, 30%  { transform: translateY(0); }
+  50%, 80% { transform: translateY(-24px); }
+  100%     { transform: translateY(0); }
+}
+@keyframes a-reorder-down {
+  0%, 30%  { transform: translateY(0); }
+  50%, 80% { transform: translateY(24px); }
+  100%     { transform: translateY(0); }
+}
+.a-reorder-up { animation: a-reorder-up 4.4s var(--ease-io) infinite; }
+.a-reorder-down { animation: a-reorder-down 4.4s var(--ease-io) infinite; }
+
 @keyframes a-sun {
   0%, 38%  { opacity: 1; }
   52%, 90% { opacity: 0; }

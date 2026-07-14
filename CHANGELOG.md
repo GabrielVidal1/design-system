@@ -13,6 +13,20 @@ line directly under a version heading becomes that release's display title.
 Draft a release with `gabvdl-changelog draft` (conventional commits since the
 last release → grouped bullets under Unreleased), then curate the prose.
 
+## [0.18.0]
+
+> A list that glides when it re-sorts.
+
+### Added
+
+- **`AnimatedList`** — a fit-content, non-virtualized list whose rows glide
+  (FLIP) to their new slot when the list is re-sorted. Where `VirtualList smooth`
+  needs a bounded-height scroll container and virtualizes, `AnimatedList` renders
+  every row and takes its content's height — for a short list that should size to
+  its content (a running-agents rail, a live leaderboard). Requires a stable
+  `getItemKey`; honors `prefers-reduced-motion`. No CSS import — the transition is
+  managed inline.
+
 ## [0.17.1]
 
 > The image viewer learns to play.
