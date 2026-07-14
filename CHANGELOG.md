@@ -17,6 +17,18 @@ last release → grouped bullets under Unreleased), then curate the prose.
 
 ### Added
 
+- `CharRoll` — animates changes to a string or number by rolling each changed
+  character vertically, new chars dropping in from the top like the wheels of
+  a mechanical tally counter. Digits roll through every intermediate digit
+  (wrapping 9 → 0); other characters flip in one step; unchanged characters
+  hold still. `stagger` ripples the roll from the end of the string toward the
+  start, and `maxRotations` gives the rightmost changed digits extra full
+  revolutions for an accelerated odometer feel. `align="end"` (default) pairs
+  old/new strings from the last character so numbers keep their columns when
+  they grow a digit; `align="start"` suits words. Renders `tabular-nums`,
+  exposes the plain value as `aria-label`, and respects
+  `prefers-reduced-motion`. Made for live token counts and costs that would
+  otherwise just blink to a new value.
 - `Tabs` (`Tabs` · `TabsList` · `TabsTrigger` · `TabsContent`) — the tabbed
   panel every app rebuilds, touch-first. The strip **scrolls** instead of
   wrapping and keeps the active tab in view; on touch the panels are

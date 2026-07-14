@@ -39,6 +39,7 @@ import {
   Nav2DProvider,
   Nav2DItem,
   useNav2D,
+  CharRoll,
   PhonePreview,
   ProgressiveBash,
   type BashEntry,
@@ -86,6 +87,7 @@ import {
   CnIcon,
   ButtonIcon,
   ChangelogIcon,
+  CharRollIcon,
   CollectionIcon,
   CopyButtonIcon,
   DropZoneIcon,
@@ -169,6 +171,7 @@ const GROUP_OF: Record<string, Group> = {
   'drop-zone': 'Inputs',
   'copy-button': 'Inputs',
   'element-picker': 'Inputs',
+  'char-roll': 'Animation',
   'progressive-text': 'Animation',
   'progressive-list': 'Animation',
   'progressive-bash': 'Animation',
@@ -445,6 +448,23 @@ open(urls, 0) // full-screen: zoom · pan · swipe`,
 
 // generic slots: renderMeta · renderActions · renderOverlay
 // full overrides:  renderCard · renderRow`,
+  },
+  {
+    id: 'char-roll',
+    name: 'CharRoll',
+    sig: 'value · stagger · maxRotations — tally-counter roll',
+    tag: 'animation',
+    Icon: CharRollIcon,
+    Demo: CharRollDemo,
+    code: `// live counters roll instead of blinking to the new value
+<CharRoll value={fmtCost(cost)} />
+
+// odometer feel: end-to-start stagger + the rightmost
+// changed digits spinning extra revolutions
+<CharRoll value={fmtNum(tokens)} stagger={40} maxRotations={2} />
+
+// arbitrary strings work too — changed chars flip once
+<CharRoll value={job.status} align="start" />`,
   },
   {
     id: 'progressive-text',
@@ -3138,6 +3158,44 @@ function StatusBadgeDemo() {
         An unknown status degrades to a neutral pill of the raw string —{' '}
         <StatusBadge status="seeding" /> — rather than crashing the row.
       </p>
+    </div>
+  );
+}
+
+function CharRollDemo() {
+  const [tokens, setTokens] = useState(184_320);
+  const [cost, setCost] = useState(1.28);
+  const [step, setStep] = useState(0);
+  const status = ['queued', 'running', 'uploading', 'done'][step % 4];
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setTokens((t) => t + Math.floor(Math.random() * 9_000) + 400);
+      setCost((c) => c + Math.random() * 0.06);
+      setStep((s) => s + 1);
+    }, 2200);
+    return () => clearInterval(id);
+  }, []);
+
+  const rows: [string, React.ReactNode][] = [
+    ['tokens · maxRotations 2', <CharRoll value={fmtNum(tokens)} stagger={40} maxRotations={2} />],
+    ['cost · plain roll', <CharRoll value={fmtCost(cost)} />],
+    ['raw count', <CharRoll value={tokens} maxRotations={1} />],
+    ['string · align start', <CharRoll value={status} align="start" />],
+  ];
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-border">
+      <table className="w-full text-sm">
+        <tbody>
+          {rows.map(([label, node]) => (
+            <tr key={label} className="border-b border-border last:border-0">
+              <td className="px-4 py-2.5 text-muted-foreground">{label}</td>
+              <td className="mono px-4 py-2.5 text-right text-foreground">{node}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

@@ -166,6 +166,8 @@ export type {
   RichInputHandle,
   ComposeInput,
 } from './components/rich-input';
+export { CharRoll } from './components/char-roll';
+export type { CharRollProps } from './components/char-roll';
 export { ProgressiveText } from './components/progressive-text';
 export type { ProgressiveTextProps, ProgressiveTextMeta } from './components/progressive-text';
 export { ProgressiveList } from './components/progressive-list';

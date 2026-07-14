@@ -334,6 +334,29 @@ export function ProgressiveTextIcon() {
   );
 }
 
+/** CharRoll — tally-counter windows, digit slugs rolling faster on the right. */
+export function CharRollIcon() {
+  const xs = [50, 94, 138];
+  const durs = ['6.4s', '4.6s', '2.8s'];
+  return (
+    <Svg>
+      {xs.map((x, i) => (
+        <g key={x} className="a-drift" style={v({ '--dy': '24px', '--dur': durs[i] })}>
+          <rect x={x + 8} y="18" width="18" height="10" rx="3" fill={CY} fillOpacity="0.3" />
+          <rect x={x + 8} y="60" width="18" height="10" rx="3" fill={CY} fillOpacity="0.85" />
+          <rect x={x + 8} y="102" width="18" height="10" rx="3" fill={CY} fillOpacity="0.3" />
+        </g>
+      ))}
+      {/* scrims hide the strip outside the windows */}
+      <rect x="38" y="0" width="152" height="38" fill={PAPER} />
+      <rect x="38" y="92" width="152" height="38" fill={PAPER} />
+      {xs.map((x) => (
+        <rect key={x} x={x} y="38" width="34" height="54" rx="6" stroke={DIM} strokeWidth="2" />
+      ))}
+    </Svg>
+  );
+}
+
 /** ProgressiveTable — a header bar, then grid rows rising one by one. */
 export function ProgressiveTableIcon() {
   const cols = [46, 96, 146];
