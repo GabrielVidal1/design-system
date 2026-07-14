@@ -42,6 +42,7 @@
   --code-punctuation: #78716c;
   --code-regex: #b45309;
   --code-gutter: #a8a29e;
+  --code-caret: #1c1917;
   --code-selection: rgba(120, 113, 108, 0.25);
 }
 
@@ -77,6 +78,7 @@
   --code-punctuation: #a8a29e;
   --code-regex: #fcd34d;
   --code-gutter: #57534e;
+  --code-caret: #fafaf9;
   --code-selection: rgba(168, 162, 158, 0.3);
 }
 

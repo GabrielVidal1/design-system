@@ -141,7 +141,7 @@ export const CodeArea = React.forwardRef<HTMLTextAreaElement, CodeAreaProps>(
               TEXT_METRICS,
               wrapClasses,
               'absolute inset-0 h-full w-full resize-none overflow-hidden bg-transparent px-3 py-2.5',
-              'text-transparent caret-[var(--foreground,#1c1917)] outline-none',
+              'text-transparent caret-[var(--code-caret,#1c1917)] outline-none',
               'selection:bg-[var(--code-selection,rgba(120,113,108,0.25))] selection:text-transparent',
               textareaClassName,
             )}

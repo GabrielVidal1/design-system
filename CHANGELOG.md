@@ -35,6 +35,9 @@ last release → grouped bullets under Unreleased), then curate the prose.
   label/value row (`format` for "250,000 tris"-style captions), and
   `onValueCommit` for fire-once-on-release work.
 
+- `FileEditor` — the caret reads its own `--code-caret` token instead of
+  `--foreground`, so apps whose theme vars are raw HSL triplets (Tailwind
+  hsl(var(--…)) convention) keep a visible caret.
 - `FileEditor` — `headerStart` slot: content before the menu bar (a sidebar
   toggle, a back button) for apps embedding the editor next to a file list.
 - `FileEditor` — a generic text-file viewer/editor (the shape ai-agent's file
