@@ -17,6 +17,42 @@ last release → grouped bullets under Unreleased), then curate the prose.
 
 ### Added
 
+- `Progress` — the determinate progress bar every queue and upload rebuilds.
+  `value`/`max` with a smooth eased fill, an optional label row and formatted
+  value (`format` for "212 / 512 frames"-style captions), and an indeterminate
+  sweep when the duration is unknown (`indeterminate`, or just omit `value`).
+  Colours read from the same `Tone` scale as `StatusBadge`, so a running job's
+  bar and pill agree. Sweep keyframes ship in `@gabvdl/ui/progress.css`
+  (included in the `styles.css` barrel) and respect `prefers-reduced-motion`.
+- `StatTile` + `StatRow` — the dashboard KPI strip. A tile takes `label`,
+  `value`, an optional trend `delta` (signed percent chip whose colour follows
+  `goodDirection` — errors going *down* is emerald), a `hint` caption, corner
+  icon and a loading skeleton; string/number values tick over with the
+  `CharRoll` tally animation so live dashboards read as live. `StatRow` lays
+  tiles out 2-up on phones, `columns`-up beyond.
+- `DataTable` — the service-frontend table: click-to-cycle sortable headers
+  (asc → desc → off, `aria-sort`, locale-aware compare with numeric collation,
+  nulls always sinking), checkbox multi-select with an indeterminate
+  select-all, sticky header, keyboardable row activation, empty/loading
+  states — and below `cardBreakpoint` (default 640px) rows collapse into
+  label/value cards so wide tables never side-scroll on phones. Controlled or
+  uncontrolled sort and selection; `VirtualList` remains the answer past a few
+  thousand rows.
+- **Full-page demos** on the docs site — `/demos`, a new top-nav section
+  proving the pieces compose into real app screens, each card listing its
+  bill of materials:
+  - **Agent console** (`/demos/chat`) — an ai-agent-style screen:
+    `ResizableLayout` conversation/details drawers, an animated transcript
+    whose replies stream in with `ProgressiveText`, and a `RichInput` composer
+    with guideline chips.
+  - **Switchboard** (`/demos/search`) — one `GlobalSearch` palette (⌘K, or a
+    bottom sheet on phones) plus an inline `FuzzyList` over the same index,
+    fully keyboard- and thumb-driven.
+  - **Render queue** (`/demos/jobs`) — a 3d-gen-style service frontend: a
+    `StatRow` of live KPIs, a `DataTable` queue advancing one job at a time,
+    per-job `Progress`, and `ProgressiveBash` replaying each job's logs in the
+    detail drawer.
+
 - `CharRoll` — animates changes to a string or number by rolling each changed
   character vertically, new chars dropping in from the top like the wheels of
   a mechanical tally counter. Digits roll through every intermediate digit
@@ -40,6 +76,14 @@ last release → grouped bullets under Unreleased), then curate the prose.
   wrapping arrow keys, `Home`/`End`, and `activation="manual"` to move focus
   without selecting (for panels that fetch on select). `keepMounted` keeps an
   inactive panel in the DOM so it holds its scroll and form state.
+
+### Fixed
+
+- `RichInput` — the auto-grow textarea now re-measures when its width changes
+  (a `ResizableLayout` drawer resize, a panel that mounts at zero width).
+  Before, a composer mounting inside a still-settling panel measured its
+  wrapped placeholder at zero width and locked itself at `maxRows` tall even
+  though it was empty.
 
 ## [0.4.1] - 2026-07-14
 
