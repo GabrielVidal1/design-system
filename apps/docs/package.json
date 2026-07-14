@@ -4,7 +4,10 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "changelog": "node ../../packages/ui/bin/changelog.mjs from-md ../../CHANGELOG.md --out public/changelog.jsonl",
+    "predev": "npm run changelog",
     "dev": "vite",
+    "prebuild": "npm run changelog",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
     "preview": "vite preview"

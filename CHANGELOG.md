@@ -6,9 +6,60 @@ During `0.x` the project follows the deviation from strict semver spelled out
 in the [README](README.md): from `0.1.0` on, breaking changes bump the
 **minor**, and renamed props keep a deprecated alias for at least one minor.
 
+This file is also machine-read: `gabvdl-changelog from-md` (bundled with the
+package) compiles it to the `changelog.jsonl` that the docs site's
+`/changelog` page, changelog modal and new-version toast consume. A `> quoted`
+line directly under a version heading becomes that release's display title.
+Draft a release with `gabvdl-changelog draft` (conventional commits since the
+last release → grouped bullets under Unreleased), then curate the prose.
+
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-14
+
+> One changelog everywhere
+
+### Added
+
+- **`ChangelogPage`** — the full release history as an anchored page
+  (`id="v1.2.3"` per release) for a `/changelog` route; same data, same entry
+  rendering as the modal. The docs site's new
+  [Changelog page](https://ui.gabvdl.xyz/#/changelog) is the live demo.
+- **`useChangelog`** — the data layer as a hook: `entries`, `latest`, and a
+  `newVersion` + `dismissNewVersion` pair for driving a custom update prompt.
+  `watch: true` polls for new versions (pauses while the tab is hidden).
+- **`NewVersionToast`** — the "new version → reload" toast standalone, for
+  apps that want the prompt without a changelog trigger.
+- **`gabvdl-changelog`** — a zero-dependency CLI bundled with the package
+  (`npx gabvdl-changelog`). Three modes: `build` regenerates
+  `public/changelog.jsonl` from conventional commits (seed once, then one
+  bundled version per deploy); `from-md` compiles a curated Keep-a-Changelog
+  `CHANGELOG.md` — sections preserved — for published packages like this one;
+  `draft` fills `[Unreleased]` from commits since the last release, idempotent
+  by short sha, ready for human curation.
+- `ChangelogEntry.sections` — optional Keep-a-Changelog categories
+  (added/changed/fixed/… plus `breaking`); the modal and page render grouped
+  section labels when present, flat bullets otherwise.
+- Everything data-side is exported for custom UIs: `parseChangelog`,
+  `fetchChangelog`, `watchChangelog`, `latestEntry`, `compareSemver`,
+  `isSemver`, and the shared `ChangelogEntryView`.
+
+### Changed
+
+- `Changelog` no longer loads the hosted changelog-widget SDK script — the
+  fetch/parse/poll data layer is built in, so it works offline, in dev, and
+  with no external dependency. The `sdkUrl` prop is deprecated (accepted,
+  ignored).
+- Docs: the changelog demo, the new `/changelog` page and the site's own
+  update toast all read `public/changelog.jsonl`, generated from this file at
+  build time — the hand-maintained copy of the history in `data.ts` (already
+  stale at 0.1.4) is gone. The retired pre-npm `0.x` line was dropped from the
+  displayed history: its versions (`0.16.0`, …) would out-sort the current
+  line; it remains in git history.
+
 ## [0.3.0] - 2026-07-14
+
+> Search results that glide
 
 ### Added
 
@@ -46,6 +97,8 @@ in the [README](README.md): from `0.1.0` on, breaking changes bump the
   `smoothDuration={320} smoothEasing="cubic-bezier(0.22, 1, 0.36, 1)"`.
 
 ## [0.2.0] - 2026-07-14
+
+> Collection: cards ⇄ list
 
 ### Added
 
@@ -91,6 +144,8 @@ in the [README](README.md): from `0.1.0` on, breaking changes bump the
 
 ## [0.1.5] - 2026-07-14
 
+> Bring your own send button
+
 ### Added
 
 - `RichInput`: **`renderSendButton`** — replace the built-in send button
@@ -99,6 +154,8 @@ in the [README](README.md): from `0.1.0` on, breaking changes bump the
   submit path the default button uses.
 
 ## [0.1.4] - 2026-07-13
+
+> Drawers that mount collapsed
 
 ### Fixed
 
@@ -111,6 +168,8 @@ in the [README](README.md): from `0.1.0` on, breaking changes bump the
   as a sliver on the first "+".
 
 ## [0.1.3] - 2026-07-13
+
+> Panels open and close like tabs
 
 ### Added
 
@@ -142,6 +201,8 @@ in the [README](README.md): from `0.1.0` on, breaking changes bump the
 
 ## [0.1.1] - 2026-07-13
 
+> Mobile drag-resize
+
 ### Added
 
 - `ResizableLayout`: mobile `'panel'` sides are now drag-resizable from a grip
@@ -154,6 +215,8 @@ in the [README](README.md): from `0.1.0` on, breaking changes bump the
   resizable panel (e.g. a `FloatingPanel`).
 
 ## [0.1.0] - 2026-07-13
+
+> First beta cut
 
 First beta cut — the point where the library stops being a fast-moving grab
 bag of components and starts being something you can build on.
@@ -291,5 +354,6 @@ publishing a fresh `0.0.x` line with provenance. A follow-up fix worked around
 npm's `EOTP` 2FA requirement (classic "Automation" tokens were retired) by
 supporting both a bypass-2FA granular token and OIDC trusted publishing.
 
-[Unreleased]: https://github.com/GabrielVidal1/design-system/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/GabrielVidal1/design-system/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/GabrielVidal1/design-system/compare/v0.1.0...v0.4.0
 [0.1.0]: https://github.com/GabrielVidal1/design-system/releases/tag/v0.1.0
