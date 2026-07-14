@@ -125,4 +125,49 @@ describe('FuzzyList', () => {
     expect(onQueryChange).toHaveBeenCalledWith('a');
     expect(onQueryChange).toHaveBeenCalledWith('ap');
   });
+
+  describe('smooth reorder passthrough', () => {
+    it('does not animate rows by default', () => {
+      const { container } = renderList();
+      expect(container.querySelectorAll('.ds-virtual-row--smooth')).toHaveLength(0);
+    });
+
+    it('forwards `smooth` (and its pace) to the underlying VirtualList', () => {
+      const { container } = renderList({
+        smooth: true,
+        smoothDuration: 700,
+        smoothEasing: 'linear',
+      });
+      const rows = container.querySelectorAll('.ds-virtual-row--smooth');
+      expect(rows.length).toBeGreaterThan(0);
+      const row = rows[0] as HTMLElement;
+      expect(row.style.getPropertyValue('--ds-virtual-row-duration')).toBe('700ms');
+      expect(row.style.getPropertyValue('--ds-virtual-row-ease')).toBe('linear');
+    });
+
+    it('keeps the VirtualList defaults when only `smooth` is set', () => {
+      const { container } = renderList({ smooth: true });
+      const row = container.querySelector('.ds-virtual-row--smooth') as HTMLElement;
+      expect(row.style.getPropertyValue('--ds-virtual-row-duration')).toBe('520ms');
+      expect(row.style.getPropertyValue('--ds-virtual-row-ease')).toBe('cubic-bezier(0.65, 0, 0.35, 1)');
+    });
+
+    it('holds the DOM order steady as a query re-ranks the results', async () => {
+      // Re-ranking is a reorder like any other: the rows must keep their DOM
+      // slots so the transition survives (see the VirtualList tests).
+      const user = userEvent.setup();
+      const { container } = renderList({ smooth: true });
+      const nodes = () => [...container.querySelectorAll('.ds-virtual-row')];
+      const before = nodes();
+
+      await user.type(screen.getByPlaceholderText('Search…'), 'parser');
+      await screen.findByTestId('row-parser.ts');
+
+      // The surviving rows are the same DOM nodes, in the same sibling order —
+      // Fuse re-ranked them, but React did not move a single element.
+      const after = nodes();
+      const kept = after.filter((n) => before.includes(n));
+      expect(kept).toEqual(before.filter((n) => after.includes(n)));
+    });
+  });
 });

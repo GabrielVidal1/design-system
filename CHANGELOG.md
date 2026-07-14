@@ -8,6 +8,25 @@ in the [README](README.md): from `0.1.0` on, breaking changes bump the
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-14
+
+### Added
+
+- **`FuzzyList`** — forwards **`smooth`** (plus `smoothDuration` / `smoothEasing`)
+  to its underlying `VirtualList`, so the results can glide to their new slots
+  instead of teleporting. A fuzzy list re-ranks on *every keystroke*, which makes
+  this the reorder users see most often. Needs a stable `getItemKey`, as ever;
+  off by default.
+- **`VirtualList`** — the `smooth` reorder is now tunable and legible.
+  - `smoothDuration` (ms) and `smoothEasing` set the pace and the curve of the
+    glide, published to the CSS as `--ds-virtual-row-duration` /
+    `--ds-virtual-row-ease` on each row.
+  - A row travelling **up** is now stacked over the rows it overtakes (which are,
+    by definition, sliding down to make room), so a swap reads as one card
+    passing in *front* of another instead of disappearing behind it. The lift is
+    held for exactly the length of the transition and released when the row
+    settles.
+
 ### Fixed
 
 - **`VirtualList`** — the rows sliding *down* during a `smooth` reorder snapped
@@ -18,18 +37,6 @@ in the [README](README.md): from `0.1.0` on, breaking changes bump the
   the browser dropped the transition and the row teleported. Rows are positioned
   purely by `transform`, so pinning the DOM order costs nothing visually (paint
   order is what the rising z-index governs) and every moving row now glides.
-
-### Added
-
-- **`VirtualList`** — the `smooth` reorder is now tunable and legible.
-  - `smoothDuration` (ms) and `smoothEasing` set the pace and the curve of the
-    glide, published to the CSS as `--ds-virtual-row-duration` /
-    `--ds-virtual-row-ease` on each row.
-  - A row travelling **up** is now stacked over the rows it overtakes (which are,
-    by definition, sliding down to make room), so a swap reads as one card
-    passing in *front* of another instead of disappearing behind it. The lift is
-    held for exactly the length of the transition and released when the row
-    settles.
 
 ### Changed
 

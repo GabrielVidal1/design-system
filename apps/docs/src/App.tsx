@@ -310,6 +310,7 @@ open(urls, 0) // full-screen: zoom · pan · swipe`,
   keys={['name', 'host', 'desc']}
   getItemKey={(n) => n.name}
   debounce={400}                 // ms after the last keystroke; 0 = every keystroke
+  smooth                         // glide rows as each keystroke re-ranks them
   renderItem={({ highlight }) => (
     <Row>
       <b>{highlight('name')}</b>
@@ -1709,6 +1710,7 @@ function FuzzyListDemo() {
       placeholder='Search the homelab… (try "lab" for an exact match)'
       autoFocus
       debounce={200}
+      smooth
       className="h-[380px]"
       renderItem={({ highlight, active, item }) => (
         <div

@@ -66,6 +66,18 @@ export interface FuzzyListProps<T> {
   columns?: VirtualListColumns;
   /** Gap between grid cells, px. Only used when `columns` > 1. Default 12. */
   gap?: number;
+  /**
+   * Glide rows to their new slot when the results re-order — as they do on every
+   * keystroke (Fuse re-ranks by relevance), when the source list re-sorts, or
+   * when a live update changes an item's rank. Forwarded to
+   * {@link VirtualList.smooth}; needs a stable `getItemKey`, and rows moving up
+   * pass in front of the ones they displace. Off by default.
+   */
+  smooth?: boolean;
+  /** How long a `smooth` reorder takes, in ms. Default 520. */
+  smoothDuration?: number;
+  /** The CSS timing function of a `smooth` reorder. Default is an ease-in-out. */
+  smoothEasing?: string;
   /** Show the "N of M" count line above the list. */
   showCount?: boolean;
   /**
@@ -141,6 +153,9 @@ export function FuzzyList<T>({
   overscan = 8,
   columns,
   gap,
+  smooth,
+  smoothDuration,
+  smoothEasing,
   showCount = true,
   debounce = 400,
   fuseOptions,
@@ -250,6 +265,9 @@ export function FuzzyList<T>({
         overscan={overscan}
         columns={columns}
         gap={gap}
+        smooth={smooth}
+        smoothDuration={smoothDuration}
+        smoothEasing={smoothEasing}
         getItemKey={getItemKey ? (r, i) => getItemKey(r.item, i) : undefined}
         className={cn('min-h-0 flex-1 pt-1.5', listClassName)}
         emptyState={<p className="px-2 py-8 text-center text-sm text-muted-foreground">{emptyState}</p>}
