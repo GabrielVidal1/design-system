@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type Key, type ReactNode, type Ref } from 'react';
 
 import { cn } from '../../lib/utils';
-import { ProgressiveTimelineSlot } from '../progressive-timeline';
+import { ProgressiveTimelineSlot, toEpochMs } from '../progressive-timeline';
 
 export interface ProgressiveListItemMeta {
   /** This item was revealed by the animation (appended after mount), not part of
@@ -27,6 +27,19 @@ export interface ProgressiveListProps<T> {
    * overrides the `speed`-derived interval for rows that don't report a duration.
    */
   getDelay?: (item: T, index: number) => number;
+  /**
+   * Wall-clock anchor (a `Date` or epoch ms) for *when the reveal sequence
+   * began* — the first newly-appended row. With it the reveal is deterministic
+   * across remounts: on mount the list fast-forwards past every row whose slot
+   * (by the fallback/`getDelay` pacing) is already due, and hands each still-
+   * animating row a back-dated anchor so its own progressive children resume
+   * mid-flight too. A revisited page therefore shows the sequence at the point
+   * it should be at, not replayed from the top. Omit for the classic behaviour
+   * (the reveal starts whenever the component mounts). Only the fallback pacing
+   * is used to place the anchor; rows whose real inner animation runs longer
+   * than their fallback still finish typing after the jump.
+   */
+  timestamp?: Date | number;
   /** Stable key per item. @default the index */
   getKey?: (item: T, index: number) => Key;
   /**
@@ -64,6 +77,10 @@ function reducedMotion(): boolean {
  * `initialReveal`); only items appended later run through the timeline — so a
  * live, append-only feed animates only its genuinely-new rows and never replays
  * history.
+ *
+ * Pass a `timestamp` to anchor the reveal to wall-clock time: on remount the
+ * list resumes at the row it should be at (and back-dates each animating row's
+ * anchor), so the sequence stays consistent across page changes.
  */
 export function ProgressiveList<T>({
   items,
@@ -71,6 +88,7 @@ export function ProgressiveList<T>({
   speed = 4,
   delay = 0,
   getDelay,
+  timestamp,
   getKey,
   initialReveal,
   instant = false,
@@ -87,9 +105,45 @@ export function ProgressiveList<T>({
   }
   const initialCount = initialRef.current;
 
-  const [revealed, setRevealed] = useState(initialCount);
+  // Wall-clock anchor for the first animating row (epoch ms), fixed at mount.
+  const anchorRef = useRef<number | null>(null);
+  const anchorInit = useRef(false);
+  if (!anchorInit.current) {
+    anchorInit.current = true;
+    anchorRef.current = skip ? null : toEpochMs(timestamp);
+  }
+  const anchor = anchorRef.current;
+
+  // Fallback duration (ms) the sequence assigns to the i-th animating row when
+  // placing wall-clock anchors — the same pacing the live timeline falls back to.
+  const fallbackMsOf = useCallback(
+    (item: T, index: number) => (getDelay ? getDelay(item, index) * 1000 : 1000 / Math.max(0.001, speed)),
+    [getDelay, speed],
+  );
+
+  // Back-dated catch-up: with an anchor, fast-forward past rows whose fallback
+  // window has already elapsed, so a revisited page starts partway in. The head
+  // row that lands in the current window keeps its remaining animation.
+  const initialRevealed = useRef<number>(-1);
+  if (initialRevealed.current < 0) {
+    if (anchor == null) {
+      initialRevealed.current = initialCount;
+    } else {
+      let elapsed = Math.max(0, Date.now() - anchor) - Math.max(0, delay) * 1000;
+      let r = initialCount;
+      while (r < items.length && elapsed > 0) {
+        elapsed -= fallbackMsOf(items[r], r);
+        if (elapsed <= 0) break;
+        r++;
+      }
+      initialRevealed.current = Math.min(r, items.length);
+    }
+  }
+
+  const [revealed, setRevealed] = useState(initialRevealed.current);
   // How many of the animating slots ([initialCount, revealed)) have handed off.
-  const [completed, setCompleted] = useState(0);
+  // Catch-up back-dates the head, so every skipped-over row is already complete.
+  const [completed, setCompleted] = useState(Math.max(0, initialRevealed.current - 1 - initialCount));
   const handleComplete = useCallback(() => setCompleted((c) => c + 1), []);
 
   // Latest values read by the reveal scheduler without forcing it to reschedule.
@@ -97,6 +151,16 @@ export function ProgressiveList<T>({
   itemsRef.current = items;
   const getDelayRef = useRef(getDelay);
   getDelayRef.current = getDelay;
+
+  // Cumulative fallback offset (ms) of animating row i from the anchor — used to
+  // back-date each slot's own wall-clock start so its inner animation resumes at
+  // the right point too. Only meaningful when `anchor` is set.
+  const startedAtOf = (index: number): number | undefined => {
+    if (anchor == null) return undefined;
+    let off = Math.max(0, delay) * 1000;
+    for (let j = initialCount; j < index; j++) off += fallbackMsOf(itemsRef.current[j], j);
+    return anchor + off;
+  };
 
   // Advance the timeline: reveal the next item only once every already-revealed
   // animating slot has completed its inner animation (or its fallback elapsed).
@@ -110,13 +174,14 @@ export function ProgressiveList<T>({
     if (completed < animatingShown) return; // the current head is still animating
     // First item of a fresh batch waits the lead-in `delay`; the rest chain off
     // completions, so their spacing comes from each row's own inner animation.
-    const wait = animatingShown === 0 ? delay * 1000 : 0;
+    // (An anchored list already fast-forwarded past the lead-in at mount.)
+    const wait = animatingShown === 0 && anchor == null ? delay * 1000 : 0;
     const t = window.setTimeout(
       () => setRevealed((r) => Math.min(r + 1, itemsRef.current.length)),
       wait,
     );
     return () => window.clearTimeout(t);
-  }, [revealed, completed, items.length, skip, delay, initialCount]);
+  }, [revealed, completed, items.length, skip, delay, initialCount, anchor]);
 
   const headIndex = revealed - 1; // the one currently animating
 
@@ -139,13 +204,12 @@ export function ProgressiveList<T>({
 
         // Animating rows: a timeline slot gates the next reveal on this row's
         // inner animation (its progressive children report their duration).
-        const gd = getDelayRef.current;
-        const fallbackMs = gd ? gd(item, i) * 1000 : 1000 / Math.max(0.001, speed);
         return (
           <ProgressiveTimelineSlot
             key={key}
             active={i === headIndex}
-            fallbackMs={fallbackMs}
+            fallbackMs={fallbackMsOf(item, i)}
+            startedAt={startedAtOf(i)}
             onComplete={handleComplete}
           >
             <RevealItem animate className={itemClassName}>

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { cn } from '../../lib/utils';
-import { useProgressiveSlot } from '../progressive-timeline';
+import { toEpochMs, useProgressiveSlot } from '../progressive-timeline';
 
 export interface ProgressiveTableCellContext {
   /** Row index within `rows` (the header row is not counted). */
@@ -21,6 +21,17 @@ export interface ProgressiveTableProps {
   speed?: number;
   /** Seconds to wait before the header appears. @default 0 */
   delay?: number;
+  /**
+   * Wall-clock anchor (a `Date` or epoch ms) for *when the reveal began*. With
+   * it the table is deterministic across remounts: on mount it computes how many
+   * rows are already due (`now - timestamp`, minus the header lead-in) and shows
+   * them at once, animating only the row still in its window. A revisited page
+   * resumes at the right row instead of replaying from the header. Omit for the
+   * classic behaviour (the reveal starts whenever the table mounts). Inside a
+   * {@link ProgressiveList} the enclosing slot's anchor is used automatically; an
+   * explicit `timestamp` overrides it.
+   */
+  timestamp?: Date | number;
   /** Render the whole table at once, with no animation. */
   instant?: boolean;
   /**
@@ -76,6 +87,7 @@ export function ProgressiveTable({
   rows,
   speed = 6,
   delay = 0,
+  timestamp,
   instant = false,
   initialReveal,
   caption,
@@ -105,8 +117,27 @@ export function ProgressiveTable({
   const slotRef = useRef(slot);
   slotRef.current = slot;
 
-  const [headerShown, setHeaderShown] = useState(!animate);
-  const [revealed, setRevealed] = useState(initialCount);
+  // Wall-clock catch-up (fixed at mount): how many body rows are already due,
+  // from an explicit `timestamp` or the enclosing slot's anchor. Lets a
+  // revisited page resume at the right row instead of replaying the reveal.
+  const catchUp = useRef<{ header: boolean; rows: number }>({ header: false, rows: 0 });
+  const catchUpInit = useRef(false);
+  if (!catchUpInit.current) {
+    catchUpInit.current = true;
+    if (animate) {
+      const anchor = toEpochMs(timestamp);
+      const elapsed = anchor != null ? Math.max(0, Date.now() - anchor) : slot.elapsedMs;
+      const past = elapsed - Math.max(0, delay) * 1000;
+      if (past >= 0) {
+        const interval = 1000 / Math.max(0.001, speed);
+        const due = initialCount + Math.floor((past + ENTRANCE_MS) / interval);
+        catchUp.current = { header: true, rows: Math.min(rows.length, Math.max(initialCount, due)) };
+      }
+    }
+  }
+
+  const [headerShown, setHeaderShown] = useState(() => !animate || catchUp.current.header);
+  const [revealed, setRevealed] = useState(() => Math.max(initialCount, catchUp.current.rows));
 
   // Instant / reduced-motion: everything at once, and hand the timeline off now.
   useEffect(() => {
@@ -121,9 +152,12 @@ export function ProgressiveTable({
   useEffect(() => {
     if (skip || !active) return;
     const interval = 1000 / Math.max(0.001, speed);
-    const n = Math.max(0, rows.length - initialCount);
-    const durationMs = delay * 1000 + ENTRANCE_MS + n * interval;
-    slotRef.current.report(durationMs);
+    // Catch-up already consumed the header lead-in and some rows — report only
+    // what's left, so an enclosing list waits by the remaining reveal time.
+    const shownNow = Math.max(initialCount, catchUp.current.rows);
+    const lead = catchUp.current.header ? 0 : delay * 1000 + ENTRANCE_MS;
+    const n = Math.max(0, rows.length - shownNow);
+    slotRef.current.report(lead + n * interval);
   }, [active, skip, speed, delay, rows.length, initialCount]);
 
   // Reveal the header once it's our turn (after the lead-in delay).
@@ -165,7 +199,9 @@ export function ProgressiveTable({
         <tbody className={tbodyClassName}>
           {rows.map((row, i) => {
             if (i >= revealed) return null;
-            const isNew = i >= initialCount;
+            // "New" rows animate their entrance — except ones the catch-up jump
+            // already placed in the past, which appear settled like history.
+            const isNew = i >= Math.max(initialCount, catchUp.current.rows);
             return (
               <AnimatedRow key={i} animate={animate && isNew} shown className={rowClassName}>
                 {row.map((c, j) => (

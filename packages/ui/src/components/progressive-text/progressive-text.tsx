@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ElementType, type ReactNode } from 'react';
 
 import { cn } from '../../lib/utils';
-import { useProgressiveSlot } from '../progressive-timeline';
+import { toEpochMs, useProgressiveSlot } from '../progressive-timeline';
 
 export interface ProgressiveTextMeta {
   /** The visible text has fully caught up to `text`. */
@@ -23,6 +23,19 @@ export interface ProgressiveTextProps {
   deleteSpeed?: number;
   /** Seconds to wait before the first character is revealed. @default 0 */
   delay?: number;
+  /**
+   * Wall-clock anchor (a `Date` or epoch ms) for *when the reveal began*. With
+   * it the typewriter is deterministic across remounts: on mount it computes how
+   * much of the reveal is already due (`now - timestamp`, minus `delay`) and
+   * jumps straight to that character before continuing to type the rest. So a
+   * message that started typing 2s ago shows 2s of progress the instant it
+   * re-mounts — a page revisit resumes the animation at the right point instead
+   * of replaying it from the first character. Omit for the classic behaviour
+   * (the reveal starts from empty whenever the component mounts). Inside a
+   * {@link ProgressiveList}/{@link ProgressiveTimelineSlot} the slot's own
+   * anchor is used automatically; an explicit `timestamp` here overrides it.
+   */
+  timestamp?: Date | number;
   /** Render the full text at once with no animation (e.g. pre-existing content). */
   instant?: boolean;
   /** Show a blinking block caret while animating (default renderer only). */
@@ -71,12 +84,17 @@ function reducedMotion(): boolean {
  * `prefers-reduced-motion`) renders the full string immediately. Content that was
  * already present when the component mounted should pass `instant` so history
  * isn't re-typed; only freshly-arrived text needs to animate.
+ *
+ * Pass a `timestamp` to anchor the reveal to wall-clock time: on remount it
+ * resumes at the character it *should* be at (given how long ago the reveal
+ * began), so the animation stays consistent across page changes.
  */
 export function ProgressiveText({
   text,
   speed = 40,
   deleteSpeed,
   delay = 0,
+  timestamp,
   instant = false,
   caret = false,
   as,
@@ -86,7 +104,6 @@ export function ProgressiveText({
   onUpdate,
 }: ProgressiveTextProps) {
   const skip = instant || reducedMotion();
-  const [visible, setVisible] = useState(() => (skip ? text : ''));
 
   // Timeline slot (a no-op when not inside a ProgressiveList): hold the reveal
   // until it's this slot's turn, and report how long the reveal takes so the
@@ -95,6 +112,21 @@ export function ProgressiveText({
   const active = slot.active;
   const slotRef = useRef(slot);
   slotRef.current = slot;
+
+  // Wall-clock catch-up: how many characters are *already* due at mount, from an
+  // explicit `timestamp` or (failing that) the timeline slot's own anchor. This
+  // is what makes the reveal resume mid-flight after a remount instead of
+  // starting empty. Computed once, at mount — later prop changes type forward.
+  const catchUpLen = useRef<number>(-1);
+  if (catchUpLen.current < 0) {
+    const anchor = toEpochMs(timestamp);
+    const elapsed = anchor != null ? Math.max(0, Date.now() - anchor) : slot.elapsedMs;
+    const past = Math.max(0, elapsed - Math.max(0, delay) * 1000);
+    const interval = 1000 / Math.max(1, speed);
+    catchUpLen.current = skip ? 0 : Math.min(text.length, Math.floor(past / interval));
+  }
+
+  const [visible, setVisible] = useState(() => (skip ? text : text.slice(0, catchUpLen.current)));
 
   // Latest values read by the rAF loop, so prop changes never restart it.
   const targetRef = useRef(text);
@@ -108,7 +140,9 @@ export function ProgressiveText({
 
   const rafRef = useRef(0);
   const runningRef = useRef(false);
-  const startedRef = useRef(false); // the one-time initial delay has elapsed
+  // The one-time initial delay has elapsed. A catch-up jump already covered it,
+  // so an anchored reveal that started in the past never re-waits the lead-in.
+  const startedRef = useRef(catchUpLen.current > 0);
   const kickRef = useRef<() => void>(() => {});
 
   // The persistent animation loop — created once, reads everything via refs and
@@ -195,11 +229,13 @@ export function ProgressiveText({
       return;
     }
     if (!active) return; // wait until this slot is the head of the timeline
-    // Constant rate ⇒ the reveal takes delay + (length / speed). Reporting it
-    // lets ProgressiveList delay the next item until this text finishes typing.
+    // Constant rate ⇒ the reveal takes delay + (length / speed). Report the
+    // *remaining* time (a catch-up jump already consumed part of it), so an
+    // anchored ProgressiveList delays the next item by only what's left to type.
     const interval = 1000 / Math.max(1, speed);
-    const durationMs = Math.max(0, delay) * 1000 + text.length * interval;
-    slotRef.current.report(durationMs);
+    const remaining = Math.max(0, text.length - visibleRef.current.length) * interval;
+    const lead = startedRef.current ? 0 : Math.max(0, delay) * 1000;
+    slotRef.current.report(lead + remaining);
     kickRef.current();
   }, [text, skip, active, speed, delay]);
 

@@ -6,6 +6,18 @@ function now(): number {
     : Date.now();
 }
 
+/** Wall-clock ms, always — for `timestamp` anchoring (never the perf clock). */
+function wallNow(): number {
+  return Date.now();
+}
+
+/** Normalise a `Date | number` timestamp prop to wall-clock ms, or `null`. */
+export function toEpochMs(ts: Date | number | null | undefined): number | null {
+  if (ts == null) return null;
+  const ms = ts instanceof Date ? ts.getTime() : ts;
+  return Number.isFinite(ms) ? ms : null;
+}
+
 export interface ProgressiveSlotValue {
   /**
    * True when this slot is the current head of the timeline — the moment its
@@ -25,12 +37,22 @@ export interface ProgressiveSlotValue {
   report: (durationMs: number) => () => void;
   /** Advance the timeline for this slot right now (e.g. instant / static content). */
   finish: () => void;
+  /**
+   * How long ago (ms) this slot became the timeline head, from the perspective
+   * of its wall-clock anchor. Zero for a slot that activated just now; positive
+   * for a slot whose `timestamp` is already in the past when it mounts (a page
+   * revisit). A participating child pre-advances its own animation by this much
+   * so the sequence stays consistent across remounts — see
+   * {@link ProgressiveText}. `0` outside an anchored timeline.
+   */
+  elapsedMs: number;
 }
 
 const NOOP_SLOT: ProgressiveSlotValue = {
   active: true,
   report: () => () => {},
   finish: () => {},
+  elapsedMs: 0,
 };
 
 const ProgressiveSlotContext = createContext<ProgressiveSlotValue>(NOOP_SLOT);
@@ -41,7 +63,9 @@ const ProgressiveSlotContext = createContext<ProgressiveSlotValue>(NOOP_SLOT);
  * - hold its animation until it's this slot's turn (`active`);
  * - tell the timeline how long it will animate (`report`) — so the *next* list
  *   element is delayed until this one's inner animation completes — or that it's
- *   done (`finish` / the `done` returned by `report`).
+ *   done (`finish` / the `done` returned by `report`);
+ * - resume mid-animation on a remount, using `elapsedMs` (how long ago the slot
+ *   became the head, relative to its wall-clock anchor).
  *
  * Outside a ProgressiveList it returns an always-active no-op, so progressive
  * components keep working standalone.
@@ -57,6 +81,18 @@ export interface ProgressiveTimelineSlotProps {
   fallbackMs: number;
   /** Called once when the slot's turn ends, to advance the timeline. */
   onComplete: () => void;
+  /**
+   * Wall-clock anchor (a `Date` or epoch ms) for *when this slot became the
+   * head*. Omit for the default behaviour (the slot activates the instant it
+   * mounts). When set, the slot behaves as though it activated at this moment:
+   * if it's already in the past on mount the slot is treated as having been
+   * running for `now - startedAt` ms — so its completion timer is shortened (or
+   * fires immediately if the whole duration has already elapsed) and its
+   * children see that offset via `elapsedMs`. This is what makes an anchored
+   * timeline resume at the right point after a remount / page change instead of
+   * replaying from zero.
+   */
+  startedAt?: Date | number;
   /** The subtree that reads this slot via {@link useProgressiveSlot}. */
   children: ReactNode;
 }
@@ -66,20 +102,33 @@ export interface ProgressiveTimelineSlotProps {
  * its subtree and, while `active`, decides when to hand off to the next slot:
  * after the longest duration its children reported, or — if nothing reported —
  * after `fallbackMs`; whichever child calls its `done` early wins.
+ *
+ * With `startedAt`, the slot is anchored to wall-clock time: elapsed time since
+ * that instant is subtracted from every wait, so the sequence is deterministic
+ * across remounts (a revisited page resumes where it should be, not from zero).
  */
 export function ProgressiveTimelineSlot({
   active,
   fallbackMs,
   onComplete,
+  startedAt,
   children,
 }: ProgressiveTimelineSlotProps) {
-  const st = useRef({ activatedAt: 0, anyReport: false, maxDuration: 0, completed: false, timer: 0 });
+  const st = useRef({ activatedAt: 0, elapsedMs: 0, anyReport: false, maxDuration: 0, completed: false, timer: 0 });
+
+  const anchor = toEpochMs(startedAt);
 
   // A slot is mounted exactly when it becomes the head, so its first render is
   // the activation instant. Stamp it during render so a child's report() — which
   // runs in a child effect, before this component's own effects — sees a valid
-  // clock to measure elapsed time against.
-  if (active && st.current.activatedAt === 0) st.current.activatedAt = now();
+  // clock to measure elapsed time against. With a wall-clock anchor, back-date
+  // the activation so the slot behaves as if it began at `startedAt`: this is
+  // what lets a revisited page pick the animation up mid-flight.
+  if (active && st.current.activatedAt === 0) {
+    const back = anchor != null ? Math.max(0, wallNow() - anchor) : 0;
+    st.current.elapsedMs = back;
+    st.current.activatedAt = now() - back;
+  }
 
   // Latest props read by the (stable) api closures without rebuilding them.
   const activeRef = useRef(active);
@@ -120,7 +169,7 @@ export function ProgressiveTimelineSlot({
   }, []);
 
   const value = useMemo<ProgressiveSlotValue>(
-    () => ({ active, report: api.report, finish: api.complete }),
+    () => ({ active, report: api.report, finish: api.complete, elapsedMs: active ? st.current.elapsedMs : 0 }),
     [active, api],
   );
 

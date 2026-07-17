@@ -551,7 +551,12 @@ open(media, { story: true })      // auto-advancing story + progress bar`,
 // wrap the partial text (markdown, streaming…)
 <ProgressiveText text={body} speed={55} as="div">
   {(visible) => <Markdown source={visible} />}
-</ProgressiveText>`,
+</ProgressiveText>
+
+// timestamp: anchor the reveal to wall-clock time — on a
+// remount it jumps to the character due for (now - timestamp),
+// so it resumes instead of re-typing across page changes.
+<ProgressiveText text={msg.text} speed={40} timestamp={msg.createdAt} />`,
   },
   {
     id: 'progressive-list',
@@ -571,7 +576,14 @@ open(media, { story: true })      // auto-advancing story + progress bar`,
 </ProgressiveList>
 
 // any custom element can join the timeline:
-const { active, report, finish } = useProgressiveSlot()`,
+const { active, report, finish } = useProgressiveSlot()
+
+// timestamp: anchor the whole sequence to wall-clock time so a
+// remount resumes at the right row (and back-dates each row's own
+// inner animation) — consistent across page changes.
+<ProgressiveList items={rows} initialReveal={0} timestamp={startedAt}>
+  {(row, i, { isNew }) => <ProgressiveText text={row.text} instant={!isNew} />}
+</ProgressiveList>`,
   },
   {
     id: 'progressive-table',
@@ -657,12 +669,23 @@ ref.current?.skipToEnd()
 )}
 
 // any custom element can join the timeline:
-const { active, report, finish } = useProgressiveSlot()
+const { active, report, finish, elapsedMs } = useProgressiveSlot()
 useEffect(() => {
   if (!active) return
   const done = report(1200)  // "I'll animate for 1.2s"
   // …start the animation; call done() to hand off early
-}, [active])`,
+}, [active])
+
+// timestamp: anchor a slot to wall-clock time so a remount (a page
+// change) resumes the sequence where it should be, not from zero.
+<ProgressiveTimelineSlot
+  active={i === head}
+  startedAt={anchor + i * 1500}   // Date | epoch ms — back-dates the slot
+  fallbackMs={600}
+  onComplete={advance}
+/>
+// children read \`elapsedMs\` (how long ago the slot activated) to
+// pre-advance their own animation — ProgressiveText does it for you.`,
   },
   {
     id: 'changelog',
@@ -3070,18 +3093,123 @@ function TimelineRun() {
   );
 }
 
+/** The lines the anchored timeline below types out, in order. */
+const RESUME_LINES = [
+  'This timeline is anchored to a fixed timestamp.',
+  'Leave the page and come back — it does NOT restart.',
+  'It resumes at whatever character it should be at by now,',
+  'so the animation stays consistent across page changes.',
+];
+
+/**
+ * One anchored timeline: every slot shares a wall-clock `startedAt` derived from
+ * a single `timestamp` + a fixed per-line delay, so remounting it (the "leave &
+ * return" button) resumes the sequence at the right point instead of replaying.
+ * The un-anchored twin next to it restarts from zero every time — the contrast
+ * is the whole point.
+ */
+function ResumeTimeline({ anchor, lineMs }: { anchor: number | null; lineMs: number }) {
+  const [head, setHead] = useState(0);
+  const advance = () => setHead((h) => h + 1);
+  return (
+    <div className="space-y-1.5">
+      {RESUME_LINES.map((line, i) =>
+        i <= head ? (
+          <ProgressiveTimelineSlot
+            key={i}
+            active={i === head}
+            fallbackMs={lineMs}
+            // each slot starts lineMs after the previous one, off the shared anchor
+            startedAt={anchor != null ? anchor + i * lineMs : undefined}
+            onComplete={advance}
+          >
+            <div className="rounded-md border border-border bg-[var(--surface-2)] px-3 py-1.5 text-[13px]">
+              <span className="mono text-[color:var(--cyan-deep)]">{i + 1}. </span>
+              <ProgressiveText text={line} speed={38} />
+            </div>
+          </ProgressiveTimelineSlot>
+        ) : null,
+      )}
+    </div>
+  );
+}
+
+/**
+ * Demonstrates the `timestamp` prop: a fixed anchor makes the reveal resume at
+ * the right moment after a remount (a page change), instead of restarting.
+ */
+function TimestampResumeDemo() {
+  // A single fixed anchor for the anchored column, minted once. `visitId` forces
+  // a remount of BOTH columns — the "navigate away and back" simulation.
+  const anchorRef = useRef<number | null>(null);
+  if (anchorRef.current === null) anchorRef.current = Date.now();
+  const [visitId, setVisitId] = useState(0);
+  const lineMs = 1500;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Badge tone="emerald" dot>
+              anchored
+            </Badge>
+            <span className="mono text-[11px] text-muted-foreground">timestamp set — resumes</span>
+          </div>
+          <ResumeTimeline key={`a-${visitId}`} anchor={anchorRef.current} lineMs={lineMs} />
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Badge tone="sky" dot>
+              classic
+            </Badge>
+            <span className="mono text-[11px] text-muted-foreground">no timestamp — restarts</span>
+          </div>
+          <ResumeTimeline key={`b-${visitId}`} anchor={null} lineMs={lineMs} />
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" variant="outline" onClick={() => setVisitId((n) => n + 1)}>
+          Leave & come back
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            anchorRef.current = Date.now();
+            setVisitId((n) => n + 1);
+          }}
+        >
+          Reset anchor
+        </Button>
+      </div>
+      <p className="mono text-[11px] text-muted-foreground">
+        both columns remount together · the anchored one jumps to where{' '}
+        <code>{'now - timestamp'}</code> says it should be · the classic one types from the top every
+        time · wait a few seconds, then hit “Leave &amp; come back” to see the gap widen
+      </p>
+    </div>
+  );
+}
+
 function ProgressiveTimelineDemo() {
   const [runId, setRunId] = useState(0); // bump to remount → replay the sequence
   return (
-    <div className="space-y-4">
-      <TimelineRun key={runId} />
-      <Button size="sm" variant="outline" onClick={() => setRunId((n) => n + 1)}>
-        Replay
-      </Button>
-      <p className="mono text-[11px] text-muted-foreground">
-        4 slots · a ProgressiveText reports its typing duration automatically · the bar joins via useProgressiveSlot ·
-        the plain row falls back to fallbackMs=600
-      </p>
+    <div className="space-y-6">
+      <div className="space-y-4">
+        <TimelineRun key={runId} />
+        <Button size="sm" variant="outline" onClick={() => setRunId((n) => n + 1)}>
+          Replay
+        </Button>
+        <p className="mono text-[11px] text-muted-foreground">
+          4 slots · a ProgressiveText reports its typing duration automatically · the bar joins via useProgressiveSlot ·
+          the plain row falls back to fallbackMs=600
+        </p>
+      </div>
+      <div className="border-t border-border pt-5">
+        <p className="eyebrow mb-3">timestamp — consistent across page changes</p>
+        <TimestampResumeDemo />
+      </div>
     </div>
   );
 }

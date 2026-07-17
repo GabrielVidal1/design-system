@@ -13,6 +13,29 @@ line directly under a version heading becomes that release's display title.
 Draft a release with `gabvdl-changelog draft` (conventional commits since the
 last release → grouped bullets under Unreleased), then curate the prose.
 
+## [0.20.0]
+
+> Progressive animations that survive a page change.
+
+### Added
+
+- **`timestamp` on `ProgressiveText`, `ProgressiveList`, `ProgressiveTable` and
+  `startedAt` on `ProgressiveTimelineSlot`** — anchor a progressive animation to
+  wall-clock time (`Date | number`). On mount the component computes how much of
+  the reveal is already due (`now - timestamp`, minus any lead-in `delay`) and
+  jumps straight to that point before continuing — so unmounting and remounting
+  the subtree (navigating away from a page and back) **resumes the animation
+  where it should be** instead of replaying it from the start. It is what makes
+  the sequence consistent across page changes: give each item a fixed
+  timestamp+delay and every visit lands on the same, correct frame. Omitting the
+  prop keeps the classic behaviour (the reveal begins whenever the component
+  mounts). Inside a `ProgressiveList`/`ProgressiveTimelineSlot`, children pick up
+  the slot's own anchor automatically via the new `elapsedMs` on
+  `useProgressiveSlot()`; an explicit `timestamp` on the child overrides it. New
+  "consistent across page changes" panel on the ProgressiveTimeline demo, and
+  the Agent-console demo now anchors its live reply so switching conversations
+  and back resumes it mid-stream.
+
 ## [0.19.0]
 
 > Lists that group.

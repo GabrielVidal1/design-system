@@ -304,6 +304,10 @@ export function ChatDemoPage() {
                         as="div"
                         instant={!m.live}
                         speed={220}
+                        // Anchor the live reply to when it arrived: switch
+                        // conversations and back and it resumes mid-stream at
+                        // the right character instead of re-typing from zero.
+                        timestamp={m.at}
                         onUpdate={scrollToEnd}
                         className="whitespace-pre-wrap text-sm leading-relaxed text-foreground"
                       />
