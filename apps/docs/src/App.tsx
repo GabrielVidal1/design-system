@@ -15,6 +15,7 @@ import {
   Settings2,
   Terminal,
   Trash2,
+  icons as lucideIcons,
 } from 'lucide-react';
 import {
   Badge,
@@ -63,6 +64,7 @@ import {
   SearchInput,
   Select,
   TagFilter,
+  IconPicker,
   Skeleton,
   SkeletonText,
   Slider,
@@ -131,6 +133,7 @@ import {
   SearchInputIcon,
   SelectIcon,
   TagFilterIcon,
+  IconPickerIcon,
   SkeletonIcon,
   SliderIcon,
   SpinnerIcon,
@@ -292,6 +295,7 @@ const SOURCE_FILE: Record<string, string> = {
   'drop-zone': 'drop-zone.tsx',
   'search-input': 'search-input.tsx',
   'tag-filter': 'tag-filter.tsx',
+  'icon-picker': 'icon-picker.tsx',
   'relative-time': 'relative-time.tsx',
   theme: 'theme.tsx',
   format: 'format.ts',
@@ -1140,6 +1144,23 @@ if (await confirm({ title: 'Delete note?', destructive: true })) remove()
   multiple                  // checkbox-style; default replaces
   allLabel="All mail"       // relabel, or false to drop it
 />  // scrolls horizontally on phones · wrap to line-break`,
+  },
+  {
+    id: 'icon-picker',
+    name: 'IconPicker',
+    sig: 'icons · value · onChange · rows · shortcut',
+    tag: 'input',
+    Icon: IconPickerIcon,
+    Demo: IconPickerDemo,
+    code: `import { icons } from 'lucide-react'
+
+<IconPicker
+  icons={icons}         // any name→svg map; ships no set of its own
+  value={name}
+  onChange={setName}
+  rows={4}              // grid height; columns virtualize + scroll →
+  shortcut              // ⌘K / "/" focuses the search
+/>`,
   },
   {
     id: 'drop-zone',
@@ -4157,6 +4178,28 @@ function TagFilterDemo() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function IconPickerDemo() {
+  const [name, setName] = useState<string | null>('Sparkles');
+  const Picked = name ? lucideIcons[name as keyof typeof lucideIcons] : null;
+
+  return (
+    <div className="space-y-3">
+      <IconPicker
+        icons={lucideIcons}
+        value={name}
+        onChange={setName}
+        rows={4}
+        shortcut
+      />
+      <p className="mono flex items-center gap-2 text-[11px] text-muted-foreground">
+        {Picked ? <Picked size={16} className="text-foreground" /> : null}
+        {name ?? 'nothing picked'} · {Object.keys(lucideIcons).length} icons · columns
+        virtualize + scroll →
+      </p>
     </div>
   );
 }

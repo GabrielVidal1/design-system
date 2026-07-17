@@ -24,6 +24,56 @@ function Svg({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** IconPicker — a grid of glyph cells scrolls horizontally as a selection ring
+ * hops from cell to cell. */
+export function IconPickerIcon() {
+  const cols = 6;
+  const rows = 3;
+  const s = 22; // cell side
+  const g = 6; // gap
+  const x0 = 44;
+  const y0 = 30;
+  const cell = (c: number, r: number) => (
+    <rect
+      key={`${c}-${r}`}
+      x={x0 + c * (s + g)}
+      y={y0 + r * (s + g)}
+      width={s}
+      height={s}
+      rx="5"
+      stroke={DIM}
+      strokeWidth="2"
+    />
+  );
+  const glyph = (c: number, r: number) => {
+    const cx = x0 + c * (s + g) + s / 2;
+    const cy = y0 + r * (s + g) + s / 2;
+    return <circle key={`d${c}-${r}`} cx={cx} cy={cy} r="4" fill={DIM} opacity="0.4" />;
+  };
+  return (
+    <Svg>
+      {Array.from({ length: cols }, (_, c) => Array.from({ length: rows }, (_, r) => cell(c, r)))}
+      {Array.from({ length: cols }, (_, c) => Array.from({ length: rows }, (_, r) => glyph(c, r)))}
+      {/* the selection ring hopping right across the top row */}
+      <g className="a-drift" style={v({ '--dx': `${2 * (s + g)}px`, '--dur': '4.4s' })}>
+        <rect
+          x={x0}
+          y={y0}
+          width={s}
+          height={s}
+          rx="5"
+          fill={CY}
+          fillOpacity="0.16"
+          stroke={CY}
+          strokeWidth="2.5"
+        />
+        <circle cx={x0 + s / 2} cy={y0 + s / 2} r="4.5" fill={CY} />
+      </g>
+      <circle className="a-blink" cx="176" cy="20" r="3.5" fill={CY} />
+    </Svg>
+  );
+}
+
 /** ImageViewer — a loupe glides along the ridge line, magnifying it. */
 export function ImageViewerIcon() {
   return (

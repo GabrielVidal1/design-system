@@ -68,6 +68,8 @@ export { SearchInput } from './components/search-input';
 export type { SearchInputProps } from './components/search-input';
 export { TagFilter } from './components/tag-filter';
 export type { TagFilterItem, TagFilterProps } from './components/tag-filter';
+export { IconPicker } from './components/icon-picker';
+export type { IconPickerProps, IconSet, IconComponent } from './components/icon-picker';
 export {
   ElementPicker,
   ElementPickerField,

@@ -13,6 +13,25 @@ line directly under a version heading becomes that release's display title.
 Draft a release with `gabvdl-changelog draft` (conventional commits since the
 last release → grouped bullets under Unreleased), then curate the prose.
 
+## [0.22.0]
+
+> Pick an icon — search, then scroll a horizontal wall of glyphs.
+
+### Added
+
+- **`IconPicker`** — a searchable grid of icons that scrolls **horizontally**:
+  items flow top-to-bottom to fill a fixed number of `rows`, the columns extend
+  rightward, and only the visible columns mount (virtualized via
+  `@tanstack/react-virtual`), so the full lucide set (~1500 glyphs) filters and
+  scrolls smoothly. A `SearchInput` above it matches by icon name (space-split
+  terms, all must match); a new query jumps the scroll back to the best matches.
+  Controlled through `value` / `onChange` (the icon **name**). It ships **no
+  icon set of its own** — pass any `Record<string, svgComponent>` as `icons`
+  (e.g. lucide-react's `icons` export) so the library stays tree-shakeable.
+  Tunable `rows`, `cellSize`, `gap`, `height`, `emptyLabel`, and `shortcut`
+  (⌘K / `/` focuses the search). New `IconSet` / `IconComponent` types and a
+  live demo over the whole lucide set on the component page.
+
 ## [0.21.0]
 
 > A smooth whoosh to now, instead of a skipped animation.
