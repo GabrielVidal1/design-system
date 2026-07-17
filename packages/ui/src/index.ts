@@ -193,6 +193,8 @@ export { ProgressiveTable } from './components/progressive-table';
 export type { ProgressiveTableProps, ProgressiveTableCellContext } from './components/progressive-table';
 export { useProgressiveSlot, ProgressiveTimelineSlot } from './components/progressive-timeline';
 export type { ProgressiveSlotValue, ProgressiveTimelineSlotProps } from './components/progressive-timeline';
+export { smootherstep, normalizeCatchUp, makeCatchUpClock } from './lib/catch-up';
+export type { CatchUpConfig, CatchUpEasing } from './lib/catch-up';
 export { ProgressiveBash } from './components/progressive-bash';
 export type { ProgressiveBashProps, ProgressiveBashHandle, BashEntry, PlaybackTuning } from './components/progressive-bash';
 export {

@@ -67,3 +67,43 @@ describe('ProgressiveText timestamp catch-up', () => {
     expect(container.textContent).toBe('');
   });
 });
+
+/**
+ * With `catchUp` the mount no longer snaps to the fully-due character: it seeds a
+ * *window* behind (the instantly-shown part) and eases the rest in via rAF. Here
+ * we assert the seed at mount — the ramp itself needs a real clock jsdom lacks.
+ */
+describe('ProgressiveText eased catch-up seed', () => {
+  afterEach(() => vi.useRealTimers());
+  const LONG = 'abcdefghijklmnopqrstuvwxyz0123456789'; // 36 chars
+
+  it('seeds a window behind the due char instead of snapping to it', () => {
+    const now = 1_000_000;
+    vi.spyOn(Date, 'now').mockReturnValue(now);
+    // 3000ms elapsed @ 10cps (100ms/char) => 30 chars due.
+    // catchUp 200ms => window 400ms => easedWindow=400ms=4 chars, seed=26 chars.
+    const { container } = render(
+      <ProgressiveText text={LONG} speed={10} timestamp={now - 3000} catchUp={200} />,
+    );
+    expect(container.textContent).toBe(LONG.slice(0, 26));
+  });
+
+  it('catchUp=0 still snaps to the fully-due char (unchanged default)', () => {
+    const now = 1_000_000;
+    vi.spyOn(Date, 'now').mockReturnValue(now);
+    const { container } = render(
+      <ProgressiveText text={LONG} speed={10} timestamp={now - 3000} catchUp={0} />,
+    );
+    expect(container.textContent).toBe(LONG.slice(0, 30));
+  });
+
+  it('a small backlog under the window seeds empty (eases the whole reveal)', () => {
+    const now = 1_000_000;
+    vi.spyOn(Date, 'now').mockReturnValue(now);
+    // 200ms elapsed => 2 chars due; window 400ms(4 chars) > backlog => seed 0.
+    const { container } = render(
+      <ProgressiveText text={LONG} speed={10} timestamp={now - 200} catchUp={200} />,
+    );
+    expect(container.textContent).toBe('');
+  });
+});

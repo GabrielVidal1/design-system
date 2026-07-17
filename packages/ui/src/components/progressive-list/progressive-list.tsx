@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type Key, type ReactNode, type Ref } from 'react';
 
+import { normalizeCatchUp, type CatchUpConfig } from '../../lib/catch-up';
 import { cn } from '../../lib/utils';
 import { ProgressiveTimelineSlot, toEpochMs } from '../progressive-timeline';
 
@@ -40,6 +41,16 @@ export interface ProgressiveListProps<T> {
    * than their fallback still finish typing after the jump.
    */
   timestamp?: Date | number;
+  /**
+   * Smoothly *play through* the anchored backlog instead of snapping past it.
+   * With a `timestamp` far in the past the list would fast-forward past every
+   * due row at once — skipping the animation. `catchUp` instead leaves the rows
+   * within its window to reveal on an ease-in/ease-out ramp (and forwards the
+   * config to each row's inner {@link ProgressiveText}), so a revisit shows a
+   * brief "whoosh to now". A number is the ramp duration in ms; the object form
+   * (`{ ms, window?, easing? }`) tunes it. `0` / omitted keeps the instant jump.
+   */
+  catchUp?: CatchUpConfig;
   /** Stable key per item. @default the index */
   getKey?: (item: T, index: number) => Key;
   /**
@@ -89,6 +100,7 @@ export function ProgressiveList<T>({
   delay = 0,
   getDelay,
   timestamp,
+  catchUp,
   getKey,
   initialReveal,
   instant = false,
@@ -97,6 +109,7 @@ export function ProgressiveList<T>({
   itemClassName,
 }: ProgressiveListProps<T>) {
   const skip = instant || reducedMotion();
+  const catchUpNorm = normalizeCatchUp(catchUp);
 
   // Fixed at mount: how many items were "already there" (shown instantly).
   const initialRef = useRef<number>(-1);
@@ -124,6 +137,11 @@ export function ProgressiveList<T>({
   // Back-dated catch-up: with an anchor, fast-forward past rows whose fallback
   // window has already elapsed, so a revisited page starts partway in. The head
   // row that lands in the current window keeps its remaining animation.
+  //
+  // With `catchUp`, don't fast-forward all the way: leave the rows whose fallback
+  // windows fall within the last `catchUp.window` ms to reveal on the eased ramp
+  // (each gets a back-dated `startedAt` + the `catchUp` config, so its inner
+  // ProgressiveText eases too) — a smooth "whoosh to now" instead of a snap.
   const initialRevealed = useRef<number>(-1);
   if (initialRevealed.current < 0) {
     if (anchor == null) {
@@ -136,7 +154,16 @@ export function ProgressiveList<T>({
         if (elapsed <= 0) break;
         r++;
       }
-      initialRevealed.current = Math.min(r, items.length);
+      let firstShown = Math.min(r, items.length);
+      // Pull the head back over the eased window so those rows animate.
+      if (catchUpNorm.ms > 0 && catchUpNorm.window > 0) {
+        let budget = catchUpNorm.window;
+        while (firstShown > initialCount && budget > 0) {
+          budget -= fallbackMsOf(items[firstShown - 1], firstShown - 1);
+          firstShown--;
+        }
+      }
+      initialRevealed.current = firstShown;
     }
   }
 
@@ -210,6 +237,7 @@ export function ProgressiveList<T>({
             active={i === headIndex}
             fallbackMs={fallbackMsOf(item, i)}
             startedAt={startedAtOf(i)}
+            catchUp={anchor != null ? catchUp : undefined}
             onComplete={handleComplete}
           >
             <RevealItem animate className={itemClassName}>

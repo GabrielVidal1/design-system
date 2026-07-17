@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
+import { makeCatchUpClock, type CatchUpConfig } from '../../lib/catch-up';
 import { cn } from '../../lib/utils';
 import { toEpochMs, useProgressiveSlot } from '../progressive-timeline';
 
@@ -32,6 +33,15 @@ export interface ProgressiveTableProps {
    * explicit `timestamp` overrides it.
    */
   timestamp?: Date | number;
+  /**
+   * Smoothly *play through* the anchored backlog instead of snapping to it. With
+   * a `timestamp` far in the past the table would show every due row at once —
+   * skipping the reveal. `catchUp` leaves the rows within its window to reveal on
+   * an ease-in/ease-out ramp settling into live speed, so a revisit shows a brief
+   * "whoosh to now". A number is the ramp duration in ms; the object form
+   * (`{ ms, window?, easing? }`) tunes it. `0` / omitted keeps the instant jump.
+   */
+  catchUp?: CatchUpConfig;
   /** Render the whole table at once, with no animation. */
   instant?: boolean;
   /**
@@ -88,6 +98,7 @@ export function ProgressiveTable({
   speed = 6,
   delay = 0,
   timestamp,
+  catchUp,
   instant = false,
   initialReveal,
   caption,
@@ -120,7 +131,16 @@ export function ProgressiveTable({
   // Wall-clock catch-up (fixed at mount): how many body rows are already due,
   // from an explicit `timestamp` or the enclosing slot's anchor. Lets a
   // revisited page resume at the right row instead of replaying the reveal.
-  const catchUp = useRef<{ header: boolean; rows: number }>({ header: false, rows: 0 });
+  //
+  // `snap.rows` is the count shown instantly; with `catchUp` the eased-window
+  // rows are held back (`easedFrom → dueRows`) to reveal on the ramp instead.
+  const rowIv = 1000 / Math.max(0.001, speed);
+  const snap = useRef<{ header: boolean; rows: number; easedFrom: number }>({
+    header: false,
+    rows: 0,
+    easedFrom: 0,
+  });
+  const clockRef = useRef<ReturnType<typeof makeCatchUpClock> | null>(null);
   const catchUpInit = useRef(false);
   if (!catchUpInit.current) {
     catchUpInit.current = true;
@@ -129,15 +149,22 @@ export function ProgressiveTable({
       const elapsed = anchor != null ? Math.max(0, Date.now() - anchor) : slot.elapsedMs;
       const past = elapsed - Math.max(0, delay) * 1000;
       if (past >= 0) {
-        const interval = 1000 / Math.max(0.001, speed);
-        const due = initialCount + Math.floor((past + ENTRANCE_MS) / interval);
-        catchUp.current = { header: true, rows: Math.min(rows.length, Math.max(initialCount, due)) };
+        const dueRows = Math.min(rows.length, Math.max(initialCount, initialCount + Math.floor((past + ENTRANCE_MS) / rowIv)));
+        // Backlog (ms of row reveal) between the eased-from row and the due row.
+        const clock = makeCatchUpClock((dueRows - initialCount) * rowIv, catchUp);
+        // How many rows the eased ramp will animate (the rest snap instantly).
+        const easedRows = clock.easing ? Math.ceil((clock.backlogMs - clock.seedMs) / rowIv) : 0;
+        const shown = Math.max(initialCount, dueRows - easedRows);
+        clockRef.current = clock.easing ? clock : null;
+        // `rows` starts the reveal at the eased-window's first row; `easedFrom`
+        // is the true due row the ramp sweeps up to before live pacing resumes.
+        snap.current = { header: true, rows: shown, easedFrom: dueRows };
       }
     }
   }
 
-  const [headerShown, setHeaderShown] = useState(() => !animate || catchUp.current.header);
-  const [revealed, setRevealed] = useState(() => Math.max(initialCount, catchUp.current.rows));
+  const [headerShown, setHeaderShown] = useState(() => !animate || snap.current.header);
+  const [revealed, setRevealed] = useState(() => Math.max(initialCount, snap.current.rows));
 
   // Instant / reduced-motion: everything at once, and hand the timeline off now.
   useEffect(() => {
@@ -151,14 +178,13 @@ export function ProgressiveTable({
   // the whole table. Only once it's our slot's turn.
   useEffect(() => {
     if (skip || !active) return;
-    const interval = 1000 / Math.max(0.001, speed);
     // Catch-up already consumed the header lead-in and some rows — report only
     // what's left, so an enclosing list waits by the remaining reveal time.
-    const shownNow = Math.max(initialCount, catchUp.current.rows);
-    const lead = catchUp.current.header ? 0 : delay * 1000 + ENTRANCE_MS;
+    const shownNow = Math.max(initialCount, snap.current.rows);
+    const lead = snap.current.header ? 0 : delay * 1000 + ENTRANCE_MS;
     const n = Math.max(0, rows.length - shownNow);
-    slotRef.current.report(lead + n * interval);
-  }, [active, skip, speed, delay, rows.length, initialCount]);
+    slotRef.current.report(lead + n * rowIv);
+  }, [active, skip, delay, rows.length, initialCount, rowIv]);
 
   // Reveal the header once it's our turn (after the lead-in delay).
   useEffect(() => {
@@ -167,13 +193,37 @@ export function ProgressiveTable({
     return () => window.clearTimeout(t);
   }, [animate, headerShown, active, delay]);
 
-  // Then reveal body rows one per interval.
+  // Eased catch-up: while the ramp is in play, drive `revealed` off the catch-up
+  // clock (which sweeps through the held-back rows then tracks live pacing), so
+  // the tail of the backlog whooshes in smoothly instead of snapping.
+  const easing = clockRef.current != null;
   useEffect(() => {
-    if (skip || !active || !headerShown || revealed >= rows.length) return;
-    const interval = 1000 / Math.max(0.001, speed);
-    const t = window.setTimeout(() => setRevealed((r) => Math.min(r + 1, rows.length)), interval);
+    if (skip || !active || !headerShown || !easing || revealed >= snap.current.easedFrom) return;
+    const clock = clockRef.current!;
+    const base = snap.current.rows; // first eased row
+    let raf = 0;
+    let start = 0;
+    const frame = (ts: number) => {
+      if (start === 0) start = ts;
+      const virtual = clock.virtualElapsed(ts - start);
+      const due = Math.min(snap.current.easedFrom, base + Math.floor((virtual - clock.seedMs) / rowIv));
+      setRevealed((r) => (due > r ? due : r));
+      if (ts - start >= 0 && virtual >= clock.backlogMs) {
+        clockRef.current = null; // ramp done — hand off to constant pacing
+        return;
+      }
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  }, [skip, active, headerShown, easing, revealed, rowIv]);
+
+  // Then reveal body rows one per interval (constant pacing, after any ramp).
+  useEffect(() => {
+    if (skip || !active || !headerShown || clockRef.current != null || revealed >= rows.length) return;
+    const t = window.setTimeout(() => setRevealed((r) => Math.min(r + 1, rows.length)), rowIv);
     return () => window.clearTimeout(t);
-  }, [skip, active, headerShown, revealed, rows.length, speed]);
+  }, [skip, active, headerShown, revealed, rows.length, rowIv]);
 
   // Hand the timeline off the moment the last row lands.
   useEffect(() => {
@@ -200,8 +250,9 @@ export function ProgressiveTable({
           {rows.map((row, i) => {
             if (i >= revealed) return null;
             // "New" rows animate their entrance — except ones the catch-up jump
-            // already placed in the past, which appear settled like history.
-            const isNew = i >= Math.max(initialCount, catchUp.current.rows);
+            // snapped into the past. Eased-window rows (revealed by the ramp)
+            // still animate, so `snap.rows` (the snapped count), not the due row.
+            const isNew = i >= Math.max(initialCount, snap.current.rows);
             return (
               <AnimatedRow key={i} animate={animate && isNew} shown className={rowClassName}>
                 {row.map((c, j) => (

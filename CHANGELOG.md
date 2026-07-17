@@ -13,6 +13,32 @@ line directly under a version heading becomes that release's display title.
 Draft a release with `gabvdl-changelog draft` (conventional commits since the
 last release → grouped bullets under Unreleased), then curate the prose.
 
+## [0.21.0]
+
+> A smooth whoosh to now, instead of a skipped animation.
+
+### Added
+
+- **`catchUp` on `ProgressiveText`, `ProgressiveList`, `ProgressiveTable` and
+  `ProgressiveTimelineSlot`** — smoothly *play through* the anchored backlog
+  instead of snapping to it. With a `timestamp` (0.20.0), re-opening a page is
+  almost always far behind, so the reveal jumped straight to the due position and
+  **skipped the animation entirely**. `catchUp` instead runs the tail of that
+  backlog quickly but with an **ease-in / ease-out ramp** (smootherstep — zero
+  velocity at both ends, so it starts and ends at live speed with a faster bulge
+  in between) that settles into live playback: a brief "whoosh to now" rather than
+  a hard cut or a full replay. A **number** is the ramp duration in ms
+  (`catchUp={700}`); the object form `{ ms, window?, easing? }` bounds how much
+  content the ramp covers and swaps the easing curve. `0` / omitted keeps the
+  instant jump (the 0.20.0 behaviour), so existing callers are unchanged. Inside a
+  `ProgressiveList`/`ProgressiveTimelineSlot` the config is inherited by each
+  row's inner `ProgressiveText`; an explicit `catchUp` on the child overrides it.
+  New helpers `smootherstep`, `normalizeCatchUp`, `makeCatchUpClock` and the
+  `CatchUpConfig`/`CatchUpEasing` types are exported. `useProgressiveSlot()` gains
+  a `catchUp` field and `ProgressiveText`'s render `meta` gains `catchingUp`. New
+  "smooth eased fast-forward" panel on the ProgressiveTimeline demo, and the
+  Agent-console demo eases its live reply in.
+
 ## [0.20.0]
 
 > Progressive animations that survive a page change.

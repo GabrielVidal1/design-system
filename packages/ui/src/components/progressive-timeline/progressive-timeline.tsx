@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
 
+import type { CatchUpConfig } from '../../lib/catch-up';
+
 function now(): number {
   return typeof performance !== 'undefined' && typeof performance.now === 'function'
     ? performance.now()
@@ -46,6 +48,12 @@ export interface ProgressiveSlotValue {
    * {@link ProgressiveText}. `0` outside an anchored timeline.
    */
   elapsedMs: number;
+  /**
+   * How the slot's children should ease through their catch-up backlog (the
+   * `elapsedMs` they resume into). Inherited by a participating child unless it
+   * sets its own `catchUp`. `undefined` (the default) ⇒ an instant jump.
+   */
+  catchUp?: CatchUpConfig;
 }
 
 const NOOP_SLOT: ProgressiveSlotValue = {
@@ -53,6 +61,7 @@ const NOOP_SLOT: ProgressiveSlotValue = {
   report: () => () => {},
   finish: () => {},
   elapsedMs: 0,
+  catchUp: undefined,
 };
 
 const ProgressiveSlotContext = createContext<ProgressiveSlotValue>(NOOP_SLOT);
@@ -93,6 +102,14 @@ export interface ProgressiveTimelineSlotProps {
    * replaying from zero.
    */
   startedAt?: Date | number;
+  /**
+   * How children should ease through the catch-up backlog they resume into (the
+   * `elapsedMs` this slot exposes). Forwarded to the slot context so a
+   * participating child — e.g. the {@link ProgressiveText} inside a
+   * {@link ProgressiveList} row — plays the tail of its backlog with a smooth
+   * ramp instead of snapping. `undefined` ⇒ an instant jump.
+   */
+  catchUp?: CatchUpConfig;
   /** The subtree that reads this slot via {@link useProgressiveSlot}. */
   children: ReactNode;
 }
@@ -112,6 +129,7 @@ export function ProgressiveTimelineSlot({
   fallbackMs,
   onComplete,
   startedAt,
+  catchUp,
   children,
 }: ProgressiveTimelineSlotProps) {
   const st = useRef({ activatedAt: 0, elapsedMs: 0, anyReport: false, maxDuration: 0, completed: false, timer: 0 });
@@ -169,8 +187,14 @@ export function ProgressiveTimelineSlot({
   }, []);
 
   const value = useMemo<ProgressiveSlotValue>(
-    () => ({ active, report: api.report, finish: api.complete, elapsedMs: active ? st.current.elapsedMs : 0 }),
-    [active, api],
+    () => ({
+      active,
+      report: api.report,
+      finish: api.complete,
+      elapsedMs: active ? st.current.elapsedMs : 0,
+      catchUp,
+    }),
+    [active, api, catchUp],
   );
 
   useEffect(() => {

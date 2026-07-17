@@ -554,9 +554,14 @@ open(media, { story: true })      // auto-advancing story + progress bar`,
 </ProgressiveText>
 
 // timestamp: anchor the reveal to wall-clock time — on a
-// remount it jumps to the character due for (now - timestamp),
-// so it resumes instead of re-typing across page changes.
-<ProgressiveText text={msg.text} speed={40} timestamp={msg.createdAt} />`,
+// remount it resumes at the character due for (now - timestamp),
+// so it doesn't re-type across page changes.
+<ProgressiveText text={msg.text} speed={40} timestamp={msg.createdAt} />
+
+// catchUp: don't SNAP to that character — ease through the
+// backlog with a smootherstep ramp into live speed (a brief
+// whoosh to now). Number = ramp ms; {ms,window,easing} to tune.
+<ProgressiveText text={msg.text} timestamp={msg.createdAt} catchUp={700} />`,
   },
   {
     id: 'progressive-list',
@@ -580,8 +585,9 @@ const { active, report, finish } = useProgressiveSlot()
 
 // timestamp: anchor the whole sequence to wall-clock time so a
 // remount resumes at the right row (and back-dates each row's own
-// inner animation) — consistent across page changes.
-<ProgressiveList items={rows} initialReveal={0} timestamp={startedAt}>
+// inner animation) — consistent across page changes. Add catchUp to
+// EASE the held-back rows in (whoosh) instead of snapping past them.
+<ProgressiveList items={rows} initialReveal={0} timestamp={startedAt} catchUp={700}>
   {(row, i, { isNew }) => <ProgressiveText text={row.text} instant={!isNew} />}
 </ProgressiveList>`,
   },
@@ -601,6 +607,8 @@ const { active, report, finish } = useProgressiveSlot()
   rows={rows}          // ReactNode[][]
   speed={6}            // rows / sec
   initialReveal={0}    // 0 = animate the whole table
+  timestamp={startedAt}// resume at the right row across page changes
+  catchUp={700}        // …easing the held-back rows in, not snapping
 />`,
   },
   {
@@ -681,11 +689,12 @@ useEffect(() => {
 <ProgressiveTimelineSlot
   active={i === head}
   startedAt={anchor + i * 1500}   // Date | epoch ms — back-dates the slot
+  catchUp={700}                   // ease the backlog instead of snapping
   fallbackMs={600}
   onComplete={advance}
 />
-// children read \`elapsedMs\` (how long ago the slot activated) to
-// pre-advance their own animation — ProgressiveText does it for you.`,
+// children read \`elapsedMs\`/\`catchUp\` from the slot to resume — and
+// ease — their own animation; ProgressiveText does it for you.`,
   },
   {
     id: 'changelog',
@@ -3192,6 +3201,90 @@ function TimestampResumeDemo() {
   );
 }
 
+const CATCHUP_PARAGRAPH =
+  'When you re-open a page, the reveal is almost always way behind — so it used to snap straight to the end and skip the animation entirely. catchUp instead plays the tail of that backlog with an ease-in / ease-out ramp that settles into live speed: a brief, smooth whoosh to now instead of a hard cut.';
+
+/**
+ * A paragraph anchored a few seconds in the past, shown twice: the left column
+ * eases through the backlog (`catchUp`), the right snaps to it (the default).
+ * "Re-open the page" remounts both — the eased one whooshes in, the snap one
+ * just appears whole. The `secondsBehind` slider controls how far behind the
+ * anchor is.
+ */
+function CatchUpEaseDemo() {
+  const [visitId, setVisitId] = useState(0);
+  const [secondsBehind, setSecondsBehind] = useState(6);
+  const anchor = Date.now() - secondsBehind * 1000;
+  const speed = 60;
+  const render = (visible: string) => <span>{visible}</span>;
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Badge tone="emerald" dot>
+              catchUp = 700
+            </Badge>
+            <span className="mono text-[11px] text-muted-foreground">eases through the backlog</span>
+          </div>
+          <div className="min-h-[7.5rem] rounded-md border border-[color:var(--cyan)]/40 bg-[var(--surface)] p-3 text-[13px] leading-relaxed">
+            <ProgressiveText
+              key={`ease-${visitId}-${secondsBehind}`}
+              text={CATCHUP_PARAGRAPH}
+              speed={speed}
+              timestamp={anchor}
+              catchUp={700}
+              as="div"
+            >
+              {render}
+            </ProgressiveText>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Badge tone="sky" dot>
+              catchUp = 0
+            </Badge>
+            <span className="mono text-[11px] text-muted-foreground">snaps to the due char</span>
+          </div>
+          <div className="min-h-[7.5rem] rounded-md border border-border bg-[var(--surface-2)] p-3 text-[13px] leading-relaxed">
+            <ProgressiveText
+              key={`snap-${visitId}-${secondsBehind}`}
+              text={CATCHUP_PARAGRAPH}
+              speed={speed}
+              timestamp={anchor}
+              as="div"
+            >
+              {render}
+            </ProgressiveText>
+          </div>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button size="sm" variant="outline" onClick={() => setVisitId((n) => n + 1)}>
+          Re-open the page
+        </Button>
+        <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <span className="mono">{secondsBehind}s behind</span>
+          <input
+            type="range"
+            min={1}
+            max={20}
+            value={secondsBehind}
+            onChange={(e) => setSecondsBehind(Number(e.target.value))}
+            className="w-32 accent-[color:var(--cyan)]"
+          />
+        </label>
+      </div>
+      <p className="mono text-[11px] text-muted-foreground">
+        both anchored {secondsBehind}s in the past · left eases the tail in over ~700ms
+        (smootherstep — starts &amp; ends at live speed) · right snaps to where it should be · crank
+        the slider up: the eased side always covers the same bounded window, never a full replay
+      </p>
+    </div>
+  );
+}
+
 function ProgressiveTimelineDemo() {
   const [runId, setRunId] = useState(0); // bump to remount → replay the sequence
   return (
@@ -3209,6 +3302,10 @@ function ProgressiveTimelineDemo() {
       <div className="border-t border-border pt-5">
         <p className="eyebrow mb-3">timestamp — consistent across page changes</p>
         <TimestampResumeDemo />
+      </div>
+      <div className="border-t border-border pt-5">
+        <p className="eyebrow mb-3">catchUp — smooth eased fast-forward</p>
+        <CatchUpEaseDemo />
       </div>
     </div>
   );
