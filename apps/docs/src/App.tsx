@@ -163,6 +163,8 @@ import { JobsDemoPage } from './pages/demos/JobsDemoPage';
 import { MailDemoPage } from './pages/demos/MailDemoPage';
 import { fullUrl, nodes, specimenFulls, specimens, storyReel, thumbUrl, type Node } from './data';
 import { loadSearchIndex, type IndexEntry } from './search';
+import { HomePhone, type PhoneGroupData } from './home-phone';
+import { ComponentPhoneRail } from './phone-rail';
 
 /** Always the published package's version — read from its package.json at build time. */
 const VERSION = pkg.version;
@@ -1306,6 +1308,8 @@ export function App() {
               <Route path="/demos/search" element={<SearchDemoPage />} />
               <Route path="/demos/jobs" element={<JobsDemoPage />} />
             <Route path="/demos/mail" element={<MailDemoPage />} />
+              {/* Bare demo, no chrome — what the component pages' phone rails embed. */}
+              <Route path="/preview/:id" element={<PreviewPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
             {/* Dogfooded: poll our own changelog.jsonl and prompt a reload
@@ -1325,36 +1329,56 @@ function UpdateWatcher() {
   return <NewVersionToast entry={newVersion} onDismiss={dismissNewVersion} />;
 }
 
+/** The phone mirror's data — same grouping the page sections render. */
+const PHONE_GROUPS: PhoneGroupData[] = GROUPS.map((group) => ({
+  group,
+  items: REGISTRY.filter((e) => GROUP_OF[e.id] === group),
+})).filter((g) => g.items.length > 0);
+
 function Home() {
   return (
     <>
       <Header />
-      <main className="mx-auto max-w-5xl px-5 pb-24">
-        <Hero />
-        <ImportLine />
-        <div className="mt-14 space-y-16">
-          {GROUPS.map((group) => {
-            const items = REGISTRY.filter((e) => GROUP_OF[e.id] === group);
-            if (items.length === 0) return null;
-            return (
-              <section key={group}>
-                <div className="mb-5 flex items-baseline justify-between gap-4 border-b border-border pb-3">
-                  <div>
-                    <h2 className="display text-lg text-foreground">{group}</h2>
-                    <p className="mt-1 max-w-xl text-sm text-muted-foreground">{GROUP_BLURB[group]}</p>
-                  </div>
-                  <span className="mono shrink-0 text-[11px] tabular-nums text-muted-foreground">
-                    {String(items.length).padStart(2, '0')}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-                  {items.map((e) => (
-                    <ComponentCard key={e.id} entry={e} />
-                  ))}
-                </div>
-              </section>
-            );
-          })}
+      <main className="mx-auto max-w-5xl px-5 pb-24 xl:max-w-6xl">
+        <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_302px] xl:gap-14">
+          <div className="min-w-0">
+            <Hero />
+            <ImportLine />
+            <div className="mt-14 space-y-16">
+              {GROUPS.map((group) => {
+                const items = REGISTRY.filter((e) => GROUP_OF[e.id] === group);
+                if (items.length === 0) return null;
+                return (
+                  <section key={group}>
+                    <div
+                      data-sync-id={`group:${group}`}
+                      className="mb-5 flex items-baseline justify-between gap-4 border-b border-border pb-3"
+                    >
+                      <div>
+                        <h2 className="display text-lg text-foreground">{group}</h2>
+                        <p className="mt-1 max-w-xl text-sm text-muted-foreground">{GROUP_BLURB[group]}</p>
+                      </div>
+                      <span className="mono shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                        {String(items.length).padStart(2, '0')}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+                      {items.map((e) => (
+                        <ComponentCard key={e.id} entry={e} />
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          </div>
+          {/* Desktop only: the catalogue mirrored into a phone that sticks
+              through the whole page and scrolls in sync with it. */}
+          <aside className="hidden xl:block">
+            <div className="sticky top-20">
+              <HomePhone groups={PHONE_GROUPS} version={VERSION} />
+            </div>
+          </aside>
         </div>
       </main>
       <Footer />
@@ -1382,7 +1406,7 @@ function GuidePage({ title, children }: { title: string; children: ReactNode }) 
 
 function Hero() {
   return (
-    <div className="pt-14 pb-4">
+    <div data-sync-id="hero" className="pt-14 pb-4">
       <p className="eyebrow mb-3">React · TypeScript · Tailwind v4</p>
       <h1 className="display max-w-2xl text-4xl text-foreground sm:text-5xl">
         A personal component library, catalogued.
@@ -1441,7 +1465,9 @@ function ComponentPage() {
             </div>
           </>
         ) : (
-          <div className="mx-auto max-w-3xl px-5">
+          <div className="relative mx-auto max-w-3xl px-5">
+            {/* Desktop only: the same demo re-rendered at phone width, in the gutter. */}
+            <ComponentPhoneRail id={entry.id} />
             <div className="py-8">
               <p className="eyebrow mb-2">{GROUP_OF[entry.id] ?? entry.tag}</p>
               <h1 className="display text-3xl text-foreground">{entry.name}</h1>
@@ -1463,6 +1489,23 @@ function ComponentPage() {
       <Footer />
     </>
   );
+}
+
+/**
+ * A component's live demo with no page chrome at all — the document the
+ * {@link ComponentPhoneRail} iframes at device width, so the demo runs in a
+ * genuine 390px viewport (media queries and `useIsMobile` included).
+ */
+function PreviewPage() {
+  const { id } = useParams();
+  const entry = REGISTRY.find((e) => e.id === id);
+
+  useEffect(() => {
+    if (entry) document.title = `${entry.name} — phone preview`;
+  }, [entry]);
+
+  if (!entry?.Demo) return <Navigate to="/" replace />;
+  return <div className="min-h-dvh bg-background p-4">{entry.Demo()}</div>;
 }
 
 /* ─── Props tables — generated at build time from the library's TypeScript ─── */
@@ -1794,7 +1837,7 @@ function ImportLine() {
 function ComponentCard({ entry }: { entry: Entry }) {
   const { id, name, sig, Icon } = entry;
   return (
-    <Link to={`/c/${id}`} className="comp-card group block text-left" aria-label={`Open ${name}`}>
+    <Link to={`/c/${id}`} data-sync-id={id} className="comp-card group block text-left" aria-label={`Open ${name}`}>
       <div className="comp-card__art">
         <Icon />
       </div>

@@ -13,6 +13,17 @@ line directly under a version heading becomes that release's display title.
 Draft a release with `gabvdl-changelog draft` (conventional commits since the
 last release → grouped bullets under Unreleased), then curate the prose.
 
+## [Unreleased]
+
+### Added
+- Docs: desktop-only phone previews across the site. The homepage grows a
+  sticky `PhonePreview` mirroring the whole catalogue, glued to the page
+  scroll component by component with gsap ScrollTrigger (piecewise anchor
+  mapping, row-merged, `quickTo`-smoothed). Component pages frame their live
+  demo in a genuine 390px viewport via the new chrome-less `/preview/:id`
+  route, and every full-page demo shows the same route phone-framed beside
+  the desktop app — the width-gated rail can't recurse inside its own iframe.
+
 ## [0.22.0]
 
 > Pick an icon — search, then scroll a horizontal wall of glyphs.

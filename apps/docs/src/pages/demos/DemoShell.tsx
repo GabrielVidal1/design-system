@@ -2,12 +2,15 @@ import { useEffect, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { ThemeToggle } from '@gabvdl/ui';
+import { DemoPhoneRail } from '../../phone-rail';
 
 /**
  * Chrome for a full-page demo: one slim bar (back to the demos index, the
  * demo's name, which primitives it proves, the theme toggle) above an app that
  * owns the rest of the viewport. `h-dvh overflow-hidden` — the demo scrolls
- * inside itself, like the real service frontends these pages imitate.
+ * inside itself, like the real service frontends these pages imitate. On
+ * desktop a phone rail shows the very same route at device width alongside
+ * (the rail is width-gated, so the embedded 390px copy never recurses).
  */
 export function DemoShell({
   name,
@@ -43,7 +46,10 @@ export function DemoShell({
           <ThemeToggle />
         </div>
       </header>
-      <div className="min-h-0 flex-1">{children}</div>
+      <div className="flex min-h-0 flex-1">
+        <div className="min-w-0 flex-1">{children}</div>
+        <DemoPhoneRail />
+      </div>
     </div>
   );
 }
