@@ -29,6 +29,64 @@ export interface VirtualListHandle {
  */
 export type VirtualListColumns = number | { base?: number; sm?: number; md?: number; lg?: number };
 
+/**
+ * How to group a list into labelled sections. Either the **name of a field** to
+ * group by (`'version'` — the common case, `keyof T`) or a function deriving a
+ * group key from each item. Items are partitioned in their incoming order, so
+ * to see groups as contiguous blocks the caller sorts by the same key first;
+ * each group keeps the order it was given. See {@link VirtualListProps.groupBy}.
+ */
+export type GroupBy<T> = keyof T | ((item: T, index: number) => Key);
+
+/** One header in the flattened, group-aware render sequence. */
+interface HeaderRow {
+  kind: 'header';
+  /** The group's key — passed to `renderGroupHeader`. */
+  groupKey: Key;
+  /** How many items sit under this header. */
+  count: number;
+}
+/** One item in the flattened render sequence (`index` is its flat item index). */
+interface ItemRow<T> {
+  kind: 'item';
+  item: T;
+  index: number;
+  groupKey: Key;
+}
+type FlatRow<T> = HeaderRow | ItemRow<T>;
+
+/** Resolve a {@link GroupBy} against one item. */
+function groupKeyOf<T>(groupBy: GroupBy<T>, item: T, index: number): Key {
+  if (typeof groupBy === 'function') return groupBy(item, index);
+  const v = (item as Record<string, unknown>)[groupBy as string];
+  return (v == null ? '' : (v as Key)) as Key;
+}
+
+/**
+ * Flatten `items` into a header/item sequence: first-seen group order, each
+ * group's items kept in their incoming order. A run of the same key stays one
+ * group even if it recurs later (that only happens when the caller hasn't sorted
+ * by the key — grouping reads best on a pre-sorted list, so we don't re-sort it
+ * for them and change what they asked to show).
+ */
+function flatten<T>(items: T[], groupBy: GroupBy<T>): FlatRow<T>[] {
+  const out: FlatRow<T>[] = [];
+  const headerAt = new Map<Key, HeaderRow>();
+  let curKey: Key | undefined;
+  items.forEach((item, index) => {
+    const gk = groupKeyOf(groupBy, item, index);
+    if (gk !== curKey || !headerAt.has(gk)) {
+      const header: HeaderRow = { kind: 'header', groupKey: gk, count: 0 };
+      headerAt.set(gk, header);
+      out.push(header);
+      curKey = gk;
+    }
+    headerAt.get(gk)!.count += 1;
+    out.push({ kind: 'item', item, index, groupKey: gk });
+  });
+  return out;
+}
+
 export interface VirtualListProps<T> {
   /** The rows. Only the ones near the viewport are ever in the DOM. */
   items: T[];
@@ -96,6 +154,29 @@ export interface VirtualListProps<T> {
   columns?: VirtualListColumns;
   /** Gap between grid cells, px. Only used when `columns` > 1. Default 12. */
   gap?: number;
+  /**
+   * Group the list into labelled sections. Pass the **name of a field**
+   * (`'version'`, i.e. `keyof T`) or a function `(item) => key`; consecutive
+   * items sharing a key fall under one header, in first-seen group order. A
+   * header row is inserted before each group and rendered by
+   * {@link renderGroupHeader}. The list still virtualizes — headers and items
+   * share one windowed sequence, so a thousand grouped rows cost the same as a
+   * thousand flat ones.
+   *
+   * Group by whatever the items already carry; **sort the array by the same key
+   * first** so each group is one contiguous block (this doesn't reorder for
+   * you — it groups what it's given). Grouping is a **list-mode** feature: it is
+   * ignored when `columns` > 1.
+   */
+  groupBy?: GroupBy<T>;
+  /**
+   * Render a group's header from its key and the items under it. Defaults to a
+   * small muted label showing the key and the group's count. Only used when
+   * {@link groupBy} is set.
+   */
+  renderGroupHeader?: (groupKey: Key, items: T[]) => ReactNode;
+  /** First-paint height guess for a group header, px. Default 32. */
+  groupHeaderSize?: number;
   /** The scroll container — MUST be given a bounded height (via `className`). */
   className?: string;
   style?: CSSProperties;
@@ -138,6 +219,19 @@ const DefaultLoading = (
     Loading…
   </div>
 );
+
+/** The header shown for a group when the caller gives no `renderGroupHeader`. */
+function defaultGroupHeader(groupKey: Key, count: number): ReactNode {
+  const label = String(groupKey) || '—';
+  return (
+    <div className="flex items-baseline gap-2 px-1 pb-1.5 pt-3">
+      <span className="mono text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+        {label}
+      </span>
+      <span className="mono text-[11px] tabular-nums text-muted-foreground/60">{count}</span>
+    </div>
+  );
+}
 
 /**
  * A virtualized, optionally infinite list. Only the rows near the viewport are
@@ -183,6 +277,9 @@ export function VirtualList<T>({
   smoothEasing = 'cubic-bezier(0.65, 0, 0.35, 1)',
   columns,
   gap = 12,
+  groupBy,
+  renderGroupHeader,
+  groupHeaderSize = 32,
   className,
   style,
   apiRef,
@@ -190,26 +287,47 @@ export function VirtualList<T>({
   const parentRef = useRef<HTMLDivElement>(null);
   const columnCount = useColumnCount(columns);
   const isGrid = columnCount > 1;
+  // Grouping is a list-mode feature — a grid can't interleave full-width headers
+  // between chunked rows, so `columns` wins and grouping is ignored there.
+  const grouped = !isGrid && groupBy != null;
 
-  // What the virtualizer actually windows: single items in list mode, rows of
-  // `columnCount` items in grid mode. Either way it measures one element per
-  // virtual index, so the windowing logic below is identical for both.
+  // What the virtualizer actually windows, in one of three modes:
+  //   grid    — rows of `columnCount` items (grouping ignored)
+  //   grouped — a header/item sequence (headers interleaved between groups)
+  //   flat    — one item per row
+  // Either way it measures one element per virtual index, so the windowing logic
+  // below is identical for all three.
   const rows = useMemo(() => (isGrid ? chunk(items, columnCount) : null), [items, columnCount, isGrid]);
-  const rowCount = rows ? rows.length : items.length;
+  const flatRows = useMemo(
+    () => (grouped ? flatten(items, groupBy as GroupBy<T>) : null),
+    [grouped, items, groupBy],
+  );
+  const rowCount = rows ? rows.length : flatRows ? flatRows.length : items.length;
+
+  // A group header measures taller/shorter than an item — tell the virtualizer
+  // so its first-paint offsets don't jump when real heights land.
+  const sizeAt = (index: number) =>
+    flatRows && flatRows[index]?.kind === 'header' ? groupHeaderSize : estimateSize;
 
   const virtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => estimateSize,
+    estimateSize: sizeAt,
     overscan,
-    // In grid mode a row has no identity of its own — key it by its first cell,
-    // which is stable as long as the caller's `getItemKey` is.
-    getItemKey: getItemKey
-      ? (index) =>
-          rows
-            ? getItemKey(rows[index][0], index * columnCount)
-            : getItemKey(items[index], index)
-      : undefined,
+    // Every virtual index needs a stable key. Grid mode keys a row by its first
+    // cell; grouped mode keys a header by its group and an item by the caller's
+    // key; flat mode defers to the caller's key.
+    getItemKey: (index) => {
+      if (rows) {
+        return getItemKey ? getItemKey(rows[index][0], index * columnCount) : index;
+      }
+      if (flatRows) {
+        const r = flatRows[index];
+        if (r.kind === 'header') return `__group__:${String(r.groupKey)}`;
+        return getItemKey ? getItemKey(r.item, r.index) : r.index;
+      }
+      return getItemKey ? getItemKey(items[index], index) : index;
+    },
   });
 
   const virtualItems = virtualizer.getVirtualItems();
@@ -314,17 +432,31 @@ export function VirtualList<T>({
     };
   }, []);
 
+  // Item flat-index → virtual row index. In flat mode they're equal; in grid
+  // mode it's `index / columnCount`; in grouped mode headers shift every item
+  // down, so we resolve it from the flattened sequence.
+  const itemToRow = useMemo(() => {
+    if (!flatRows) return null;
+    const m = new Map<number, number>();
+    flatRows.forEach((r, rowIdx) => {
+      if (r.kind === 'item') m.set(r.index, rowIdx);
+    });
+    return m;
+  }, [flatRows]);
+
   useImperativeHandle(
     apiRef,
     () => ({
       // Callers think in item indices (a keyboard cursor walks items, not rows),
       // so map the item to the row that holds it before scrolling.
-      scrollToIndex: (index, opts) =>
-        virtualizer.scrollToIndex(Math.floor(index / columnCount), { align: opts?.align ?? 'auto' }),
+      scrollToIndex: (index, opts) => {
+        const row = itemToRow ? itemToRow.get(index) ?? index : Math.floor(index / columnCount);
+        virtualizer.scrollToIndex(row, { align: opts?.align ?? 'auto' });
+      },
       scrollToTop: () => virtualizer.scrollToOffset(0),
       columnCount,
     }),
-    [virtualizer, columnCount],
+    [virtualizer, columnCount, itemToRow],
   );
 
   // Infinite load: pull the next page as the last rows enter range.
@@ -424,6 +556,19 @@ export function VirtualList<T>({
                   return <div key={flat}>{renderItem(item, flat)}</div>;
                 })}
               </div>
+            ) : flatRows ? (
+              (() => {
+                const r = flatRows[v.index];
+                if (r.kind === 'header') {
+                  const groupItems = flatRows
+                    .filter((x): x is ItemRow<T> => x.kind === 'item' && x.groupKey === r.groupKey)
+                    .map((x) => x.item);
+                  return renderGroupHeader
+                    ? renderGroupHeader(r.groupKey, groupItems)
+                    : defaultGroupHeader(r.groupKey, r.count);
+                }
+                return renderItem(r.item, r.index);
+              })()
             ) : (
               renderItem(items[v.index], v.index)
             )}

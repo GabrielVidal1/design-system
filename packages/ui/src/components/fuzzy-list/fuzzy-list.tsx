@@ -7,7 +7,12 @@ import { highlightAll, highlightSnippet } from '../../lib/highlight';
 import { runSearch, type SearchResult } from '../../lib/search';
 import { useDebouncedValue } from '../../hooks/use-debounced-value';
 import { Spinner } from '../spinner';
-import { VirtualList, type VirtualListColumns, type VirtualListHandle } from '../virtual-list';
+import {
+  VirtualList,
+  type GroupBy,
+  type VirtualListColumns,
+  type VirtualListHandle,
+} from '../virtual-list';
 
 type Result<T> = SearchResult<T>;
 
@@ -85,6 +90,22 @@ export interface FuzzyListProps<T> {
   columns?: VirtualListColumns;
   /** Gap between grid cells, px. Only used when `columns` > 1. Default 12. */
   gap?: number;
+  /**
+   * Group the results into labelled sections — pass a field name (`'version'`,
+   * i.e. `keyof T`) or a function `(item) => key`. Forwarded to
+   * {@link VirtualList.groupBy}; a header is inserted before each group.
+   *
+   * Grouping reads best on a list already ordered by the same key, so pass the
+   * `items` pre-sorted. With an active search query Fuse re-ranks by relevance,
+   * which can fragment a group — grouping only sections *what it's shown*, it
+   * never reorders the results. List-mode only (ignored with `columns`).
+   */
+  groupBy?: GroupBy<T>;
+  /** Render a group header from its key and the items under it. See
+   * {@link VirtualList.renderGroupHeader}. */
+  renderGroupHeader?: (groupKey: Key, items: T[]) => ReactNode;
+  /** First-paint height guess for a group header, px. Default 32. */
+  groupHeaderSize?: number;
   /**
    * Glide rows to their new slot when the results re-order — as they do on every
    * keystroke (Fuse re-ranks by relevance), when the source list re-sorts, or
@@ -177,6 +198,9 @@ export function FuzzyList<T>({
   overscan = 8,
   columns,
   gap,
+  groupBy,
+  renderGroupHeader,
+  groupHeaderSize,
   smooth,
   smoothDuration,
   smoothEasing,
@@ -253,6 +277,22 @@ export function FuzzyList<T>({
   // map). Only affects cell styling; VirtualList resolves the real count.
   const grid = typeof columns === 'object' || (typeof columns === 'number' && columns > 1);
 
+  // VirtualList windows `Result<T>` wrappers, but the caller's `groupBy` /
+  // `renderGroupHeader` speak in terms of the bare `T`. Adapt both to unwrap
+  // `.item` before handing them down.
+  const groupByResult: GroupBy<Result<T>> | undefined = groupBy
+    ? (r: Result<T>) => {
+        const k =
+          typeof groupBy === 'function'
+            ? groupBy(r.item, r.refIndex)
+            : (r.item as Record<string, unknown>)[groupBy as string];
+        return (k == null ? '' : k) as Key;
+      }
+    : undefined;
+  const renderGroupHeaderResult = renderGroupHeader
+    ? (key: Key, rs: Result<T>[]) => renderGroupHeader(key, rs.map((r) => r.item))
+    : undefined;
+
   return (
     <div className={cn('flex min-h-0 flex-col', className)}>
       <div className="flex items-center gap-2 rounded-md border border-border bg-muted px-2.5">
@@ -295,6 +335,9 @@ export function FuzzyList<T>({
         overscan={overscan}
         columns={columns}
         gap={gap}
+        groupBy={groupByResult}
+        {...(renderGroupHeaderResult ? { renderGroupHeader: renderGroupHeaderResult } : {})}
+        {...(groupHeaderSize !== undefined ? { groupHeaderSize } : {})}
         smooth={smooth}
         smoothDuration={smoothDuration}
         smoothEasing={smoothEasing}

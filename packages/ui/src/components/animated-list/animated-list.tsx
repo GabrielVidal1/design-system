@@ -8,6 +8,19 @@ import {
 
 import { usePrefersReducedMotion } from '../../hooks/use-media-query';
 import { cn } from '../../lib/utils';
+import type { GroupBy } from '../virtual-list';
+
+/** The header shown for a group when the caller gives no `renderGroupHeader`. */
+function defaultGroupHeader(groupKey: Key, count: number): ReactNode {
+  return (
+    <div className="flex items-baseline gap-2 px-1 pb-1.5 pt-3">
+      <span className="mono text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+        {String(groupKey) || '—'}
+      </span>
+      <span className="mono text-[11px] tabular-nums text-muted-foreground/60">{count}</span>
+    </div>
+  );
+}
 
 export interface AnimatedListProps<T> {
   /** The rows, in the order they should appear. */
@@ -16,6 +29,17 @@ export interface AnimatedListProps<T> {
   renderItem: (item: T, index: number) => ReactNode;
   /** Stable key per row — this is what lets the list track a row across a reorder. */
   getItemKey: (item: T, index: number) => Key;
+  /**
+   * Group the list into labelled sections — a field name (`keyof T`) or a
+   * function `(item) => key`. A header is inserted before each group (in
+   * first-seen group order); pass the items pre-sorted by the same key so each
+   * group is one contiguous block. Headers glide with the rest of the list on a
+   * reorder, so keep {@link renderGroupHeader}'s output stable per key.
+   */
+  groupBy?: GroupBy<T>;
+  /** Render a group's header from its key and the items under it. Defaults to a
+   * small muted label with the group's count. */
+  renderGroupHeader?: (groupKey: Key, items: T[]) => ReactNode;
   /**
    * How long a reorder glide takes, in ms. Default 460 — slow enough to read as
    * a move, quick enough not to feel sluggish.
@@ -52,6 +76,8 @@ export function AnimatedList<T>({
   items,
   renderItem,
   getItemKey,
+  groupBy,
+  renderGroupHeader,
   duration = 460,
   easing = 'cubic-bezier(0.65, 0, 0.35, 1)',
   className,
@@ -112,24 +138,74 @@ export function AnimatedList<T>({
 
   if (items.length === 0 && emptyState != null) return <>{emptyState}</>;
 
+  // Build the render sequence: with `groupBy`, insert a header before each
+  // group (first-seen order) and gather the group's items for the header render.
+  // Headers get their own stable key (`__group__:<key>`) so FLIP tracks them
+  // across a reorder too.
+  const seq: (
+    | { kind: 'header'; key: Key; groupKey: Key; groupItems: T[] }
+    | { kind: 'item'; key: Key; item: T; index: number }
+  )[] = [];
+  if (groupBy != null) {
+    const groupItemsByKey = new Map<Key, T[]>();
+    const order: Key[] = [];
+    items.forEach((item, i) => {
+      const gk = (() => {
+        const k =
+          typeof groupBy === 'function'
+            ? groupBy(item, i)
+            : (item as Record<string, unknown>)[groupBy as string];
+        return (k == null ? '' : k) as Key;
+      })();
+      if (!groupItemsByKey.has(gk)) {
+        groupItemsByKey.set(gk, []);
+        order.push(gk);
+      }
+      groupItemsByKey.get(gk)!.push(item);
+    });
+    let curKey: Key | undefined;
+    items.forEach((item, i) => {
+      const gk = (() => {
+        const k =
+          typeof groupBy === 'function'
+            ? groupBy(item, i)
+            : (item as Record<string, unknown>)[groupBy as string];
+        return (k == null ? '' : k) as Key;
+      })();
+      if (gk !== curKey) {
+        curKey = gk;
+        seq.push({
+          kind: 'header',
+          key: `__group__:${String(gk)}`,
+          groupKey: gk,
+          groupItems: groupItemsByKey.get(gk) ?? [],
+        });
+      }
+      seq.push({ kind: 'item', key: getItemKey(item, i), item, index: i });
+    });
+  } else {
+    items.forEach((item, i) => seq.push({ kind: 'item', key: getItemKey(item, i), item, index: i }));
+  }
+
   return (
     <div className={className} style={style}>
-      {items.map((item, i) => {
-        const key = getItemKey(item, i);
-        return (
-          <div
-            key={key}
-            ref={(el) => {
-              if (el) nodes.current.set(key, el);
-              else nodes.current.delete(key);
-            }}
-            className={cn('ds-animated-row', itemClassName)}
-            style={{ willChange: 'transform' }}
-          >
-            {renderItem(item, i)}
-          </div>
-        );
-      })}
+      {seq.map((row) => (
+        <div
+          key={row.key}
+          ref={(el) => {
+            if (el) nodes.current.set(row.key, el);
+            else nodes.current.delete(row.key);
+          }}
+          className={cn('ds-animated-row', itemClassName)}
+          style={{ willChange: 'transform' }}
+        >
+          {row.kind === 'header'
+            ? (renderGroupHeader
+                ? renderGroupHeader(row.groupKey, row.groupItems)
+                : defaultGroupHeader(row.groupKey, row.groupItems.length))
+            : renderItem(row.item, row.index)}
+        </div>
+      ))}
     </div>
   );
 }

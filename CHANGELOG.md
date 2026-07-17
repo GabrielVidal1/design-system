@@ -13,6 +13,25 @@ line directly under a version heading becomes that release's display title.
 Draft a release with `gabvdl-changelog draft` (conventional commits since the
 last release → grouped bullets under Unreleased), then curate the prose.
 
+## [0.19.0]
+
+> Lists that group.
+
+### Added
+
+- **`groupBy` on `VirtualList`, `FuzzyList` and `AnimatedList`** — group a list
+  into labelled sections by a **field name** (`groupBy="version"`, i.e. `keyof T`)
+  or a function `(item) => key`. A header row is inserted before each group (in
+  first-seen group order) and rendered by an optional `renderGroupHeader(key,
+  items)` — the default is a small muted label with the group's count. On
+  `VirtualList` headers and items share one windowed sequence, so a thousand
+  grouped rows still cost a thousand; on `FuzzyList` the grouping tracks the live
+  result set (it sections what it's shown, never reorders it); on `AnimatedList`
+  headers glide with the rows on a reorder. Group by whatever the items already
+  carry and pass them sorted by the same key so each group is one contiguous
+  block. List-mode only — ignored when `columns` is set. The shared `GroupBy<T>`
+  type is exported from the package root.
+
 ## [0.18.0]
 
 > A list that glides when it re-sorts.

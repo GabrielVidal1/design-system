@@ -106,7 +106,7 @@ export type { FuzzyListProps, FuzzyRenderContext } from './components/fuzzy-list
 export { GlobalSearch, formatHotkey, parseHotkey, useHotkey } from './components/global-search';
 export type { GlobalSearchProps, GlobalSearchSource, Hotkey } from './components/global-search';
 export { VirtualList } from './components/virtual-list';
-export type { VirtualListProps, VirtualListHandle, VirtualListColumns } from './components/virtual-list';
+export type { VirtualListProps, VirtualListHandle, VirtualListColumns, GroupBy } from './components/virtual-list';
 export { AnimatedList } from './components/animated-list';
 export type { AnimatedListProps } from './components/animated-list';
 export { Collection } from './components/collection';
