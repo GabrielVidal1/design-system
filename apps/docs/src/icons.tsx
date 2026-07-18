@@ -74,6 +74,58 @@ export function IconPickerIcon() {
   );
 }
 
+/** PalettePicker — vertical colour stripes, each breathing in turn as a
+ * highlight sweeps across, like the swatch strip lighting up while you edit. */
+export function PalettePickerIcon() {
+  const n = 5;
+  const w = 22;
+  const g = 6;
+  const h = 74;
+  const x0 = 110 - (n * w + (n - 1) * g) / 2;
+  const y0 = 28;
+  const opacities = [0.28, 0.46, 0.66, 0.86, 1];
+  return (
+    <Svg>
+      <rect
+        x={x0 - 5}
+        y={y0 - 5}
+        width={n * w + (n - 1) * g + 10}
+        height={h + 10}
+        rx="10"
+        stroke={DIM}
+        strokeWidth="2"
+      />
+      {Array.from({ length: n }, (_, i) => (
+        <rect
+          key={i}
+          className="a-fade"
+          style={v({ '--dur': '3.6s', '--delay': `${i * 0.3}s` })}
+          x={x0 + i * (w + g)}
+          y={y0}
+          width={w}
+          height={h}
+          rx="4"
+          fill={CY}
+          fillOpacity={opacities[i]}
+        />
+      ))}
+      {/* the edit caret hopping between stripes */}
+      <g className="a-drift" style={v({ '--dx': `${2 * (w + g)}px`, '--dur': '4.2s' })}>
+        <rect
+          x={x0}
+          y={y0}
+          width={w}
+          height={h}
+          rx="4"
+          fill="none"
+          stroke={INK}
+          strokeWidth="2.5"
+        />
+      </g>
+    </Svg>
+  );
+}
+
 /** ImageViewer — a loupe glides along the ridge line, magnifying it. */
 export function ImageViewerIcon() {
   return (

@@ -134,6 +134,7 @@ import {
   SelectIcon,
   TagFilterIcon,
   IconPickerIcon,
+  PalettePickerIcon,
   SkeletonIcon,
   SliderIcon,
   SpinnerIcon,
@@ -153,6 +154,7 @@ import pkg from '@gabvdl/ui/package.json';
 import { SandpackProvider, SandpackCodeEditor, type SandpackTheme } from '@codesandbox/sandpack-react';
 import { RichInputPage } from './pages/RichInputPage';
 import { ElementPickerPage } from './pages/ElementPickerPage';
+import { PalettePickerPage } from './pages/PalettePickerPage';
 import { StartPage } from './pages/StartPage';
 import { ThemingPage } from './pages/ThemingPage';
 import { ChangelogDocPage } from './pages/ChangelogPage';
@@ -211,6 +213,7 @@ const GROUP_OF: Record<string, Group> = {
   slider: 'Inputs',
   'copy-button': 'Inputs',
   'element-picker': 'Inputs',
+  'palette-picker': 'Inputs',
   'file-editor': 'Inputs',
   'char-roll': 'Animation',
   'animated-list': 'Animation',
@@ -298,6 +301,7 @@ const SOURCE_FILE: Record<string, string> = {
   'search-input': 'search-input.tsx',
   'tag-filter': 'tag-filter.tsx',
   'icon-picker': 'icon-picker.tsx',
+  'palette-picker': 'palette-picker.tsx',
   'relative-time': 'relative-time.tsx',
   theme: 'theme.tsx',
   format: 'format.ts',
@@ -1163,6 +1167,14 @@ if (await confirm({ title: 'Delete note?', destructive: true })) remove()
   rows={4}              // grid height; columns virtualize + scroll →
   shortcut              // ⌘K / "/" focuses the search
 />`,
+  },
+  {
+    id: 'palette-picker',
+    name: 'PalettePicker',
+    sig: 'value · onChange · min · max · harmony — + ColorThemeProvider',
+    tag: 'input',
+    Icon: PalettePickerIcon,
+    Page: PalettePickerPage,
   },
   {
     id: 'drop-zone',

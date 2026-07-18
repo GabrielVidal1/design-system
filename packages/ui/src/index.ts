@@ -15,6 +15,21 @@ export {
   relTime,
 } from './lib/format';
 export type { TimeInput } from './lib/format';
+export {
+  hexToHsl,
+  hslToHex,
+  hexToRgb,
+  rgbToHex,
+  rgbToHsl,
+  hslToRgb,
+  isValidHex,
+  normalizeHex,
+  luminance,
+  readableTextColor,
+  generatePalette,
+  randomColor,
+} from './lib/color';
+export type { HSL, Harmony, GenerateOptions } from './lib/color';
 
 export {
   useCopyToClipboard,
@@ -70,6 +85,14 @@ export { TagFilter } from './components/tag-filter';
 export type { TagFilterItem, TagFilterProps } from './components/tag-filter';
 export { IconPicker } from './components/icon-picker';
 export type { IconPickerProps, IconSet, IconComponent } from './components/icon-picker';
+export { PalettePicker, PaletteStripes, ColorThemeProvider, useColorTheme, paletteToVars } from './components/palette-picker';
+export type {
+  PalettePickerProps,
+  Palette,
+  ColorTheme,
+  ColorThemeContextValue,
+  ColorThemeProviderProps,
+} from './components/palette-picker';
 export {
   ElementPicker,
   ElementPickerField,

@@ -24,6 +24,37 @@ last release → grouped bullets under Unreleased), then curate the prose.
   route, and every full-page demo shows the same route phone-framed beside
   the desktop app — the width-gated rail can't recurse inside its own iframe.
 
+## [0.23.0]
+
+> Build a palette — vertical stripes you can edit, shuffle from colour theory, and theme a subtree with.
+
+### Added
+
+- **`PalettePicker`** — pick and build a colour palette of 3–6 swatches shown
+  as vertical stripes. The closed trigger previews the stripes; opening it
+  reveals an editor where each swatch is a **native colour picker + hex field +
+  per-row randomise**, **＋ Add** appends a colour-theory-pleasing next colour,
+  and **Random** regenerates the whole palette from a harmony. Responsive by
+  one API: on desktop the editor is a **dropdown anchored above the field**
+  (flips below near the top of the viewport); on phones it's an **overlay
+  pinned to the bottom of the screen**. Controlled via `value` / `onChange`,
+  with `min` / `max` / `harmony` / `inline`. Also exports `PaletteStripes` (the
+  stripe preview on its own).
+- **`ColorThemeProvider` / `useColorTheme` / `paletteToVars`** — map a palette
+  onto CSS custom properties so any subtree reskins without touching component
+  code. The accent (swatch 0) drives `--primary` / `--ring` / `--accent` with an
+  auto-picked readable foreground, every swatch is exposed as `--palette-N`, and
+  an optional `font` sets `--palette-font`. Scoped to a wrapper element by
+  default, or `global` to paint `:root`.
+- **Colour math in `@gabvdl/ui`** — dependency-free `generatePalette`
+  (analogous / complementary / triadic / tetradic / split-complementary /
+  monochromatic, any count, deterministic per seed), `randomColor`, and the
+  `hexToHsl` / `hslToHex` / `readableTextColor` / `luminance` / `normalizeHex`
+  family. New `HSL` / `Harmony` / `GenerateOptions` types.
+- New `@gabvdl/ui/palette.css` entry point (dropdown + bottom-sheet motion,
+  reduced-motion-safe) and a live component page with three demos: the picker,
+  live retheming, and the harmony gallery.
+
 ## [0.22.0]
 
 > Pick an icon — search, then scroll a horizontal wall of glyphs.

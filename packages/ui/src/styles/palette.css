@@ -1,0 +1,61 @@
+/*
+ * Motion for <PalettePicker>'s desktop dropdown and mobile bottom sheet.
+ *
+ * Plain CSS (no Tailwind directives) so it works whether or not the consumer's
+ * Tailwind scans this package, mirroring overlay.css. All under
+ * prefers-reduced-motion so the panels just appear when motion is off.
+ */
+
+@keyframes ds-palette-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+
+@keyframes ds-palette-pop-up {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+}
+
+@keyframes ds-palette-rise {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes ds-palette-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Desktop dropdown: anchored above the trigger by default (rises up),
+ * flips to below (`.top-full`) near the top of the viewport (pops down). */
+.ds-palette-panel {
+  animation: ds-palette-pop-up 160ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: bottom center;
+}
+.ds-palette-panel.top-full {
+  animation: ds-palette-pop 160ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: top center;
+}
+
+.ds-palette-scrim {
+  animation: ds-palette-fade 160ms ease-out;
+}
+
+.ds-palette-sheet {
+  animation: ds-palette-rise 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-palette-panel,
+  .ds-palette-panel.top-full,
+  .ds-palette-scrim,
+  .ds-palette-sheet {
+    animation: ds-palette-fade 1ms linear;
+  }
+}
