@@ -44,6 +44,8 @@ export interface TagFilterProps {
  *   onChange={setSelected}
  * />
  * ```
+ *
+ * @summary Row of filter chips (single or multiple select) with an "all" option.
  */
 export function TagFilter({
   items,

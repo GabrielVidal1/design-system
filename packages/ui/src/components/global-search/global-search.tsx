@@ -83,6 +83,9 @@ export interface GlobalSearchProps<T> {
  *   onSelect={(entry) => navigate(entry.route)}
  * />
  * ```
+ *
+ * @summary Cmd-K command palette over any item array — keyboard-driven, grouped
+ * results, custom hotkey.
  */
 export function GlobalSearch<T>({
   items,

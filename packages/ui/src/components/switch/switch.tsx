@@ -35,6 +35,8 @@ export interface SwitchProps
  * hand-rolls. Controlled (`checked` + `onCheckedChange`) or uncontrolled
  * (`defaultChecked`); with `label`/`description` it renders the whole
  * labelled row and the text toggles too.
+ *
+ * @summary Toggle switch, with a labelled-row layout for settings screens.
  */
 export function Switch({
   checked,

@@ -17,6 +17,8 @@ export interface UseCopyOptions {
  * Handles the two ways `navigator.clipboard` is unavailable — insecure origins
  * and old WebViews — by falling back to a hidden `<textarea>` + `execCommand`,
  * so it works over plain HTTP on the LAN too.
+ *
+ * @summary Copy text with success state and a native-share fallback.
  */
 export function useCopyToClipboard({ timeout = 1500, share = false }: UseCopyOptions = {}) {
   const [copied, setCopied] = React.useState(false);

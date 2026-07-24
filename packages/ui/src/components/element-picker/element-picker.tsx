@@ -263,6 +263,10 @@ export interface ElementPickerProps extends UseElementPickerOptions {
  * This renders only the overlay. `children` is a render prop for your own
  * trigger; for the batteries-included input — thumbnails, HTML, parsed output —
  * reach for `ElementPickerField`.
+ *
+ * @summary Point at any DOM element on the page (hover / click / press-and-hold) and
+ * get its full HTML plus a parsed description — selector, hierarchy,
+ * computed style groups. Powers "pick an element" editor flows.
  */
 export function ElementPicker({
   highlightSelected = true,

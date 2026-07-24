@@ -79,10 +79,27 @@ needs a `GROUP_OF` mapping — without one it renders in no catalogue section
 ### Keeping `docs/component-list.md` current
 
 `scripts/gen-component-list.mjs` generates it from the `REGISTRY` (names, sigs,
-groups) and `packages/ui/src/index.ts` (exported symbols), merged with a
-hand-written description map inside the script. So after adding a component:
-add its one-line description to `DESCRIPTIONS` in the generator and run
-`npm run docs:list`. The script warns about any entry lacking a description.
+groups), `packages/ui/src/index.ts` (exported symbols), and **the `@summary`
+JSDoc tag on each component's primary export** — the description lives next to
+the code it describes, so it is updated in the same edit:
+
+```tsx
+/**
+ * …whatever prose the component already had…
+ *
+ * @summary Row of filter chips (single or multiple select) with an
+ * "all" option.
+ */
+export function TagFilter({ … }: TagFilterProps) {
+```
+
+The tag runs to the end of the block (or the next `@tag`), so it may wrap over
+several lines. Write it as "what it is for", not "what it renders" — this is the
+text an agent scans to decide whether the component fits its task. It also ships
+in the built `.d.ts`, so it doubles as the IDE hover text.
+
+So after adding a component: give its main export an `@summary` and run
+`npm run docs:list`. The script warns about any entry or hook lacking one.
 Never edit `docs/component-list.md` by hand — it is overwritten.
 
 ## Releasing

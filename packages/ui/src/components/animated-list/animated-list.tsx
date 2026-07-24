@@ -71,6 +71,9 @@ export interface AnimatedListProps<T> {
  * Keys must be stable per row — that is how a card is tracked from its old
  * position to its new one. With index-as-key everything looks like it "moved
  * down one" and nothing glides sensibly.
+ *
+ * @summary Non-virtualized list that FLIP-animates rows as they reorder. For short,
+ * live-sorted lists where movement should be legible.
  */
 export function AnimatedList<T>({
   items,

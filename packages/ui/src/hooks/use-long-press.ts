@@ -23,6 +23,8 @@ export interface UseLongPressOptions {
  * Spread the returned props onto any element. After the gesture fires, the
  * ensuing `click` is swallowed once: without that, a long press on a link both
  * opens the menu and follows the link.
+ *
+ * @summary Long-press gesture with movement tolerance and the press point.
  */
 export function useLongPress(
   onLongPress: (point: LongPressPoint) => void,

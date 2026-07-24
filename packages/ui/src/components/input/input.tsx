@@ -25,7 +25,10 @@ function getStore(location: 'local' | 'session'): Storage | null {
   }
 }
 
-/** A minimal Tailwind text input, styled from the shared design tokens. */
+/** A minimal Tailwind text input, styled from the shared design tokens.
+ *
+ * @summary The base text input, styled to the theme tokens.
+ */
 export function Input({
   className,
   type,

@@ -92,6 +92,8 @@ function reducedMotion(): boolean {
  * Pass a `timestamp` to anchor the reveal to wall-clock time: on remount the
  * list resumes at the row it should be at (and back-dates each animating row's
  * anchor), so the sequence stays consistent across page changes.
+ *
+ * @summary Staggered reveal of list items on the shared progressive timeline.
  */
 export function ProgressiveList<T>({
   items,

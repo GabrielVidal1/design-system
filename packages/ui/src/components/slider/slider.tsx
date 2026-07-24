@@ -41,6 +41,9 @@ function snap(raw: number, min: number, max: number, step: number): number {
  * drag), a finger-sized thumb, and arrow/Page/Home/End keys on the focusable
  * thumb. Controlled (`value` + `onValueChange`) or uncontrolled
  * (`defaultValue`); `onValueCommit` fires when the gesture ends.
+ *
+ * @summary Pointer-captured range slider with full arrow/Page/Home/End keyboard
+ * support.
  */
 export function Slider({
   value,

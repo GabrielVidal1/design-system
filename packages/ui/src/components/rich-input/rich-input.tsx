@@ -131,6 +131,11 @@ export interface RichInputProps {
   renderSendButton?: (props: RichSendButtonProps) => ReactNode;
 }
 
+/**
+ * @summary The full composer: draft persistence, un-send window, file attachments,
+ * guideline tags, `#mention` autocomplete and prompt history. Use for any
+ * chat/agent input.
+ */
 export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function RichInput(
   {
     defaultValue = '',

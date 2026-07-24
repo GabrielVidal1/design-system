@@ -63,6 +63,9 @@ const ToastCtx = React.createContext<ToastFn | null>(null);
  * const id = toast.loading('Uploading…')
  * toast.update(id, 'Uploaded', { type: 'success' })
  * ```
+ *
+ * @summary Toast system — `ToastProvider` + `useToast`, with types, actions and
+ * in-place updates.
  */
 export function ToastProvider({
   children,

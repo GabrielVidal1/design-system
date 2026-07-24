@@ -49,6 +49,8 @@ const defaultFormat = (value: number, max: number) => `${Math.round((value / max
  * the shared {@link Tone} scale so a `running` job's bar matches its
  * {@link StatusBadge}. With no `value` (or `indeterminate`) it plays an
  * endless sweep; needs `@gabvdl/ui/progress.css` (in the `styles.css` barrel).
+ *
+ * @summary Determinate progress bar with tone and size variants.
  */
 export function Progress({
   value,

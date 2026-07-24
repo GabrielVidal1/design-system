@@ -9,6 +9,9 @@ import { cn } from '../../lib/utils';
  * The thumbnail paints instantly (already small / often cached from a grid); the
  * full image is only fetched when the tile nears the viewport, so a gallery with
  * dozens of images doesn't download every full-res file up front.
+ *
+ * @summary Lazy blur-up image: renders `thumb`, swaps to `full` when it scrolls into
+ * view. Use for any long image grid.
  */
 export function ProgressiveImage({
   thumb,

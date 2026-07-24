@@ -6,6 +6,8 @@ import * as React from 'react';
  * Reference-counted, so nesting a modal inside a viewer (or opening two at
  * once) doesn't unlock the page when only the inner one closes. Compensates for
  * the scrollbar width so the page doesn't jump on lock.
+ *
+ * @summary Lock body scroll while an overlay is open.
  */
 export function useScrollLock(active = true) {
   React.useEffect(() => {
@@ -34,7 +36,10 @@ export function useScrollLock(active = true) {
 let locks = 0;
 let previous: { overflow: string; paddingRight: string } | null = null;
 
-/** Call `onEscape` when Escape is pressed (while `active`). */
+/** Call `onEscape` when Escape is pressed (while `active`).
+ *
+ * @summary Run a handler on Escape, respecting overlay stacking.
+ */
 export function useEscape(onEscape: () => void, active = true) {
   const cb = React.useRef(onEscape);
   cb.current = onEscape;
@@ -55,6 +60,8 @@ export function useEscape(onEscape: () => void, active = true) {
  * Listens on `pointerdown` so the menu closes before the click resolves — the
  * behaviour every hand-rolled popover forgets, which is why a click on a link
  * behind an open dropdown otherwise gets eaten.
+ *
+ * @summary Run a handler on a click outside a ref.
  */
 export function useOutsideClick<T extends HTMLElement = HTMLElement>(
   onOutside: () => void,

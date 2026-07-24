@@ -78,6 +78,11 @@ interface OpenState {
   opts: ViewerOptions;
 }
 
+/**
+ * @summary Full-screen media overlay opened imperatively from anywhere — zoom, pan,
+ * swipe between items, images *and* video, plus an auto-advancing story
+ * mode.
+ */
 export function ImageViewerProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<OpenState | null>(null);
 

@@ -53,6 +53,9 @@ export interface ChangelogProps {
  * JSONL changelog fetched (and polled) by the built-in data layer, or pass
  * `entries` directly. Generate the JSONL with the bundled `gabvdl-changelog`
  * CLI (`npx gabvdl-changelog` at deploy time).
+ *
+ * @summary Renders a parsed `CHANGELOG.md` — trigger button, full page,
+ * `useChangelog` fetching/parsing, and a toast when a new version ships.
  */
 export function Changelog({
   entries,

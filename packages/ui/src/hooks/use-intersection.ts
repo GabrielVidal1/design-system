@@ -6,6 +6,8 @@ import * as React from 'react';
  * The paged-reveal counterpart to `VirtualList`'s `onEndReached`: put the
  * returned ref on a div at the bottom of a plain grid and it loads the next
  * page before the user reaches it (`rootMargin` looks ahead by default).
+ *
+ * @summary IntersectionObserver as a ref + boolean.
  */
 export function useIntersection<T extends HTMLElement = HTMLDivElement>(
   onIntersect: () => void,
@@ -45,6 +47,8 @@ export interface UseInfiniteScrollOptions {
 /**
  * `useIntersection` wired for pagination: it stops observing once there is
  * nothing more to load, and never re-enters while a page is in flight.
+ *
+ * @summary Fire a callback when a sentinel scrolls into view.
  */
 export function useInfiniteScroll<T extends HTMLElement = HTMLDivElement>({
   hasMore,

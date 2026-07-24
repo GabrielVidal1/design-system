@@ -205,6 +205,9 @@ function sizeStyle(side: DrawerSide, config: ResizableDrawerConfig): CSSProperti
  * `open` state is controlled per side (`leftOpen`/`onLeftOpenChange`, …). On
  * desktop that maps to collapsed/expanded; on mobile to the slide-in overlay.
  * The imperative handle exposes `collapse`/`expand`/`toggle`/`isCollapsed`.
+ *
+ * @summary App scaffold with resizable left/right/top/bottom panels on desktop that
+ * become panels or drawers on mobile.
  */
 export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayoutProps>(
   function ResizableLayout(

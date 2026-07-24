@@ -7,6 +7,8 @@ import * as React from 'react';
  * errors so a full disk can never crash the app. Tabs stay in sync: a `storage`
  * event from another tab, or a write from another hook instance on the same
  * key, updates every subscriber.
+ *
+ * @summary State persisted to localStorage, synced across tabs.
  */
 export function useLocalStorage<T>(
   key: string,

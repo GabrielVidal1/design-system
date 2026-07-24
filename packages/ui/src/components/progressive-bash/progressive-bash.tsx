@@ -239,6 +239,10 @@ interface Cursor {
  * command's prompt line to the top while its output scrolls; and
  * `experimentalSubparts` splits a chained `echo "Title..[value]" && cmd` command
  * into several separate, sequentially-typed command blocks.
+ *
+ * @summary Replays a terminal session: real timestamp gaps, command tokenizing,
+ * output classification, sticky prompt and an eased catch-up when it falls
+ * behind.
  */
 export function ProgressiveBash({
   entries,

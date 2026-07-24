@@ -146,6 +146,9 @@ const RESIZE_HANDLES: { edge: ResizeEdge; cursor: string; style: CSSProperties }
  *   <Dock id="bottom" className="h-64" />
  * </DockProvider>
  * ```
+ *
+ * @summary Draggable, resizable floating panels with a dock — tabbing, close/reopen,
+ * placement memory. For tool windows and inspectors.
  */
 export function FloatingPanel({
   id,

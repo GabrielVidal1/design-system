@@ -74,6 +74,9 @@ function filterIcons(names: string[], query: string): string[] {
  * import { icons } from 'lucide-react';
  * <IconPicker icons={icons} value={name} onChange={setName} shortcut />
  * ```
+ *
+ * @summary Searchable horizontal virtual grid of icons. You pass the icon set (e.g.
+ * lucide) — the component ships none.
  */
 export function IconPicker({
   icons,

@@ -310,6 +310,9 @@ export interface IframePreviewProps
  * that really re-fetches, a phone/desktop tier and a slot for your own
  * controls. Built for phones: `100dvh`, safe-area padding, tap-sized buttons
  * and a toolbar that stays one row wide.
+ *
+ * @summary Preview an arbitrary URL in an iframe with a URL field, action buttons and
+ * a full-screen mode.
  */
 export function IframePreview({
   url,

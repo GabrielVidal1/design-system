@@ -15,6 +15,9 @@ export interface SearchInputProps
 /**
  * A search field with the leading icon, a clear button, and Escape-to-clear —
  * the input every list in the lab puts above itself. Pairs with `FuzzyList`.
+ *
+ * @summary Search field with a clear affordance and an optional keyboard shortcut
+ * hint.
  */
 export function SearchInput({
   value,

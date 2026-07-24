@@ -17,6 +17,9 @@ export interface CopyButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLBut
 /**
  * Copy-to-clipboard with the transient check mark — the six lines re-typed in a
  * dozen projects, minus the empty `catch {}` they all shipped.
+ *
+ * @summary Copy-to-clipboard button with success feedback and native share fallback.
+ * Pairs with the `useCopyToClipboard` hook.
  */
 export function CopyButton({
   value,

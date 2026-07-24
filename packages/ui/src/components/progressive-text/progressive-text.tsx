@@ -108,6 +108,9 @@ function reducedMotion(): boolean {
  * Pass a `timestamp` to anchor the reveal to wall-clock time so it resumes at the
  * character it *should* be at across page changes, and `catchUp` to ease through
  * the backlog instead of snapping to it.
+ *
+ * @summary Typewriter text with speed, delay and delete-speed — the base of the
+ * progressive family.
  */
 export function ProgressiveText({
   text,

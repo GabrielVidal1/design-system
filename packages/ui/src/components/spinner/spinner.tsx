@@ -13,7 +13,10 @@ export interface SpinnerProps {
 
 const SIZES = { sm: 'size-4', md: 'size-6', lg: 'size-9' } as const;
 
-/** The `Loader2 animate-spin` block that every project hand-rolls. */
+/** The `Loader2 animate-spin` block that every project hand-rolls.
+ *
+ * @summary Loading spinner with size, label and centering.
+ */
 export function Spinner({ size = 'md', label, center = false, className }: SpinnerProps) {
   const spinner = (
     <Loader2

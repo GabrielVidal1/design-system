@@ -259,6 +259,9 @@ function defaultGroupHeader(groupKey: Key, count: number): ReactNode {
  * ```tsx
  * <VirtualList items={photos} columns={{ base: 2, md: 3, lg: 4 }} estimateSize={220} … />
  * ```
+ *
+ * @summary Windowed list for tens of thousands of rows: multi-column grids, sticky
+ * group headers, `onEndReached` for infinite scroll.
  */
 export function VirtualList<T>({
   items,

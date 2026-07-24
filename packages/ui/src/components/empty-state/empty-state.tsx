@@ -15,7 +15,10 @@ export interface EmptyStateProps {
   className?: string;
 }
 
-/** "No results yet" — the centred icon + message + call to action. */
+/** "No results yet" — the centred icon + message + call to action.
+ *
+ * @summary The empty/zero-data panel: icon, title, description, call-to-action.
+ */
 export function EmptyState({
   icon,
   title,

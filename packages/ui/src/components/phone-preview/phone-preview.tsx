@@ -68,6 +68,9 @@ export interface PhonePreviewProps {
  * a screen, or pass `src` to embed a live app as a scaled iframe (the technique
  * the note-vite and insta-pics landing pages use). Pure inline styles — no
  * Tailwind required.
+ *
+ * @summary iPhone-style device frame around children or a `src` URL, with dynamic
+ * island and status bar.
  */
 export function PhonePreview({
   children,

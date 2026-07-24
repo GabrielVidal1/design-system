@@ -2,7 +2,10 @@ import * as React from 'react';
 
 import { cn } from '../../lib/utils';
 
-/** A pulsing placeholder block. Give it a size with `className`. */
+/** A pulsing placeholder block. Give it a size with `className`.
+ *
+ * @summary Loading placeholders — `Skeleton`, `SkeletonText`, `SkeletonGrid`.
+ */
 export function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div

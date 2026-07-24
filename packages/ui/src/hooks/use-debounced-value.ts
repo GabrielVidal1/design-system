@@ -28,6 +28,8 @@ function isEmpty(value: unknown): boolean {
  * const [debounced, pending] = useDebouncedValue(query, 400);
  * const results = useMemo(() => search(debounced), [debounced]);
  * ```
+ *
+ * @summary Debounced mirror of a fast-changing value.
  */
 export function useDebouncedValue<T>(
   value: T,

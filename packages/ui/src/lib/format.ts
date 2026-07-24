@@ -1,7 +1,10 @@
-/*
+/**
  * The formatters every homelab app rewrites: "3 min ago", "1.4 GB", "2m 08s",
  * "$0.0412". One module, so a queue card in one service and a job row in
  * another round the same way.
+ *
+ * @summary Shared formatters used across the lab: `relTime`, `fmtDuration`,
+ * `fmtBytes`, `fmtNum`, `fmtCost`, `fmtDateTime`, `downloadFile`.
  */
 
 export type TimeInput = string | number | Date;

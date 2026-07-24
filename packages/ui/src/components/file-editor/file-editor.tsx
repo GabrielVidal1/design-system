@@ -82,6 +82,10 @@ export interface FileEditorProps {
  * ```tsx
  * <FileEditor path="deploy.sh" value={text} onChange={setText} onSubmit={save} />
  * ```
+ *
+ * @summary Code/markdown editor with menu bar, gutter, syntax highlighting and a
+ * preview mode; the ref is the underlying textarea. Ships `CodeArea` and
+ * `Markdown` separately.
  */
 export const FileEditor = React.forwardRef<HTMLTextAreaElement, FileEditorProps>(
   function FileEditor(

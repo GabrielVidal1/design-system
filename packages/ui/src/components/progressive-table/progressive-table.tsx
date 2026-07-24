@@ -91,6 +91,9 @@ function reducedMotion(): boolean {
  * Rows present when the table is "already known" are shown instantly (see
  * `initialReveal`); pass `initialReveal={0}` to animate the entire table.
  * Respects `prefers-reduced-motion` and `instant` (renders everything at once).
+ *
+ * @summary Table whose cells reveal progressively, sharing the progressive timeline.
+ * For streamed/generated tabular output.
  */
 export function ProgressiveTable({
   headers,

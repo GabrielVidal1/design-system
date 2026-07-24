@@ -180,6 +180,10 @@ function valueAt(obj: unknown, path: string): string {
  *   listClassName="h-[600px]"
  * />
  * ```
+ *
+ * @summary Batteries-included browser for a set of records — grid/list/table views,
+ * built-in search, image cards. The fastest "show me these things"
+ * component.
  */
 export function Collection<T>({
   items,

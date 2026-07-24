@@ -66,6 +66,9 @@ export interface TabsProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'o
  *   <TabsContent value="config">…</TabsContent>
  * </Tabs>
  * ```
+ *
+ * @summary Tabbed panels with controlled/uncontrolled value, variants, keyboard
+ * activation and swipe between tabs on touch.
  */
 export function Tabs({
   value: controlled,

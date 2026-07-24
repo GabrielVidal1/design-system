@@ -90,6 +90,9 @@ function compare(a: string | number | null | undefined, b: string | number | nul
  * The service-frontend table: sortable headers, sticky header row, checkbox
  * selection, and a card collapse on phones so wide rows never side-scroll.
  * Plain rows — for tens of thousands of them, reach for {@link VirtualList}.
+ *
+ * @summary Sortable, selectable data table that collapses to cards on mobile.
+ * Column-driven; for real tabular data with interaction.
  */
 export function DataTable<T>({
   data,

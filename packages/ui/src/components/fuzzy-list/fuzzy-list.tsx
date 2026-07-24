@@ -178,6 +178,9 @@ function getPath(obj: unknown, path: string): string {
  *   )}
  * />
  * ```
+ *
+ * @summary Searchable list with a quote-aware fuzzy query (`"exact"` vs fuzzy), match
+ * highlighting, debounced ranking and optional lazy paging.
  */
 export function FuzzyList<T>({
   items,

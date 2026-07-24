@@ -12,15 +12,29 @@
  *     importing it would mean standing up a bundler just to read four fields.
  *   - packages/ui/src/index.ts → the exported symbols per component.
  *   - packages/ui/src/hooks/index.ts → the hook names.
- *   - DESCRIPTIONS below → the one-line "what it's for", authored by hand.
+ *   - The component sources → the description, read from the `@summary` JSDoc
+ *     tag on the component's primary export. The docs live next to the code
+ *     they describe, so they get updated in the same edit.
  *
- * A component that lands in the REGISTRY without a DESCRIPTION entry is still
- * listed (from its sig), but the script warns — that is the nudge to write one.
+ * Writing a summary:
+ *
+ *     /**
+ *      * …whatever prose the component already had…
+ *      *
+ *      * @summary Row of filter chips (single or multiple select) with an
+ *      * "all" option.
+ *      *\/
+ *     export function TagFilter(…)
+ *
+ * The tag runs to the end of the block (or to the next @tag), so it can wrap
+ * over several lines. An entry whose primary export has no `@summary` is still
+ * listed (falling back to its docs `sig`), but the script warns — that is the
+ * nudge to write one.
  *
  * Usage: npm run docs:list    (or: node scripts/gen-component-list.mjs --check)
  */
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -31,105 +45,141 @@ const HOOKS_INDEX = resolve(ROOT, 'packages/ui/src/hooks/index.ts');
 const PKG_JSON = resolve(ROOT, 'packages/ui/package.json');
 const OUT = resolve(ROOT, 'docs/component-list.md');
 
-/* ─── Hand-authored descriptions ──────────────────────────────────────────────
- * One line each: what it does and when you'd reach for it. Keep them concrete —
- * this is the text an agent scans to decide whether to use the component. */
-const DESCRIPTIONS = {
-  'image-viewer':
-    'Full-screen media overlay opened imperatively from anywhere — zoom, pan, swipe between items, images *and* video, plus an auto-advancing story mode.',
-  'viewable-image':
-    'A thumbnail that opens the ImageViewer at its index when clicked. The drop-in way to make a grid of images viewable.',
-  'progressive-image':
-    'Lazy blur-up image: renders `thumb`, swaps to `full` when it scrolls into view. Use for any long image grid.',
-  'fuzzy-list':
-    'Searchable list with a quote-aware fuzzy query (`"exact"` vs fuzzy), match highlighting, debounced ranking and optional lazy paging.',
-  'global-search':
-    'Cmd-K command palette over any item array — keyboard-driven, grouped results, custom hotkey.',
-  'virtual-list':
-    'Windowed list for tens of thousands of rows: multi-column grids, sticky group headers, `onEndReached` for infinite scroll.',
-  'animated-list':
-    'Non-virtualized list that FLIP-animates rows as they reorder. For short, live-sorted lists where movement should be legible.',
-  collection:
-    'Batteries-included browser for a set of records — grid/list/table views, built-in search, image cards. The fastest "show me these things" component.',
-  'progressive-table':
-    'Table whose cells reveal progressively, sharing the progressive timeline. For streamed/generated tabular output.',
-  'data-table':
-    'Sortable, selectable data table that collapses to cards on mobile. Column-driven; for real tabular data with interaction.',
-  'stat-tile': 'KPI tile and row — label, big value, optional delta. For dashboard headline numbers.',
-  progress: 'Determinate progress bar with tone and size variants.',
-  'status-badge':
-    'Coloured badge with a built-in job-status → tone map (`JOB_STATUS`). For queue/build/deploy states.',
-  'relative-time':
-    'A `<time>` element that re-renders on an interval to keep "3 min ago" honest.',
-  'nav-2d':
-    'Joystick navigation over a 2-D field of targets: hold and drag to ray-cast a selection, release to commit. Built for TV/gamepad-ish and one-handed touch.',
-  tabs: 'Tabbed panels with controlled/uncontrolled value, variants, keyboard activation and swipe between tabs on touch.',
-  button: 'The base button — variants, sizes, icon slot, loading state, built-in tooltip. Ships `Tooltip` too.',
-  input: 'The base text input, styled to the theme tokens.',
-  'rich-input':
-    'The full composer: draft persistence, un-send window, file attachments, guideline tags, `#mention` autocomplete and prompt history. Use for any chat/agent input.',
-  'search-input': 'Search field with a clear affordance and an optional keyboard shortcut hint.',
-  'tag-filter': 'Row of filter chips (single or multiple select) with an "all" option.',
-  'drop-zone':
-    'File drop target plus the headless `useFileDrop` hook — accept filters, max size, folder drops, rejection reporting.',
-  select: 'Select that becomes a searchable list on desktop and a bottom sheet on phones; supports per-option icons.',
-  switch: 'Toggle switch, with a labelled-row layout for settings screens.',
-  slider: 'Pointer-captured range slider with full arrow/Page/Home/End keyboard support.',
-  'copy-button':
-    'Copy-to-clipboard button with success feedback and native share fallback. Pairs with the `useCopyToClipboard` hook.',
-  'element-picker':
-    'Point at any DOM element on the page (hover / click / press-and-hold) and get its full HTML plus a parsed description — selector, hierarchy, computed style groups. Powers "pick an element" editor flows.',
-  'palette-picker':
-    'Vertical-stripe colour-palette editor (dropdown on desktop, bottom sheet on mobile) with dependency-free harmony generation, plus `ColorThemeProvider`/`paletteToVars` to push a palette into CSS variables.',
-  'icon-picker':
-    'Searchable horizontal virtual grid of icons. You pass the icon set (e.g. lucide) — the component ships none.',
-  'file-editor':
-    'Code/markdown editor with menu bar, gutter, syntax highlighting and a preview mode; the ref is the underlying textarea. Ships `CodeArea` and `Markdown` separately.',
-  'char-roll': 'Tally-counter digit roll for a changing value.',
-  'progressive-text': 'Typewriter text with speed, delay and delete-speed — the base of the progressive family.',
-  'progressive-list': 'Staggered reveal of list items on the shared progressive timeline.',
-  'progressive-bash':
-    'Replays a terminal session: real timestamp gaps, command tokenizing, output classification, sticky prompt and an eased catch-up when it falls behind.',
-  'progressive-timeline':
-    'The clock the progressive components share — `useProgressiveSlot`/`ProgressiveTimelineSlot` let you sequence your own reveals in the same timeline.',
-  changelog:
-    'Renders a parsed `CHANGELOG.md` — trigger button, full page, `useChangelog` fetching/parsing, and a toast when a new version ships.',
-  toast: 'Toast system — `ToastProvider` + `useToast`, with types, actions and in-place updates.',
-  spinner: 'Loading spinner with size, label and centering.',
-  skeleton: 'Loading placeholders — `Skeleton`, `SkeletonText`, `SkeletonGrid`.',
-  'empty-state': 'The empty/zero-data panel: icon, title, description, call-to-action.',
-  modal:
-    'Modal dialog plus the imperative layer — `useModal` to open one from code and `useConfirm` for yes/no. Use instead of re-implementing a dialog.',
-  'phone-preview': 'iPhone-style device frame around children or a `src` URL, with dynamic island and status bar.',
-  'iframe-preview': 'Preview an arbitrary URL in an iframe with a URL field, action buttons and a full-screen mode.',
-  'floating-panel':
-    'Draggable, resizable floating panels with a dock — tabbing, close/reopen, placement memory. For tool windows and inspectors.',
-  'resizable-layout':
-    'App scaffold with resizable left/right/top/bottom panels on desktop that become panels or drawers on mobile.',
-  theme: 'Dark/light theming — `ThemeProvider`, `ThemeToggle`, `useTheme`, `setTheme`, `toggleTheme`.',
-  format:
-    'Shared formatters used across the lab: `relTime`, `fmtDuration`, `fmtBytes`, `fmtNum`, `fmtCost`, `fmtDateTime`, `downloadFile`.',
-  cn: 'The `clsx` + `tailwind-merge` class-name helper every component uses.',
-  hooks: 'The headless half of the library — see the Hooks table below.',
+/* ─── Where each catalogue entry's summary lives ──────────────────────────────
+ * registry id → the exported symbol whose `@summary` describes it. Most ids map
+ * to their own directory; the handful that don't (the image-viewer trio, the
+ * module-level `cn`/`format`/`hooks` entries) name their file explicitly.
+ *
+ * `dir`  — component directory under packages/ui/src/components (default: the id)
+ * `sym`  — the export carrying the @summary (default: the registry `name`)
+ * `file` — an explicit path under packages/ui/src, for non-component entries */
+const SUMMARY_SOURCE = {
+  'image-viewer': { sym: 'ImageViewerProvider' },
+  'viewable-image': { dir: 'image-viewer', sym: 'ViewableImage' },
+  'progressive-image': { dir: 'image-viewer', sym: 'ProgressiveImage' },
+  'nav-2d': { sym: 'Nav2DProvider' },
+  toast: { sym: 'ToastProvider' },
+  'progressive-timeline': { sym: 'ProgressiveTimelineSlot' },
+  theme: { sym: 'ThemeToggle' },
+  cn: { file: 'lib/utils.ts', sym: 'cn' },
+  format: { file: 'lib/format.ts' },
+  hooks: { file: 'hooks/index.ts' },
 };
 
-/** Hooks get their own table; descriptions keyed by export name. */
-const HOOK_DESCRIPTIONS = {
-  useCopyToClipboard: 'Copy text with success state and a native-share fallback.',
-  useDebouncedValue: 'Debounced mirror of a fast-changing value.',
-  useIntersection: 'IntersectionObserver as a ref + boolean.',
-  useInfiniteScroll: 'Fire a callback when a sentinel scrolls into view.',
-  useLocalStorage: 'State persisted to localStorage, synced across tabs.',
-  useLongPress: 'Long-press gesture with movement tolerance and the press point.',
-  useMediaQuery: 'Subscribe to any media query.',
-  useIsMobile: 'True on phone-sized viewports — the mobile/desktop branch used across the library.',
-  useIsTouch: 'True when the primary input is touch.',
-  usePrefersDark: 'The OS dark-mode preference.',
-  usePrefersReducedMotion: 'The OS reduced-motion preference — gate animations on it.',
-  useEscape: 'Run a handler on Escape, respecting overlay stacking.',
-  useOutsideClick: 'Run a handler on a click outside a ref.',
-  useScrollLock: 'Lock body scroll while an overlay is open.',
-};
+/**
+ * Read the `@summary` tag out of a JSDoc block.
+ *
+ * When `sym` is given we take the block immediately preceding that
+ * declaration; otherwise the module's leading block. The tag body runs to the
+ * end of the block or the next `@tag`, so summaries may wrap over lines.
+ */
+function readSummary(id, name) {
+  const spec = SUMMARY_SOURCE[id] ?? {};
+  const sym = spec.sym ?? name;
+  const rel = spec.file ?? `components/${spec.dir ?? id}/${spec.dir ?? id}.tsx`;
+  let src = readSource(rel);
+
+  // Component dirs re-export from a sibling file (theme/theme-toggle.tsx,
+  // file-editor/file-editor.tsx…). If the symbol isn't in the obvious file,
+  // follow the directory's barrel to wherever it is actually declared.
+  if (src === null || !declIndex(src, sym)) {
+    const viaBarrel = resolveViaBarrel(spec.dir ?? id, sym);
+    if (viaBarrel) src = viaBarrel;
+  }
+  if (src === null) return null;
+
+  const block = spec.file && !spec.sym ? leadingBlock(src) : blockBefore(src, sym);
+  if (!block) return null;
+
+  const m = block.match(/@summary\s+([\s\S]*?)(?=\n\s*\*\s*@|\s*$)/);
+  if (!m) return null;
+  return m[1]
+    .split('\n')
+    .map((l) => l.replace(/^\s*\*\s?/, '').trim())
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Read a file under packages/ui/src, or null if it isn't there. */
+function readSource(rel) {
+  const p = resolve(ROOT, 'packages/ui/src', rel);
+  return existsSync(p) ? readFileSync(p, 'utf8') : null;
+}
+
+/** Index of `export (function|const|class) <sym>`, or 0 if absent. */
+function declIndex(src, sym) {
+  const m = src.match(
+    new RegExp(`^export\\s+(?:default\\s+)?(?:function|const|class)\\s+${sym}\\b`, 'm'),
+  );
+  return m ? m.index : 0;
+}
+
+/** Follow a component dir's index.ts to the file declaring `sym`. */
+function resolveViaBarrel(dir, sym) {
+  const barrel = readSource(`components/${dir}/index.ts`);
+  if (!barrel) return null;
+  const re = /export\s+(?:type\s+)?\{([^{}]*?)\}\s*from\s*'\.\/([\w./-]+)'/g;
+  let m;
+  while ((m = re.exec(barrel))) {
+    const names = m[1].split(',').map((s) => s.trim().split(/\s+as\s+/).pop().trim());
+    if (!names.includes(sym)) continue;
+    for (const ext of ['.tsx', '.ts', '/index.tsx', '/index.ts']) {
+      const src = readSource(`components/${dir}/${m[2]}${ext}`);
+      if (src !== null) return src;
+    }
+  }
+  return null;
+}
+
+/**
+ * The JSDoc block directly above `sym`'s declaration.
+ *
+ * Take the text before the declaration, require it to *end* with a comment
+ * close, then walk back to the nearest `/**` — the last one, not the first.
+ * A lazy `/\*\*[\s\S]*?\*\/$/` would anchor on the earliest `/**` in the file
+ * and swallow every declaration in between (several hooks share one file).
+ */
+function blockBefore(src, sym) {
+  const at = declIndex(src, sym);
+  if (!at) return null;
+  const before = src.slice(0, at);
+  if (!/\*\/\s*$/.test(before)) return null;
+  const close = before.lastIndexOf('*/');
+  const open = before.lastIndexOf('/**', close);
+  if (open === -1) return null;
+  return before.slice(open + 3, close);
+}
+
+/** The module's own leading JSDoc block. */
+function leadingBlock(src) {
+  const m = src.match(/^\s*\/\*\*([\s\S]*?)\*\//);
+  return m ? m[1] : null;
+}
+
+/** Hook name → `@summary`, read from wherever the hook is declared. */
+function readHookSummaries(names) {
+  const dir = resolve(ROOT, 'packages/ui/src/hooks');
+  const files = readdirSync(dir).filter((f) => f.endsWith('.ts') && !f.includes('.test.'));
+  const out = {};
+  for (const name of names) {
+    for (const f of files) {
+      const src = readFileSync(resolve(dir, f), 'utf8');
+      const block = blockBefore(src, name);
+      if (!block) continue;
+      const m = block.match(/@summary\s+([\s\S]*?)(?=\n\s*\*\s*@|\s*$)/);
+      if (!m) continue;
+      out[name] = m[1]
+        .split('\n')
+        .map((l) => l.replace(/^\s*\*\s?/, '').trim())
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      break;
+    }
+  }
+  return out;
+}
 
 /* ─── Parse the docs registry ─────────────────────────────────────────────── */
 
@@ -219,7 +269,14 @@ const hooks = parseHooks();
 const exportsByModule = attachHookExports(parseExports(), hooks);
 const version = JSON.parse(readFileSync(PKG_JSON, 'utf8')).version;
 
-const missing = registry.filter((e) => !DESCRIPTIONS[e.id]).map((e) => e.id);
+/** id → the `@summary` read out of that component's source. */
+const summaries = Object.fromEntries(
+  registry.map((e) => [e.id, readSummary(e.id, e.name)]).filter(([, s]) => s),
+);
+const hookSummaries = readHookSummaries(hooks);
+
+const missing = registry.filter((e) => !summaries[e.id]).map((e) => e.id);
+const missingHooks = hooks.filter((h) => !hookSummaries[h]);
 
 // An entry with no GROUP_OF mapping renders in no section — it would silently
 // disappear from this list (and from the docs catalogue, which groups the same
@@ -279,7 +336,7 @@ for (const group of groups) {
   lines.push('| Component | Exports | What it is for |');
   lines.push('| --- | --- | --- |');
   for (const e of items) {
-    const desc = DESCRIPTIONS[e.id] ?? `_(no description yet)_ — ${e.sig}`;
+    const desc = summaries[e.id] ?? `_(no description yet)_ — ${e.sig}`;
     lines.push(
       `| **[${e.name}](https://ui.gabvdl.xyz/#/c/${e.id})** | ${escapeCell(
         exportsCell(e),
@@ -295,7 +352,7 @@ lines.push('');
 lines.push('| Hook | What it is for |');
 lines.push('| --- | --- |');
 for (const h of hooks) {
-  lines.push(`| \`${h}\` | ${escapeCell(HOOK_DESCRIPTIONS[h] ?? '_(no description yet)_')} |`);
+  lines.push(`| \`${h}\` | ${escapeCell(hookSummaries[h] ?? '_(no description yet)_')} |`);
 }
 lines.push('');
 lines.push('---');
@@ -326,7 +383,8 @@ if (process.argv.includes('--check')) {
   console.log(`docs/component-list.md — ${registry.length} entries, ${hooks.length} hooks.`);
 }
 
-if (missing.length) {
-  console.warn(`\n⚠ no description for: ${missing.join(', ')}`);
-  console.warn('  add them to DESCRIPTIONS in scripts/gen-component-list.mjs');
+if (missing.length || missingHooks.length) {
+  for (const id of missing) console.warn(`⚠ no @summary for: ${id}`);
+  for (const h of missingHooks) console.warn(`⚠ no @summary for hook: ${h}`);
+  console.warn("  add an `@summary` JSDoc tag on the export, then re-run.");
 }

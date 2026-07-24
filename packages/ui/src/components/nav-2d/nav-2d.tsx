@@ -184,6 +184,11 @@ interface DragViz {
   active: boolean;
 }
 
+/**
+ * @summary Joystick navigation over a 2-D field of targets: hold and drag to ray-cast
+ * a selection, release to commit. Built for TV/gamepad-ish and one-handed
+ * touch.
+ */
 export function Nav2DProvider({
   children,
   defaultSelectedId = null,

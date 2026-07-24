@@ -54,6 +54,10 @@ function seedFrom(palette: Palette, salt: number): number {
  * **Shuffle** regenerates the whole palette from a harmony. On desktop the
  * editor is a dropdown anchored above the trigger; on phones it's an overlay
  * pinned to the bottom of the screen.
+ *
+ * @summary Vertical-stripe colour-palette editor (dropdown on desktop, bottom sheet
+ * on mobile) with dependency-free harmony generation, plus
+ * `ColorThemeProvider`/`paletteToVars` to push a palette into CSS variables.
  */
 export function PalettePicker({
   value,

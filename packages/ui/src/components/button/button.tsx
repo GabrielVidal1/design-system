@@ -74,6 +74,9 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
  *
  * `type` defaults to `"button"` so dropping one inside a form never submits it
  * by accident — pass `type="submit"` when that is what you want.
+ *
+ * @summary The base button — variants, sizes, icon slot, loading state, built-in
+ * tooltip. Ships `Tooltip` too.
  */
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   {

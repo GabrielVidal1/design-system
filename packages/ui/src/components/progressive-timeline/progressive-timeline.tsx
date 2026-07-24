@@ -123,6 +123,10 @@ export interface ProgressiveTimelineSlotProps {
  * With `startedAt`, the slot is anchored to wall-clock time: elapsed time since
  * that instant is subtracted from every wait, so the sequence is deterministic
  * across remounts (a revisited page resumes where it should be, not from zero).
+ *
+ * @summary The clock the progressive components share —
+ * `useProgressiveSlot`/`ProgressiveTimelineSlot` let you sequence your own
+ * reveals in the same timeline.
  */
 export function ProgressiveTimelineSlot({
   active,

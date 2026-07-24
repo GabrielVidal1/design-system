@@ -171,6 +171,8 @@ function Cell({ spec, gen, duration, animate }: CellProps) {
  * the component animates exactly what it is given. Numbers render with
  * `tabular-nums` so columns don't wobble as digits change. Respects
  * `prefers-reduced-motion` (values swap instantly).
+ *
+ * @summary Tally-counter digit roll for a changing value.
  */
 export function CharRoll({
   value,

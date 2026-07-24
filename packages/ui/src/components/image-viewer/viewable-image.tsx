@@ -7,6 +7,9 @@ import { ProgressiveImage } from './progressive-image';
  * A clickable image that opens the full-screen {@link ImageViewer} over its
  * whole group, positioned at its own index — so the viewer can be swiped/arrowed
  * as a carousel across the group. Renders a {@link ProgressiveImage} inside.
+ *
+ * @summary A thumbnail that opens the ImageViewer at its index when clicked. The
+ * drop-in way to make a grid of images viewable.
  */
 export function ViewableImage({
   images,

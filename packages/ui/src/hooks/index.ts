@@ -1,3 +1,10 @@
+/**
+ * The headless half of the library: gestures, storage, media queries,
+ * clipboard, intersection — the behaviour without the markup.
+ *
+ * @summary The headless half of the library — see the Hooks table below.
+ */
+
 export { useCopyToClipboard } from './use-copy-to-clipboard';
 export type { UseCopyOptions } from './use-copy-to-clipboard';
 export { useDebouncedValue } from './use-debounced-value';

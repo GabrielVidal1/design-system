@@ -80,6 +80,9 @@ export interface StatusBadgeProps extends Omit<BadgeProps, 'tone' | 'children'> 
  * A status pill driven by a `status → {label, tone, icon}` map, so the same
  * string renders the same colour in every service.
  * Unknown statuses degrade to a neutral pill of the raw string, never a crash.
+ *
+ * @summary Coloured badge with a built-in job-status → tone map (`JOB_STATUS`). For
+ * queue/build/deploy states.
  */
 export function StatusBadge({ status, meta, className, ...props }: StatusBadgeProps) {
   const entry: StatusMeta = { ...JOB_STATUS, ...meta }[status] ?? { label: status, tone: 'neutral' };

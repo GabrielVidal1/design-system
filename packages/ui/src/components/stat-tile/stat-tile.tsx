@@ -36,6 +36,9 @@ const fmtDelta = (d: number) => `${d > 0 ? '+' : ''}${Math.round(d * 10) / 10}%`
  * One dashboard KPI — label, big number, trend chip. The value ticks over
  * like a tally counter when it changes, so a live dashboard reads as live.
  * Lay several out with {@link StatRow}.
+ *
+ * @summary KPI tile and row — label, big value, optional delta. For dashboard
+ * headline numbers.
  */
 export function StatTile({
   label,

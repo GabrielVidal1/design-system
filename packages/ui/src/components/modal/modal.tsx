@@ -38,6 +38,9 @@ export interface ModalProps {
  * and scrim-click to close, body scroll locked, focus moved in on open and
  * returned to the trigger on close, and a soft focus trap so Tab can't wander
  * behind the overlay.
+ *
+ * @summary Modal dialog plus the imperative layer — `useModal` to open one from code
+ * and `useConfirm` for yes/no. Use instead of re-implementing a dialog.
  */
 export function Modal({
   open,

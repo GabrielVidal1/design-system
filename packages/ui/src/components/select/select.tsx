@@ -60,6 +60,9 @@ function optionText(o: SelectOption): string {
  * {@link Modal}, so Escape, scroll-lock and focus return come for free).
  * Options carry optional icons and descriptions; filtering matches the
  * option's text.
+ *
+ * @summary Select that becomes a searchable list on desktop and a bottom sheet on
+ * phones; supports per-option icons.
  */
 export function Select<T extends string = string>({
   options,

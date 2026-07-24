@@ -12,7 +12,11 @@ export interface ThemeToggleProps {
   className?: string;
 }
 
-/** The Sun/Moon button, wired to `useTheme` and persisted. */
+/** The Sun/Moon button, wired to `useTheme` and persisted.
+ *
+ * @summary Dark/light theming — `ThemeProvider`, `ThemeToggle`, `useTheme`,
+ * `setTheme`, `toggleTheme`.
+ */
 export function ThemeToggle({ variant = 'icon', className }: ThemeToggleProps) {
   const { theme, isDark, setTheme, toggle } = useTheme();
 

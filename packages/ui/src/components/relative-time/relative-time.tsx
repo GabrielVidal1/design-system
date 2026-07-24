@@ -12,6 +12,9 @@ export interface RelativeTimeProps extends React.TimeHTMLAttributes<HTMLTimeElem
  * `<time>` that says "4m ago" and keeps saying the right thing — it ticks, so a
  * dashboard left open overnight doesn't still claim the job ran "just now".
  * Hovering shows the absolute timestamp.
+ *
+ * @summary A `<time>` element that re-renders on an interval to keep "3 min ago"
+ * honest.
  */
 export function RelativeTime({ date, every = 30_000, ...props }: RelativeTimeProps) {
   const [, tick] = React.useReducer((n: number) => n + 1, 0);
