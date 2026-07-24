@@ -213,6 +213,7 @@ const GROUP_OF: Record<string, Group> = {
   slider: 'Inputs',
   'copy-button': 'Inputs',
   'element-picker': 'Inputs',
+  'icon-picker': 'Inputs',
   'palette-picker': 'Inputs',
   'file-editor': 'Inputs',
   'char-roll': 'Animation',

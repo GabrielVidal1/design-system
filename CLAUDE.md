@@ -11,6 +11,12 @@ library reused across the homelab, plus its docs/demo site at
 star (mobile-first, complete coverage, editor toolkit) and the per-category
 gap list.
 
+**[`docs/component-list.md`](docs/component-list.md) is the index of everything
+the library ships** — every component and hook, grouped, with a one-line
+description of what it is for. Read it first, whether you are working *in* this
+repo or in any other project that depends on `@gabvdl/ui`: it is the fastest way
+to tell whether a need is already covered before writing a new component.
+
 A turborepo npm-workspaces monorepo:
 
 ```
@@ -27,6 +33,8 @@ npm run build:ui     # library only
 npm run dev          # docs dev server (build the library once first)
 npm run typecheck    # tsc -b across the workspace
 npm run test         # vitest (packages/ui)
+npm run docs:list    # regenerate docs/component-list.md
+npm run docs:list:check   # fail if it is out of date (CI-friendly)
 npm run deploy       # build + push apps/docs to ui.gabvdl.xyz via zipgo
 ```
 
@@ -64,7 +72,18 @@ plus guide pages (`/start`, `/theming`).
 
 **A library component isn't done until it has a `REGISTRY` entry with a live
 demo.** Full-page demos (chat, job queue, command palette — see GOAL.md) get
-their own pages under `src/pages/` and a `/demos` section.
+their own pages under `src/pages/` and a `/demos` section. Every entry also
+needs a `GROUP_OF` mapping — without one it renders in no catalogue section
+(and `npm run docs:list` fails).
+
+### Keeping `docs/component-list.md` current
+
+`scripts/gen-component-list.mjs` generates it from the `REGISTRY` (names, sigs,
+groups) and `packages/ui/src/index.ts` (exported symbols), merged with a
+hand-written description map inside the script. So after adding a component:
+add its one-line description to `DESCRIPTIONS` in the generator and run
+`npm run docs:list`. The script warns about any entry lacking a description.
+Never edit `docs/component-list.md` by hand — it is overwritten.
 
 ## Releasing
 
