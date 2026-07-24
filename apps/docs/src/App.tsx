@@ -68,6 +68,7 @@ import {
   Skeleton,
   SkeletonText,
   Slider,
+  SplitView,
   Spinner,
   Switch,
   StatRow,
@@ -137,6 +138,7 @@ import {
   PalettePickerIcon,
   SkeletonIcon,
   SliderIcon,
+  SplitViewIcon,
   SpinnerIcon,
   SwitchIcon,
   StatTileIcon,
@@ -190,6 +192,7 @@ const GROUP_OF: Record<string, Group> = {
   'image-viewer': 'Media',
   'viewable-image': 'Media',
   'progressive-image': 'Media',
+  'split-view': 'Media',
   'fuzzy-list': 'Data display',
   'global-search': 'Navigation',
   'virtual-list': 'Data display',
@@ -262,6 +265,7 @@ const SOURCE_FILE: Record<string, string> = {
   'image-viewer': 'image-viewer.tsx',
   'viewable-image': 'viewable-image.tsx',
   'progressive-image': 'progressive-image.tsx',
+  'split-view': 'split-view.tsx',
   'fuzzy-list': 'fuzzy-list.tsx',
   'global-search': 'global-search.tsx',
   'virtual-list': 'virtual-list.tsx',
@@ -908,6 +912,27 @@ ref.current?.toggle('bottom')`,
   onValueChange={setTarget}       // every move
   onValueCommit={requestPreview}  // once, on release
   showValue format={(v) => \`\${fmtNum(v)} tris\`}
+/>`,
+  },
+  {
+    id: 'split-view',
+    name: 'SplitView',
+    sig: 'drag or auto-sweep · any two layers · reduced-motion aware',
+    tag: 'media',
+    Icon: SplitViewIcon,
+    Demo: SplitViewDemo,
+    code: `<SplitView
+  before={<img src={photo} alt="Plate I" />}
+  after={<img src={pixelated} alt="Plate I, pixelated" />}
+  captions={{ before: 'Original', after: 'Pixelated' }}
+  defaultValue={50}
+/>
+
+<SplitView
+  before={<img src={photo} alt="" />}
+  after={<img src={pixelated} alt="" />}
+  autoplay
+  readonly
 />`,
   },
   {
@@ -2672,6 +2697,99 @@ function SliderDemo() {
       <p className="text-sm text-muted-foreground">
         Tap anywhere on the track to jump, then drag — the whole strip is the touch target. The
         thumb takes arrows, Page keys, Home and End.
+      </p>
+    </div>
+  );
+}
+
+/* ─── SplitView ───────────────────────────────────────────────────────────── */
+
+/** Downsample an image on a small canvas then blow it back up — the classic
+ *  "mosaic" pixelation, generated client-side so the demo needs only one
+ *  source photo. Returns null until the source has loaded and been drawn. */
+function usePixelatedUrl(src: string, blockSize = 24): string | null {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setUrl(null);
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      if (cancelled) return;
+      const w = img.naturalWidth || 1;
+      const h = img.naturalHeight || 1;
+      const cols = Math.max(1, Math.round(w / blockSize));
+      const rows = Math.max(1, Math.round(h / blockSize));
+
+      const small = document.createElement('canvas');
+      small.width = cols;
+      small.height = rows;
+      const sctx = small.getContext('2d');
+      if (!sctx) return;
+      sctx.drawImage(img, 0, 0, cols, rows);
+
+      const big = document.createElement('canvas');
+      big.width = w;
+      big.height = h;
+      const bctx = big.getContext('2d');
+      if (!bctx) return;
+      bctx.imageSmoothingEnabled = false;
+      bctx.drawImage(small, 0, 0, cols, rows, 0, 0, w, h);
+
+      if (!cancelled) setUrl(big.toDataURL('image/jpeg', 0.85));
+    };
+    img.src = src;
+    return () => {
+      cancelled = true;
+    };
+  }, [src, blockSize]);
+
+  return url;
+}
+
+function SplitViewDemo() {
+  const photo = fullUrl(1074);
+  const pixelated = usePixelatedUrl(photo, 22);
+  const [pos, setPos] = useState(55);
+
+  return (
+    <div className="max-w-md space-y-6">
+      <SplitView
+        before={<img src={photo} alt={specimens[5].alt} className="h-full w-full object-cover" draggable={false} />}
+        after={
+          pixelated ? (
+            <img src={pixelated} alt="" className="h-full w-full object-cover" draggable={false} />
+          ) : (
+            <div className="h-full w-full animate-pulse bg-muted" />
+          )
+        }
+        captions={{ before: 'Plate VI', after: 'Pixelated' }}
+        value={pos}
+        onValueChange={setPos}
+      />
+      <p className="text-sm text-muted-foreground">
+        Drag the handle, or tap anywhere on the frame — same pointer-capture as {'Slider'}. Arrow
+        keys move it once it's focused.
+      </p>
+
+      <SplitView
+        before={<img src={photo} alt="" className="h-full w-full object-cover" draggable={false} />}
+        after={
+          pixelated ? (
+            <img src={pixelated} alt="" className="h-full w-full object-cover" draggable={false} />
+          ) : (
+            <div className="h-full w-full animate-pulse bg-muted" />
+          )
+        }
+        autoplay
+        readonly
+        className="opacity-90"
+      />
+      <p className="text-sm text-muted-foreground">
+        <code className="mono text-xs">autoplay readonly</code> — a passive showcase that sweeps
+        on its own and ignores the pointer. Freezes at 50% under{' '}
+        <code className="mono text-xs">prefers-reduced-motion</code>.
       </p>
     </div>
   );

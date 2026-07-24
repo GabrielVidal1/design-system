@@ -1280,6 +1280,35 @@ export function SwitchIcon() {
 }
 
 /** Slider — the thumb sweeps the track and the fill keeps up. */
+/** SplitView — a frame half photo, half pixel grid, with a handle sweeping the seam. */
+export function SplitViewIcon() {
+  return (
+    <Svg>
+      <rect x="42" y="26" width="136" height="78" rx="7" stroke={DIM} strokeWidth="2" />
+      <path d="M42 82 L74 56 L96 72 L116 50 L146 78 L178 60 V104 H42 Z" fill={DIM} opacity="0.28" />
+      <g opacity="0.6">
+        {[0, 1, 2, 3].map((row) =>
+          [0, 1, 2].map((col) => (
+            <rect
+              key={`${row}-${col}`}
+              x={124 + col * 18}
+              y={30 + row * 18}
+              width="16"
+              height="16"
+              fill={col + row === 0 ? PAPER : CY}
+              opacity={((row + col) % 3) * 0.25 + 0.25}
+            />
+          )),
+        )}
+      </g>
+      <g className="a-drift" style={v({ '--dx': '30px', '--dur': '5s' })}>
+        <line x1="110" y1="26" x2="110" y2="104" stroke={CY} strokeWidth="2.5" />
+        <circle cx="110" cy="65" r="11" fill={PAPER} stroke={CY} strokeWidth="2.5" />
+      </g>
+    </Svg>
+  );
+}
+
 export function SliderIcon() {
   return (
     <Svg>

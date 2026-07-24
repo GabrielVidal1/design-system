@@ -15,7 +15,18 @@ last release → grouped bullets under Unreleased), then curate the prose.
 
 ## [Unreleased]
 
+## [0.24.0]
+
+> A before/after comparison you drag, or that sweeps itself.
+
 ### Added
+- `SplitView` — two stacked layers (`before`/`after`, any `ReactNode`) divided
+  by a draggable handle, full pointer-capture and arrow/Home/End keyboard
+  support mirroring `Slider`'s track interaction. An `autoplay` mode sweeps
+  the divider back and forth on its own via a rAF loop (same shape as
+  `ImageViewer`'s story clock) instead of reacting to the pointer, freezing at
+  50% under `prefers-reduced-motion`; pair with `readonly` for a fully passive
+  showcase. Docs demo pairs a photo with a canvas-pixelated version of itself.
 - Docs: desktop-only phone previews across the site. The homepage grows a
   sticky `PhonePreview` mirroring the whole catalogue, glued to the page
   scroll component by component with gsap ScrollTrigger (piecewise anchor

@@ -21,6 +21,7 @@ import '@gabvdl/ui/styles.css'; // or theme.css for tokens only
 | **[ImageViewer](https://ui.gabvdl.xyz/#/c/image-viewer)** | `ImageViewerProvider` · `useImageViewer` · `ViewableImage` · `ProgressiveImage` | Full-screen media overlay opened imperatively from anywhere — zoom, pan, swipe between items, images *and* video, plus an auto-advancing story mode. |
 | **[ViewableImage](https://ui.gabvdl.xyz/#/c/viewable-image)** | `ViewableImage` | A thumbnail that opens the ImageViewer at its index when clicked. The drop-in way to make a grid of images viewable. |
 | **[ProgressiveImage](https://ui.gabvdl.xyz/#/c/progressive-image)** | `ProgressiveImage` | Lazy blur-up image: renders `thumb`, swaps to `full` when it scrolls into view. Use for any long image grid. |
+| **[SplitView](https://ui.gabvdl.xyz/#/c/split-view)** | `SplitView` | Draggable (or auto-sweeping) before/after comparison of two stacked layers. |
 
 ## Data display
 
@@ -145,4 +146,4 @@ import '@gabvdl/ui/styles.css'; // or theme.css for tokens only
 
 ---
 
-49 catalogue entries · 14 hooks · conventions and contribution rules in [CLAUDE.md](../CLAUDE.md), direction in [GOAL.md](../GOAL.md).
+50 catalogue entries · 14 hooks · conventions and contribution rules in [CLAUDE.md](../CLAUDE.md), direction in [GOAL.md](../GOAL.md).
