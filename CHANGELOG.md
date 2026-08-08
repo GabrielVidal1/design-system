@@ -24,6 +24,15 @@ last release → grouped bullets under Unreleased), then curate the prose.
 - `Textarea` — multi-line input styled to match `Input`, auto-growing between
   `rows` and `maxRows` by default (`autoGrow={false}` for a fixed, manually
   resizable box).
+- `Tooltip` — promoted out of `Button` into its own component, and made
+  touch-aware: a long-press reveals it and swallows the ensuing tap (so a
+  phone user reads an icon button's label without also firing it), with an
+  auto-dismiss linger timeout. A plain tap still fires the trigger untouched.
+  `Button`'s `tooltip` prop is unchanged.
+- `Popover` — click-triggered floating panel for interactive content a
+  `Tooltip` can't host (a form, a menu). Flips to the opposite side when the
+  preferred one doesn't fit the viewport; becomes a bottom sheet on phones,
+  the same desktop/phone split as `Select`.
 
 ## [0.24.0]
 

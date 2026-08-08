@@ -23,8 +23,6 @@ Two audiences, one library:
      removes its own line in the same commit that ticks the checkbox. Leave
      the section empty (this comment only) when nothing is in flight. -->
 
-- Feedback: `Tooltip` (touch-aware) and `Popover`
-
 ## Principles
 
 1. **Mobile-first, desktop-compatible.** Designed for touch first (gestures,
@@ -77,7 +75,7 @@ Has `Tabs`, `Nav2D`, `GlobalSearch`, `FuzzyList`.
 
 ### Feedback
 Has `Toast`, `Modal` / `useConfirm`, `Spinner`, `StatusBadge`.
-- [ ] `Tooltip` (touch-aware) and `Popover`
+- [x] `Tooltip` (touch-aware) and `Popover`
 - [ ] Banner / callout
 
 ### Media
