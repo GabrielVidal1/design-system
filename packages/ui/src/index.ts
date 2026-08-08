@@ -59,6 +59,10 @@ export { ToastProvider, Toaster, useToast } from './components/toast';
 export type { Toast, ToastAction, ToastFn, ToastOptions, ToastPosition, ToastType } from './components/toast';
 export { Modal, ModalProvider, useConfirm, useModal } from './components/modal';
 export type { ConfirmSpec, ModalProps, ModalSize, ModalSpec } from './components/modal';
+export { Tooltip } from './components/tooltip';
+export type { TooltipProps, TooltipSide } from './components/tooltip';
+export { Popover } from './components/popover';
+export type { PopoverProps, PopoverSide, PopoverAlign } from './components/popover';
 export { ThemeProvider, ThemeToggle, resolveTheme, setTheme, toggleTheme, useTheme } from './components/theme';
 export type { ThemeMode, ThemeToggleProps, UseThemeResult } from './components/theme';
 export { Spinner } from './components/spinner';
@@ -184,14 +188,8 @@ export type {
   TabsTriggerProps,
   TabsVariant,
 } from './components/tabs';
-export { Button, Tooltip } from './components/button';
-export type {
-  ButtonProps,
-  ButtonVariant,
-  ButtonSize,
-  TooltipProps,
-  TooltipSide,
-} from './components/button';
+export { Button } from './components/button';
+export type { ButtonProps, ButtonVariant, ButtonSize } from './components/button';
 export { Input } from './components/input';
 export type { InputProps } from './components/input';
 export { Switch } from './components/switch';

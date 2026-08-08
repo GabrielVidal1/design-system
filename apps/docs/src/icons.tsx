@@ -751,6 +751,38 @@ export function ModalIcon() {
   );
 }
 
+/** Tooltip — a bubble rises above the trigger on hover, holds, resets. */
+export function TooltipIcon() {
+  return (
+    <Svg>
+      <rect x="86" y="86" width="48" height="20" rx="6" stroke={DIM} strokeWidth="2" />
+      <circle cx="110" cy="96" r="3" fill={DIM} opacity="0.6" />
+      <g className="a-reveal" style={v({ '--dur': '3.8s' })}>
+        <path d="M104 68 l6 10 l6 -10 Z" fill={CY} />
+        <rect x="66" y="30" width="88" height="34" rx="8" fill={PAPER} stroke={CY} strokeWidth="2.5" />
+        <rect x="78" y="42" width="44" height="5" rx="2.5" fill={CY} opacity="0.8" />
+        <rect x="78" y="52" width="30" height="4" rx="2" fill={DIM} opacity="0.5" />
+      </g>
+    </Svg>
+  );
+}
+
+/** Popover — a panel opens beside the trigger it's anchored to, then closes. */
+export function PopoverIcon() {
+  return (
+    <Svg>
+      <rect x="40" y="82" width="56" height="24" rx="6" stroke={DIM} strokeWidth="2" />
+      <g className="a-panel" style={v({ '--dur': '4s' })}>
+        <path d="M96 74 l10 6 l-10 6 Z" fill={CY} />
+        <rect x="106" y="54" width="80" height="52" rx="10" fill={PAPER} stroke={CY} strokeWidth="2.5" />
+        <rect className="a-grow" style={v({ '--g0': '0.15', '--dur': '4s', animationDelay: '0.3s' })} x="118" y="66" width="44" height="5" rx="2.5" fill={CY} opacity="0.8" />
+        <rect className="a-grow" style={v({ '--g0': '0.1', '--dur': '4s', animationDelay: '0.5s' })} x="118" y="78" width="56" height="4" rx="2" fill={DIM} opacity="0.55" />
+        <rect x="118" y="90" width="30" height="8" rx="4" fill={CY} fillOpacity="0.25" />
+      </g>
+    </Svg>
+  );
+}
+
 /** ThemeToggle — the knob crosses the track and the sun yields to the moon. */
 export function ThemeToggleIcon() {
   return (

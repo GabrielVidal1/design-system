@@ -43,6 +43,8 @@ import {
   Input,
   Modal,
   ModalProvider,
+  Tooltip,
+  Popover,
   Nav2DProvider,
   Nav2DItem,
   useNav2D,
@@ -119,6 +121,8 @@ import {
   ImageViewerIcon,
   InputIcon,
   ModalIcon,
+  TooltipIcon,
+  PopoverIcon,
   Nav2DIcon,
   PhonePreviewIcon,
   ProgressIcon,
@@ -230,6 +234,8 @@ const GROUP_OF: Record<string, Group> = {
   spinner: 'Feedback',
   skeleton: 'Feedback',
   'empty-state': 'Feedback',
+  tooltip: 'Feedback',
+  popover: 'Feedback',
   'phone-preview': 'Layout',
   'iframe-preview': 'Layout',
   'floating-panel': 'Layout',
@@ -292,6 +298,8 @@ const SOURCE_FILE: Record<string, string> = {
   cn: 'utils.ts',
   toast: 'toast.tsx',
   modal: 'modal.tsx',
+  tooltip: 'tooltip.tsx',
+  popover: 'popover.tsx',
   spinner: 'spinner.tsx',
   skeleton: 'skeleton.tsx',
   'empty-state': 'empty-state.tsx',
@@ -1028,6 +1036,48 @@ if (await confirm({ title: 'Delete note?', destructive: true })) remove()
 
 // portal · Escape · scrim-click · scroll-lock · focus trap
 // + bottom-sheet on phones`,
+  },
+  {
+    id: 'tooltip',
+    name: 'Tooltip',
+    sig: 'content · side · describes',
+    tag: 'overlay',
+    Icon: TooltipIcon,
+    Demo: TooltipDemo,
+    code: `<Tooltip content="Copy to clipboard">
+  <Button size="icon-sm" icon={<Copy />} aria-label="Copy" />
+</Tooltip>
+
+// shown on hover / keyboard focus — and on a phone, a
+// long-press reveals it while swallowing the tap that
+// ends the press, so the label reads without firing the
+// trigger's onClick. A plain tap still fires it.
+<Tooltip content="Right side" side="right">
+  <Button variant="outline">Hover or hold me</Button>
+</Tooltip>`,
+  },
+  {
+    id: 'popover',
+    name: 'Popover',
+    sig: 'trigger · side · align · sheet',
+    tag: 'overlay',
+    Icon: PopoverIcon,
+    Demo: PopoverDemo,
+    code: `<Popover trigger={<Button>Filters</Button>} label="Filters">
+  <FilterForm />
+</Popover>
+
+// interactive content a Tooltip can't host — flips to the
+// opposite side when the preferred one runs out of room,
+// and becomes a bottom sheet on phones (same split as
+// Select)
+<Popover
+  trigger={<Button variant="outline">Share</Button>}
+  side="top"
+  align="end"
+>
+  <ShareLinks />
+</Popover>`,
   },
   {
     id: 'spinner',
@@ -3967,6 +4017,103 @@ function ModalDemo() {
           </p>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+function TooltipDemo() {
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Hover or keyboard-focus a trigger below. On a phone, hold one down instead — the label
+        appears without firing the button underneath; a quick tap still fires it normally.
+      </p>
+      <DemoRow>
+        <Tooltip content="Top side" side="top">
+          <Button variant="outline" size="sm">
+            Top
+          </Button>
+        </Tooltip>
+        <Tooltip content="Right side" side="right">
+          <Button variant="outline" size="sm">
+            Right
+          </Button>
+        </Tooltip>
+        <Tooltip content="Bottom side" side="bottom">
+          <Button variant="outline" size="sm">
+            Bottom
+          </Button>
+        </Tooltip>
+        <Tooltip content="Left side" side="left">
+          <Button variant="outline" size="sm">
+            Left
+          </Button>
+        </Tooltip>
+      </DemoRow>
+      <DemoRow>
+        <Tooltip content="Copy to clipboard">
+          <Button size="icon-sm" variant="outline" icon={<Copy />} aria-label="Copy" />
+        </Tooltip>
+        <Tooltip content="Delete run" describes={false}>
+          <Button size="icon-sm" variant="destructive" icon={<Trash2 />} aria-label="Delete run" />
+        </Tooltip>
+      </DemoRow>
+    </div>
+  );
+}
+
+function PopoverDemo() {
+  const toast = useToast();
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Click-triggered, for interactive content a Tooltip can't host. Flips to the opposite side
+        when the preferred one runs out of room, and becomes a bottom sheet on phones.
+      </p>
+      <DemoRow>
+        <Popover
+          trigger={
+            <Button variant="outline" size="sm" icon={<Settings2 />}>
+              Filters
+            </Button>
+          }
+          label="Filters"
+        >
+          <div className="w-56 space-y-2">
+            <label className="flex items-center gap-2 text-sm">
+              <Switch />
+              Running only
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <Switch />
+              Errors only
+            </label>
+          </div>
+        </Popover>
+        <Popover
+          trigger={
+            <Button variant="outline" size="sm">
+              Share
+            </Button>
+          }
+          side="top"
+          align="end"
+          label="Share"
+        >
+          <div className="w-48 space-y-1 text-sm">
+            <button
+              type="button"
+              className="block w-full rounded-md px-2 py-1.5 text-left hover:bg-muted"
+              onClick={() => toast.success('Link copied')}
+            >
+              Copy link
+            </button>
+            <button type="button" className="block w-full rounded-md px-2 py-1.5 text-left hover:bg-muted">
+              Email
+            </button>
+          </div>
+        </Popover>
+      </DemoRow>
     </div>
   );
 }

@@ -69,10 +69,15 @@
   animation: ds-toast-in-top 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.ds-popover-panel {
+  animation: ds-panel-in 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ds-modal-scrim,
   .ds-modal-panel,
-  .ds-toast {
+  .ds-toast,
+  .ds-popover-panel {
     animation: ds-fade-in 1ms linear;
   }
 }
