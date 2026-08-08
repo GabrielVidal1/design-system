@@ -24,6 +24,7 @@ Two audiences, one library:
      the section empty (this comment only) when nothing is in flight. -->
 
 - Data entry: `Checkbox` · `Radio` · `Textarea`
+- Feedback: `Tooltip` (touch-aware) and `Popover`
 
 ## Principles
 
