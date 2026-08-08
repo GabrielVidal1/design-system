@@ -39,6 +39,14 @@ last release → grouped bullets under Unreleased), then curate the prose.
   preferred one doesn't fit the viewport; becomes a bottom sheet on phones,
   the same desktop/phone split as `Select`.
 
+### Changed
+- `CharRoll` — multi-digit rolls now step discretely from character to
+  character instead of blurring smoothly across the whole distance, so a
+  5-digit jump reads as 5 distinct clicks of a real barrel/tape rather than
+  one long slide. Single-step moves (an adjacent digit, or any non-digit
+  flip) are unaffected — there's no intermediate character to hold on, so
+  they keep the original smooth ease.
+
 ## [0.24.0]
 
 > A before/after comparison you drag, or that sweeps itself.

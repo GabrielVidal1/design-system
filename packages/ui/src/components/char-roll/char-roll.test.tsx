@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { buildStrip, CharRoll } from './char-roll';
 
@@ -65,5 +65,36 @@ describe('CharRoll', () => {
     render(<CharRoll value="abc" data-testid="roll" />);
     const el = screen.getByTestId('roll');
     expect(el.querySelectorAll(':scope > span')).toHaveLength(3);
+  });
+});
+
+describe('CharRoll roll timing (real barrel: one character rests at a time)', () => {
+  const realAnimate = Element.prototype.animate;
+
+  afterEach(() => {
+    Element.prototype.animate = realAnimate;
+  });
+
+  function lastEasing(spy: ReturnType<typeof vi.fn>) {
+    const call = spy.mock.calls[spy.mock.calls.length - 1] as
+      | [Keyframe[], KeyframeAnimationOptions]
+      | undefined;
+    return call?.[1].easing;
+  }
+
+  it('steps discretely, one character boundary per interval, on a multi-digit roll', () => {
+    const spy = vi.fn(() => ({ cancel: () => {} }) as unknown as Animation);
+    Element.prototype.animate = spy;
+    const { rerender } = render(<CharRoll value="3" data-testid="roll" />);
+    rerender(<CharRoll value="7" data-testid="roll" />); // 3->4->5->6->7: 4 steps
+    expect(lastEasing(spy)).toBe('steps(4, end)');
+  });
+
+  it('keeps a smooth ease for a single-step move — no intermediate char to hold on', () => {
+    const spy = vi.fn(() => ({ cancel: () => {} }) as unknown as Animation);
+    Element.prototype.animate = spy;
+    const { rerender } = render(<CharRoll value="3" data-testid="roll" />);
+    rerender(<CharRoll value="4" data-testid="roll" />); // 1 step
+    expect(lastEasing(spy)).not.toMatch(/^steps/);
   });
 });

@@ -126,12 +126,22 @@ function Cell({ spec, gen, duration, animate }: CellProps) {
     // The strip is (steps + 1) cells tall; shifting by `steps` cells is
     // steps/(steps+1) of its own height. Rolls downward: old char out the
     // bottom, new char in from the top.
+    //
+    // A real barrel/tape has one character printed per fixed-size cell, so
+    // it can only ever be resting on one of them — it never shows a blend of
+    // two digits. `steps(steps, end)` reproduces that: the strip holds on
+    // each intermediate character for an equal slice of `duration`, then
+    // jumps straight to the next, landing on exactly `steps` character
+    // boundaries. A single-step move (one digit up, or a non-digit flip) has
+    // no intermediate character to hold on, so it keeps the smooth ease —
+    // steps(1, end) would just be a jump-cut.
+    const easing = steps > 1 ? `steps(${steps}, end)` : EASE_OUT;
     const anim = el.animate(
       [
         { transform: `translateY(${-(steps / (steps + 1)) * 100}%)` },
         { transform: 'translateY(0%)' },
       ],
-      { duration, delay: spec.delay, easing: EASE_OUT, fill: 'backwards' },
+      { duration, delay: spec.delay, easing, fill: 'backwards' },
     );
     return () => anim.cancel();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -163,6 +173,10 @@ function Cell({ spec, gen, duration, animate }: CellProps) {
  *
  * - Digits roll through every intermediate digit (wrapping 9 → 0); other
  *   characters flip in one step, and unchanged characters hold still.
+ *   Multi-digit rolls step discretely, character by character — like a real
+ *   barrel or tape, the strip rests on one printed digit at a time instead
+ *   of blurring smoothly between them, so passing 5 digits reads as 5
+ *   distinct clicks, not one long slide.
  * - `stagger` ripples the roll from the end of the string toward the start.
  * - `maxRotations` adds extra revolutions to the rightmost changed digits for
  *   an accelerated odometer feel.
