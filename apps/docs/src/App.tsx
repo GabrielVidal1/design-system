@@ -1310,7 +1310,7 @@ if (await confirm({ title: 'Delete note?', destructive: true })) remove()
   {
     id: 'drop-zone',
     name: 'DropZone',
-    sig: 'DropZone · useFileDrop — accept · maxSize · folders',
+    sig: 'DropZone · useFileDrop — accept · maxSize · folders · paste',
     tag: 'input',
     Icon: DropZoneIcon,
     Demo: DropZoneDemo,
@@ -1319,6 +1319,7 @@ if (await confirm({ title: 'Delete note?', destructive: true })) remove()
   maxFiles={8}
   maxSize={10 * 1024 * 1024}
   recursive                       // walk dropped folders
+  paste                           // Ctrl/⌘+V anywhere on the page
   onFiles={(files) => upload(files)}
   onReject={(bad) => toast.error(\`\${bad.length} file(s) rejected\`)}
   hint="PNG, JPG or WebP · up to 10 MB"
@@ -4669,7 +4670,8 @@ function DropZoneDemo() {
         maxFiles={6}
         maxSize={10 * 1024 * 1024}
         recursive
-        hint="images · up to 6 files · 10 MB each · folders welcome"
+        paste
+        hint="images · up to 6 files · 10 MB each · folders welcome · or just Ctrl+V"
         onFiles={(picked) =>
           setFiles((prev) =>
             [

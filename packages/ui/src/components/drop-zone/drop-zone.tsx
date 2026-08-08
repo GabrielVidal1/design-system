@@ -19,7 +19,7 @@ export interface DropZoneProps extends UseFileDropOptions {
  * the whole-window drag highlight and folder support behind one prop.
  *
  * @summary File drop target plus the headless `useFileDrop` hook — accept filters,
- * max size, folder drops, rejection reporting.
+ * max size, folder drops, page-wide paste (Ctrl+V), rejection reporting.
  */
 export function DropZone({
   label = 'Drop files here',

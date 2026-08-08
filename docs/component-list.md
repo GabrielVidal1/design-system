@@ -70,7 +70,7 @@ import '@gabvdl/ui/styles.css'; // or theme.css for tokens only
 | **[TagFilter](https://ui.gabvdl.xyz/#/c/tag-filter)** | `TagFilter` | Row of filter chips (single or multiple select) with an "all" option. |
 | **[IconPicker](https://ui.gabvdl.xyz/#/c/icon-picker)** | `IconPicker` | Searchable horizontal virtual grid of icons. You pass the icon set (e.g. lucide) — the component ships none. |
 | **[PalettePicker](https://ui.gabvdl.xyz/#/c/palette-picker)** | `PalettePicker` · `PaletteStripes` · `ColorThemeProvider` · `useColorTheme` · `paletteToVars` | Vertical-stripe colour-palette editor (dropdown on desktop, bottom sheet on mobile) with dependency-free harmony generation, plus `ColorThemeProvider`/`paletteToVars` to push a palette into CSS variables. |
-| **[DropZone](https://ui.gabvdl.xyz/#/c/drop-zone)** | `DropZone` · `useFileDrop` | File drop target plus the headless `useFileDrop` hook — accept filters, max size, folder drops, rejection reporting. |
+| **[DropZone](https://ui.gabvdl.xyz/#/c/drop-zone)** | `DropZone` · `useFileDrop` | File drop target plus the headless `useFileDrop` hook — accept filters, max size, folder drops, page-wide paste (Ctrl+V), rejection reporting. |
 | **[CopyButton](https://ui.gabvdl.xyz/#/c/copy-button)** | `CopyButton` | Copy-to-clipboard button with success feedback and native share fallback. Pairs with the `useCopyToClipboard` hook. |
 
 ## Animation

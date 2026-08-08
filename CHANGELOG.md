@@ -16,6 +16,11 @@ last release → grouped bullets under Unreleased), then curate the prose.
 ## [Unreleased]
 
 ### Added
+- `DropZone` / `useFileDrop` — new `paste` option: Ctrl/⌘+V anywhere on the
+  page drops clipboard files (screenshots, images copied from other apps) into
+  the zone, through the same accept/size/count validation as a drag. Pastes
+  aimed at an editable element (inputs, textareas, contenteditable) are left
+  alone.
 - `Checkbox` — tri-state (checked/unchecked/`indeterminate`) control matching
   `Switch`'s controlled/uncontrolled + labelled-row shape.
 - `RadioGroup` / `Radio` — single-choice group with the WAI-ARIA

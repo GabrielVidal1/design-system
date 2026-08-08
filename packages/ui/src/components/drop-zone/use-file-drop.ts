@@ -15,13 +15,16 @@ export interface UseFileDropOptions {
   maxSize?: number;
   /** Walk dropped folders recursively (Chromium/WebKit). */
   recursive?: boolean;
+  /** Accept files pasted (Ctrl/⌘+V) anywhere on the page, e.g. screenshots. */
+  paste?: boolean;
   disabled?: boolean;
   onReject?: (rejections: FileRejection[]) => void;
 }
 
 /**
- * The headless half of `<DropZone>`: drag state, the click-to-browse input, and
- * validation. Spread `rootProps` on any element to make it a drop target.
+ * The headless half of `<DropZone>`: drag state, the click-to-browse input,
+ * validation, and (with `paste`) page-wide Ctrl/⌘+V. Spread `rootProps` on any
+ * element to make it a drop target.
  *
  * Drag events fire for every child element, so the depth counter is what keeps
  * the highlight from flickering as the pointer crosses them.
@@ -33,6 +36,7 @@ export function useFileDrop({
   maxFiles,
   maxSize,
   recursive = false,
+  paste = false,
   disabled = false,
   onReject,
 }: UseFileDropOptions) {
@@ -97,6 +101,21 @@ export function useFileDrop({
     },
   };
 
+  // Ctrl/⌘+V anywhere on the page: clipboard files (screenshots, images copied
+  // from other apps) land in the zone. A paste aimed at an editable element is
+  // left alone — that field owns its own paste.
+  React.useEffect(() => {
+    if (!paste || disabled) return;
+    const onPaste = (e: ClipboardEvent) => {
+      const files = [...(e.clipboardData?.files ?? [])];
+      if (files.length === 0 || isEditable(e.target)) return;
+      e.preventDefault();
+      take(files);
+    };
+    document.addEventListener('paste', onPaste);
+    return () => document.removeEventListener('paste', onPaste);
+  }, [paste, disabled, take]);
+
   const inputProps = {
     ref: input,
     type: 'file' as const,
@@ -123,6 +142,17 @@ export function useFileDrop({
  */
 function isFileDrag(dt: DataTransfer | null): boolean {
   return !!dt && Array.from(dt.types ?? []).includes('Files');
+}
+
+/** A paste into a form field or rich-text editor belongs to that field. */
+function isEditable(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable ||
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement)
+  );
 }
 
 function parseAccept(accept?: string): string[] {
