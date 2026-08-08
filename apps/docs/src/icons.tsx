@@ -356,6 +356,50 @@ export function InputIcon() {
   );
 }
 
+/** Textarea — lines type themselves out under a blinking caret, resize handle at the corner. */
+export function TextareaIcon() {
+  return (
+    <Svg>
+      <rect x="48" y="26" width="124" height="78" rx="9" stroke={CY} strokeWidth="2.5" />
+      <rect
+        className="a-grow"
+        style={v({ '--g0': '0.1', '--dur': '4.2s' })}
+        x="60"
+        y="42"
+        width="80"
+        height="6"
+        rx="3"
+        fill={DIM}
+        opacity="0.6"
+      />
+      <rect
+        className="a-grow"
+        style={v({ '--g0': '0.1', '--dur': '4.2s', animationDelay: '0.15s' })}
+        x="60"
+        y="56"
+        width="96"
+        height="6"
+        rx="3"
+        fill={DIM}
+        opacity="0.6"
+      />
+      <rect
+        className="a-grow"
+        style={v({ '--g0': '0.1', '--dur': '4.2s', animationDelay: '0.3s' })}
+        x="60"
+        y="70"
+        width="64"
+        height="6"
+        rx="3"
+        fill={DIM}
+        opacity="0.5"
+      />
+      <line className="a-blink" x1="60" y1="84" x2="60" y2="94" stroke={CY} strokeWidth="2" />
+      <path d="M158 96 l8 -8 M164 100 l8 -8" stroke={DIM} strokeWidth="2" strokeLinecap="round" />
+    </Svg>
+  );
+}
+
 /** cn — two class tokens fold into one resolved pill. */
 export function CnIcon() {
   return (
@@ -1306,6 +1350,62 @@ export function SwitchIcon() {
       />
       <g className="a-drift" style={v({ '--dx': '40px', '--dur': '4.4s' })}>
         <circle cx="90" cy="65" r="13" fill={PAPER} stroke={CY} strokeWidth="2.5" />
+      </g>
+    </Svg>
+  );
+}
+
+/** Checkbox — the box fills and a tick draws in. */
+export function CheckboxIcon() {
+  return (
+    <Svg>
+      <rect x="70" y="35" width="60" height="60" rx="10" stroke={DIM} strokeWidth="2.5" />
+      <rect
+        className="a-fade"
+        style={v({ '--o0': '0', '--o1': '1', '--dur': '4s' })}
+        x="70"
+        y="35"
+        width="60"
+        height="60"
+        rx="10"
+        fill={CY}
+        fillOpacity="0.16"
+        stroke={CY}
+        strokeWidth="2.5"
+      />
+      <path
+        className="a-fade"
+        style={v({ '--o0': '0', '--o1': '1', '--dur': '4s', animationDelay: '0.25s' })}
+        d="M84 65 l12 12 l24 -24"
+        stroke={CY}
+        strokeWidth="4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <rect x="146" y="52" width="52" height="6" rx="3" fill={DIM} opacity="0.5" />
+      <rect x="146" y="66" width="36" height="6" rx="3" fill={DIM} opacity="0.3" />
+    </Svg>
+  );
+}
+
+/** Radio — the selection ring hops between three stacked options. */
+export function RadioIcon() {
+  const rows: Array<[number, number]> = [
+    [30, 66],
+    [65, 50],
+    [100, 58],
+  ];
+  return (
+    <Svg>
+      {rows.map(([y, w]) => (
+        <g key={y}>
+          <circle cx="66" cy={y} r="11" stroke={DIM} strokeWidth="2.5" />
+          <rect x="90" y={y - 5} width={w} height="10" rx="5" fill={DIM} opacity="0.35" />
+        </g>
+      ))}
+      <g className="a-drift" style={v({ '--dy': '70px', '--dur': '4.6s' })}>
+        <circle cx="66" cy="30" r="11" fill={CY} fillOpacity="0.16" stroke={CY} strokeWidth="2.5" />
+        <circle cx="66" cy="30" r="4.5" fill={CY} />
       </g>
     </Svg>
   );

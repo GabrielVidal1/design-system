@@ -23,7 +23,6 @@ Two audiences, one library:
      removes its own line in the same commit that ticks the checkbox. Leave
      the section empty (this comment only) when nothing is in flight. -->
 
-- Data entry: `Checkbox` · `Radio` · `Textarea`
 - Feedback: `Tooltip` (touch-aware) and `Popover`
 
 ## Principles
@@ -67,7 +66,7 @@ Has `Input`, `RichInput`, `SearchInput`, `DropZone`, `ElementPicker`,
 `CodeArea`, `Markdown`, `MenuBar`).
 - [x] `Select` / combobox (searchable, mobile sheet mode)
 - [x] `Switch` · `Slider` (was hand-rolled in 5+ projects each)
-- [ ] `Checkbox` · `Radio` · `Textarea`
+- [x] `Checkbox` · `Radio` · `Textarea`
 - [ ] `Field` wrapper — label + hint + error, so forms look uniform
 
 ### Navigation

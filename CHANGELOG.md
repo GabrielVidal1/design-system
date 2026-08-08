@@ -15,6 +15,16 @@ last release → grouped bullets under Unreleased), then curate the prose.
 
 ## [Unreleased]
 
+### Added
+- `Checkbox` — tri-state (checked/unchecked/`indeterminate`) control matching
+  `Switch`'s controlled/uncontrolled + labelled-row shape.
+- `RadioGroup` / `Radio` — single-choice group with the WAI-ARIA
+  roving-tabindex radiogroup pattern (arrow keys move and select, Home/End
+  jump to the ends).
+- `Textarea` — multi-line input styled to match `Input`, auto-growing between
+  `rows` and `maxRows` by default (`autoGrow={false}` for a fixed, manually
+  resizable box).
+
 ## [0.24.0]
 
 > A before/after comparison you drag, or that sweeps itself.

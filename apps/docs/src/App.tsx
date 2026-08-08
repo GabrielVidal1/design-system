@@ -24,6 +24,7 @@ import {
   type ChangelogEntry,
   NewVersionToast,
   useChangelog,
+  Checkbox,
   Collection,
   type CollectionView,
   CopyButton,
@@ -60,6 +61,8 @@ import {
   ProgressiveText,
   ProgressiveTimelineSlot,
   useProgressiveSlot,
+  Radio,
+  RadioGroup,
   RelativeTime,
   ResizableLayout,
   type ResizableLayoutHandle,
@@ -80,6 +83,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  Textarea,
   ThemeToggle,
   ToastProvider,
   ViewableImage,
@@ -107,6 +111,7 @@ import {
   ButtonIcon,
   ChangelogIcon,
   CharRollIcon,
+  CheckboxIcon,
   CollectionIcon,
   CopyButtonIcon,
   DataTableIcon,
@@ -132,6 +137,7 @@ import {
   ProgressiveTableIcon,
   ProgressiveTextIcon,
   ProgressiveTimelineIcon,
+  RadioIcon,
   RelativeTimeIcon,
   ResizableLayoutIcon,
   RichInputIcon,
@@ -147,6 +153,7 @@ import {
   SwitchIcon,
   StatTileIcon,
   StatusBadgeIcon,
+  TextareaIcon,
   ThemeToggleIcon,
   ToastIcon,
   ViewableImageIcon,
@@ -211,12 +218,15 @@ const GROUP_OF: Record<string, Group> = {
   tabs: 'Navigation',
   button: 'Inputs',
   input: 'Inputs',
+  textarea: 'Inputs',
   'rich-input': 'Inputs',
   'search-input': 'Inputs',
   'tag-filter': 'Inputs',
   'drop-zone': 'Inputs',
   select: 'Inputs',
   switch: 'Inputs',
+  checkbox: 'Inputs',
+  radio: 'Inputs',
   slider: 'Inputs',
   'copy-button': 'Inputs',
   'element-picker': 'Inputs',
@@ -291,8 +301,11 @@ const SOURCE_FILE: Record<string, string> = {
   tabs: 'tabs.tsx',
   button: 'button.tsx',
   input: 'input.tsx',
+  textarea: 'textarea.tsx',
   select: 'select.tsx',
   switch: 'switch.tsx',
+  checkbox: 'checkbox.tsx',
+  radio: 'radio.tsx',
   slider: 'slider.tsx',
   'rich-input': 'rich-input.tsx',
   cn: 'utils.ts',
@@ -873,6 +886,21 @@ ref.current?.toggle('bottom')`,
 <Input cacheKey="draft" cacheLocation="local" />`,
   },
   {
+    id: 'textarea',
+    name: 'Textarea',
+    sig: 'auto-grows between rows and maxRows',
+    tag: 'input',
+    Icon: TextareaIcon,
+    Demo: TextareaDemo,
+    code: `<Textarea placeholder="Notes…" />
+
+// grows up to 8 rows, then scrolls
+<Textarea rows={2} maxRows={8} />
+
+// fixed height, native resize handle
+<Textarea autoGrow={false} rows={4} />`,
+  },
+  {
     id: 'select',
     name: 'Select',
     sig: 'searchable · icons · bottom sheet on phones',
@@ -905,6 +933,33 @@ ref.current?.toggle('bottom')`,
   description="Deploys, finished jobs, asks"
   defaultChecked
 />`,
+  },
+  {
+    id: 'checkbox',
+    name: 'Checkbox',
+    sig: 'checked · indeterminate · labelled row',
+    tag: 'input',
+    Icon: CheckboxIcon,
+    Demo: CheckboxDemo,
+    code: `<Checkbox checked={on} onCheckedChange={setOn} />
+
+// mixed state — e.g. a "select all" over a partial selection
+<Checkbox indeterminate={someSelected} checked={allSelected} onCheckedChange={selectAll} />
+
+<Checkbox label="Accept terms" description="Required to continue" />`,
+  },
+  {
+    id: 'radio',
+    name: 'RadioGroup',
+    sig: 'roving-tabindex radiogroup · Radio items',
+    tag: 'input',
+    Icon: RadioIcon,
+    Demo: RadioDemo,
+    code: `<RadioGroup value={plan} onValueChange={setPlan}>
+  <Radio value="free" label="Free" />
+  <Radio value="pro" label="Pro" description="$9/mo" />
+  <Radio value="team" label="Team" description="$29/mo" />
+</RadioGroup>`,
   },
   {
     id: 'slider',
@@ -2652,6 +2707,19 @@ function InputDemo() {
   );
 }
 
+function TextareaDemo() {
+  return (
+    <div className="max-w-sm space-y-3">
+      <Textarea placeholder="Grows as you type…" />
+      <div>
+        <Textarea rows={2} maxRows={5} placeholder="Caps out at 5 rows, then scrolls" />
+        <p className="mt-1.5 mono text-[11px] text-muted-foreground">rows=2 · maxRows=5</p>
+      </div>
+      <Textarea disabled placeholder="Disabled" />
+    </div>
+  );
+}
+
 const SELECT_MODELS = [
   { value: 'qwen3-vl-8b', label: 'Qwen 3 VL 8B', description: 'local · EVOX2 · vision' },
   { value: 'gemma-3-27b', label: 'Gemma 3 27B', description: 'local · EVOX2' },
@@ -2712,6 +2780,71 @@ function SwitchDemo() {
           onCheckedChange={setPush}
         />
         <Switch label="Wake the GPU box on demand" description="WoL before each queued job" />
+      </div>
+    </div>
+  );
+}
+
+function CheckboxDemo() {
+  const [items, setItems] = useState({ traefik: true, authelia: true, gitea: false });
+  const values = Object.values(items);
+  const allChecked = values.every(Boolean);
+  const someChecked = values.some(Boolean) && !allChecked;
+
+  return (
+    <div className="max-w-sm space-y-5">
+      <div className="flex items-center gap-4">
+        <Checkbox defaultChecked />
+        <Checkbox />
+        <Checkbox indeterminate />
+        <Checkbox size="sm" defaultChecked />
+        <Checkbox disabled defaultChecked />
+      </div>
+      <div className="space-y-3 border-t border-border pt-4">
+        <Checkbox
+          label="Restart every service"
+          indeterminate={someChecked}
+          checked={allChecked}
+          onCheckedChange={(v) => setItems({ traefik: v, authelia: v, gitea: v })}
+        />
+        <div className="ml-8 space-y-2.5">
+          {(Object.keys(items) as Array<keyof typeof items>).map((key) => (
+            <Checkbox
+              key={key}
+              label={key}
+              checked={items[key]}
+              onCheckedChange={(v) => setItems((prev) => ({ ...prev, [key]: v }))}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const RADIO_PLANS = [
+  { value: 'free', label: 'Free', description: 'Solo, community support' },
+  { value: 'pro', label: 'Pro', description: '$9/mo · priority queue' },
+  { value: 'team', label: 'Team', description: '$29/mo · shared workspaces' },
+];
+
+function RadioDemo() {
+  const [plan, setPlan] = useState('pro');
+
+  return (
+    <div className="max-w-sm space-y-5">
+      <RadioGroup value={plan} onValueChange={setPlan}>
+        {RADIO_PLANS.map((p) => (
+          <Radio key={p.value} value={p.value} label={p.label} description={p.description} />
+        ))}
+      </RadioGroup>
+      <div className="border-t border-border pt-4">
+        <p className="mb-2.5 mono text-[11px] text-muted-foreground">orientation="horizontal" · disabled</p>
+        <RadioGroup defaultValue="a" orientation="horizontal" disabled>
+          <Radio value="a" label="A" />
+          <Radio value="b" label="B" />
+          <Radio value="c" label="C" />
+        </RadioGroup>
       </div>
     </div>
   );

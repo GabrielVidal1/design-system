@@ -57,8 +57,11 @@ import '@gabvdl/ui/styles.css'; // or theme.css for tokens only
 | --- | --- | --- |
 | **[Button](https://ui.gabvdl.xyz/#/c/button)** | `Button` | The base button — variants, sizes, icon slot, loading state, and a `tooltip` prop wired to `Tooltip`. |
 | **[Input](https://ui.gabvdl.xyz/#/c/input)** | `Input` | The base text input, styled to the theme tokens. |
+| **[Textarea](https://ui.gabvdl.xyz/#/c/textarea)** | `Textarea` | Multi-line text input, styled to the theme tokens, that auto-grows with content. |
 | **[Select](https://ui.gabvdl.xyz/#/c/select)** | `Select` | Select that becomes a searchable list on desktop and a bottom sheet on phones; supports per-option icons. |
 | **[Switch](https://ui.gabvdl.xyz/#/c/switch)** | `Switch` | Toggle switch, with a labelled-row layout for settings screens. |
+| **[Checkbox](https://ui.gabvdl.xyz/#/c/checkbox)** | `Checkbox` | Checkbox with indeterminate state, and a labelled-row layout for forms. |
+| **[RadioGroup](https://ui.gabvdl.xyz/#/c/radio)** | `RadioGroup` · `Radio` | Single-choice radio group with roving-tabindex keyboard navigation. |
 | **[Slider](https://ui.gabvdl.xyz/#/c/slider)** | `Slider` | Pointer-captured range slider with full arrow/Page/Home/End keyboard support. |
 | **[RichInput](https://ui.gabvdl.xyz/#/c/rich-input)** | `RichInput` · `defaultComposePrompt` | The full composer: draft persistence, un-send window, file attachments, guideline tags, `#mention` autocomplete and prompt history. Use for any chat/agent input. |
 | **[ElementPicker](https://ui.gabvdl.xyz/#/c/element-picker)** | `ElementPicker` · `ElementPickerField` · `ElementPickerOverlay` · `ElementPreview` · `useElementPicker` · `classify` · `formatHtml` · `hierarchy` · `parseElement` · `uniqueSelector` · `STYLE_GROUPS` · `STYLE_PROPS` | Point at any DOM element on the page (hover / click / press-and-hold) and get its full HTML plus a parsed description — selector, hierarchy, computed style groups. Powers "pick an element" editor flows. |
@@ -148,4 +151,4 @@ import '@gabvdl/ui/styles.css'; // or theme.css for tokens only
 
 ---
 
-52 catalogue entries · 14 hooks · conventions and contribution rules in [CLAUDE.md](../CLAUDE.md), direction in [GOAL.md](../GOAL.md).
+55 catalogue entries · 14 hooks · conventions and contribution rules in [CLAUDE.md](../CLAUDE.md), direction in [GOAL.md](../GOAL.md).
