@@ -17,6 +17,14 @@ Two audiences, one library:
    editor: canvas/stage surfaces, toolbars, inspector panels, layers,
    selection/transform, zoom-pan, undo/redo.
 
+## Being worked on
+
+<!-- Claims by goal-keeper agents. One bullet per in-flight item; the agent
+     removes its own line in the same commit that ticks the checkbox. Leave
+     the section empty (this comment only) when nothing is in flight. -->
+
+- Data entry: `Checkbox` · `Radio` · `Textarea`
+
 ## Principles
 
 1. **Mobile-first, desktop-compatible.** Designed for touch first (gestures,
