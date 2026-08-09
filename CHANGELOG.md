@@ -172,6 +172,11 @@ last release → grouped bullets under Unreleased), then curate the prose.
   `Tooltip` can't host (a form, a menu). Flips to the opposite side when the
   preferred one doesn't fit the viewport; becomes a bottom sheet on phones,
   the same desktop/phone split as `Select`.
+- `Field` — the label + hint/error wrapper every form re-implements around
+  `Input`, `Textarea` and `Select`. Give it `label`/`hint`/`error`/`required`
+  and a single control as its child: it generates the control's `id` (or uses
+  a caller-supplied `htmlFor`), wires `aria-describedby` to the hint or error
+  text and sets `aria-invalid` on error — no hand-rolled ids across a form.
 
 ### Changed
 - `RichInput` — the `disabled` treatment dims the composer's contents instead
