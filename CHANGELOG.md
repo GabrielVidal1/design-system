@@ -15,7 +15,32 @@ last release → grouped bullets under Unreleased), then curate the prose.
 
 ## [Unreleased]
 
+### Changed
+- `RichInput` — **the composer no longer writes prompts.** Tags used to carry
+  the text they injected (`prompt` / `promptOff`) and the component assembled a
+  `Guidelines:` / `Context:` / `Attachments:` block for you. That belongs to the
+  app, not to an input, so it moved out: a tag is now just an id, a label and an
+  optional `labelOff`, the component tracks which ones are selected, and your
+  `composePrompt({ text, tags, files })` decides what the prompt looks like
+  (without one, the prompt is the trimmed text). Renames that follow:
+  `GuidelineTag` → `RichTag`, `group: 'guideline' | 'tag'` → `'chip' | 'list'`,
+  and `defaultComposePrompt` is gone.
+- `RichInput` — the guidelines master switch is now the generic `masterSwitch`
+  (`true`, or a `MasterSwitchConfig` to word it — `{ label: 'Guidelines' }`),
+  with `defaultMasterOn` / `onMasterSwitchChange` replacing
+  `defaultGuidelinesOn` / `onGuidelinesToggle`, and the dropped `guidelines`
+  prop. Off now means the chip-group tags are *muted*: hidden, and left out of
+  `composePrompt` and the send payload — while staying selected, so flipping the
+  switch back brings them all with it. `onTagsChange` reports the raw selection
+  (muting is not un-picking) and fires only when the selection really changes,
+  so deriving `tags` from it can't loop.
+
 ### Added
+- `RichInput` — `RichTag.depth` indents a chip behind a `↳` marker, so a caller
+  whose tags form a hierarchy can show children under the tag that revealed
+  them. The composer stays flat and unaware: hand it a different `tags` array as
+  the selection changes and it keeps up — ids that disappear leave the selection
+  with them.
 - `HoldEditable` — **two-stage holds**: new `onItemHold` / `holdActionDelay`
   props give an item a *first-stage* hold action fired part-way through the
   hold (500ms by default) — a send button can open its long-press menu there

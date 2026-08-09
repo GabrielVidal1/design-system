@@ -7,10 +7,10 @@ type Where = 'local' | 'session';
 
 /** What the live (auto-persisted) draft remembers besides the text. */
 export interface DraftMeta {
-  /** Ids of the tags (guidelines, projects, …) selected with the draft. */
+  /** Ids of the tags selected with the draft. */
   tags: string[];
-  /** State of the guidelines master switch, when the composer shows one. */
-  guidelinesOn?: boolean;
+  /** State of the master switch, when the composer shows one. */
+  masterOn?: boolean;
 }
 
 function store(where: Where): Storage | null {
@@ -27,14 +27,14 @@ function parse(raw: string | null): { text: string; meta: DraftMeta | null } {
   if (!raw) return { text: '', meta: null };
   if (raw.startsWith('{')) {
     try {
-      const obj = JSON.parse(raw) as { text?: unknown; tags?: unknown; guidelinesOn?: unknown };
+      const obj = JSON.parse(raw) as { text?: unknown; tags?: unknown; masterOn?: unknown };
       if (typeof obj === 'object' && obj !== null) {
         return {
           text: typeof obj.text === 'string' ? obj.text : '',
           meta: Array.isArray(obj.tags)
             ? {
                 tags: obj.tags.filter((t): t is string => typeof t === 'string'),
-                ...(typeof obj.guidelinesOn === 'boolean' ? { guidelinesOn: obj.guidelinesOn } : {}),
+                ...(typeof obj.masterOn === 'boolean' ? { masterOn: obj.masterOn } : {}),
               }
             : null,
         };
@@ -69,7 +69,7 @@ export interface Draft {
 
 /**
  * A debounced, storage-backed draft: the composer text plus {@link DraftMeta}
- * (selected tag ids, guideline switch). Stored as one JSON record under
+ * (selected tag ids, master switch). Stored as one JSON record under
  * `rich-input:draft:<key>`; legacy plain-string drafts are still read. When
  * `key` is falsy the value is kept purely in memory. An empty draft removes
  * the stored key; changing `key` re-loads its draft.

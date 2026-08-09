@@ -1,11 +1,11 @@
 import { useCallback, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 
-import type { GuidelineTag } from './types';
+import type { RichTag } from './types';
 
 const MAX_MATCHES = 8;
 const TOKEN_CHAR = /[\w.-]/;
 
-export function tagSlug(tag: GuidelineTag): string {
+export function tagSlug(tag: RichTag): string {
   return tag.slug ?? tag.id;
 }
 
@@ -20,11 +20,11 @@ function activeMention(text: string, caret: number, prefix: string): { start: nu
 
 export interface MentionApi {
   open: boolean;
-  matches: GuidelineTag[];
+  matches: RichTag[];
   active: number;
   query: string | null;
   setActive: (i: number) => void;
-  pick: (tag: GuidelineTag) => void;
+  pick: (tag: RichTag) => void;
   /** Handle a key while the menu is open; returns true if it consumed the key. */
   onKeyDown: (e: KeyboardEvent<HTMLTextAreaElement>) => boolean;
   /** Keep the caret position in sync (call from onSelect / onChange). */
@@ -39,12 +39,12 @@ export function useMention({
   prefix,
   onPick,
 }: {
-  tags: GuidelineTag[];
+  tags: RichTag[];
   value: string;
   setValue: (v: string) => void;
   taRef: RefObject<HTMLTextAreaElement | null>;
   prefix: string;
-  onPick: (tag: GuidelineTag) => void;
+  onPick: (tag: RichTag) => void;
 }): MentionApi {
   const [caret, setCaret] = useState(0);
   const [active, setActive] = useState(0);
@@ -72,7 +72,7 @@ export function useMention({
   }, [taRef]);
 
   const pick = useCallback(
-    (tag: GuidelineTag) => {
+    (tag: RichTag) => {
       if (!mention) return;
       const slug = tagSlug(tag);
       const next = `${value.slice(0, mention.start)}${prefix}${slug} ${value.slice(caret)}`;

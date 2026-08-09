@@ -13,7 +13,7 @@ import {
 import {
   Button,
   RichInput,
-  type GuidelineTag,
+  type RichTag,
   type RichFile,
   type RichInputHandle,
   type RichSendPayload,
@@ -74,58 +74,64 @@ function Readout({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /* ── demo data ───────────────────────────────────────────────────────────── */
-const GUIDELINE_TAGS: GuidelineTag[] = [
+// Tags are just labelled ids — what they *mean* lives on this side of the
+// component, in the caller's own table and its `composePrompt`.
+const CHIP_TAGS: RichTag[] = [
   {
     id: 'worktree',
     label: 'Worktree',
     labelOff: 'On main',
     icon: <GitBranch className="size-3" />,
-    prompt: 'Work in an isolated git worktree.',
-    promptOff: 'Work directly on the main branch.',
     defaultOn: true,
   },
-  { id: 'tests', label: 'Add tests', icon: <FlaskConical className="size-3" />, prompt: 'Add unit tests for the change.' },
-  {
-    id: 'commit',
-    label: 'Commit & push',
-    icon: <GitCommit className="size-3" />,
-    prompt: 'Commit and push when done.',
-    defaultOn: true,
-  },
-  { id: 'deploy', label: 'Deploy', icon: <Rocket className="size-3" />, prompt: 'Deploy once it works.' },
-  { id: 'docs', label: 'Docs', icon: <BookOpen className="size-3" />, prompt: 'Update the documentation.' },
-  {
-    id: 'notify',
-    label: 'Notify',
-    icon: <Bell className="size-3" />,
-    prompt: 'Send a push notification when finished.',
-    defaultOn: true,
-  },
+  { id: 'tests', label: 'Add tests', icon: <FlaskConical className="size-3" /> },
+  { id: 'commit', label: 'Commit & push', icon: <GitCommit className="size-3" />, defaultOn: true },
+  { id: 'deploy', label: 'Deploy', icon: <Rocket className="size-3" /> },
+  { id: 'docs', label: 'Docs', icon: <BookOpen className="size-3" /> },
+  { id: 'notify', label: 'Notify', icon: <Bell className="size-3" />, defaultOn: true },
 ];
 
-// Location tags (`group: 'tag'`) render in a scrollable list, not the guideline
-// row, and are never dimmed by the guidelines master switch.
-const LOCATION_TAGS: GuidelineTag[] = [
-  { id: 'svc-ai-agent', slug: 'ai-agent', group: 'tag', label: 'ai-agent', icon: <Server className="size-3 text-sky-500" />, description: 'conversation viewer' },
-  { id: 'svc-traefik', slug: 'traefik', group: 'tag', label: 'traefik', icon: <Server className="size-3 text-sky-500" />, description: 'reverse proxy' },
-  { id: 'svc-authelia', slug: 'authelia', group: 'tag', label: 'authelia', icon: <Server className="size-3 text-sky-500" />, description: 'forward-auth' },
-  { id: 'svc-pihole', slug: 'pihole', group: 'tag', label: 'pihole', icon: <Server className="size-3 text-sky-500" />, description: 'ad-blocker' },
-  { id: 'svc-grafana', slug: 'grafana', group: 'tag', label: 'grafana', icon: <Server className="size-3 text-sky-500" />, description: 'dashboards' },
-  { id: 'svc-loki', slug: 'loki', group: 'tag', label: 'loki', icon: <Server className="size-3 text-sky-500" />, description: 'log store' },
-  { id: 'prj-design-system', slug: 'design-system', group: 'tag', label: 'design-system', icon: <TagIcon className="size-3 text-primary" />, description: '@gabvdl/ui library' },
-  { id: 'prj-gabvdl', slug: 'gabvdl', group: 'tag', label: 'gabvdl', icon: <TagIcon className="size-3 text-primary" />, description: 'personal sites' },
-  { id: 'prj-zine-maker', slug: 'zine-maker', group: 'tag', label: 'zine-maker', icon: <TagIcon className="size-3 text-primary" />, description: 'mini-zine maker' },
-  { id: 'prj-moooo', slug: 'moooo', group: 'tag', label: 'moooo', icon: <TagIcon className="size-3 text-primary" />, description: 'party game' },
+/** The caller's own id → line table (on/off variants where it has two states). */
+const GUIDELINE_LINES: Record<string, { on: string; off?: string }> = {
+  worktree: { on: 'Work in an isolated git worktree.', off: 'Work directly on the main branch.' },
+  tests: { on: 'Add unit tests for the change.' },
+  commit: { on: 'Commit and push when done.' },
+  deploy: { on: 'Deploy once it works.' },
+  docs: { on: 'Update the documentation.' },
+  notify: { on: 'Send a push notification when finished.' },
+  'deploy-smoke': { on: 'Smoke-test the deployed URL before reporting done.' },
+  'deploy-rollback': { on: 'Note the rollback command in the summary.' },
+};
+
+/** Weave the selected tags into a prompt — the composer never does this itself. */
+function weave(text: string, tags: RichTag[]): string {
+  const lines = tags.map((t) => GUIDELINE_LINES[t.id]?.on).filter(Boolean);
+  return lines.length > 0 ? [text, '', 'Guidelines:', ...lines.map((l) => `- ${l}`)].join('\n') : text;
+}
+
+// Location tags (`group: 'list'`) render in a scrollable list, not the chip
+// row, and are never muted by the master switch.
+const LOCATION_TAGS: RichTag[] = [
+  { id: 'svc-ai-agent', slug: 'ai-agent', group: 'list', label: 'ai-agent', icon: <Server className="size-3 text-sky-500" />, description: 'conversation viewer' },
+  { id: 'svc-traefik', slug: 'traefik', group: 'list', label: 'traefik', icon: <Server className="size-3 text-sky-500" />, description: 'reverse proxy' },
+  { id: 'svc-authelia', slug: 'authelia', group: 'list', label: 'authelia', icon: <Server className="size-3 text-sky-500" />, description: 'forward-auth' },
+  { id: 'svc-pihole', slug: 'pihole', group: 'list', label: 'pihole', icon: <Server className="size-3 text-sky-500" />, description: 'ad-blocker' },
+  { id: 'svc-grafana', slug: 'grafana', group: 'list', label: 'grafana', icon: <Server className="size-3 text-sky-500" />, description: 'dashboards' },
+  { id: 'svc-loki', slug: 'loki', group: 'list', label: 'loki', icon: <Server className="size-3 text-sky-500" />, description: 'log store' },
+  { id: 'prj-design-system', slug: 'design-system', group: 'list', label: 'design-system', icon: <TagIcon className="size-3 text-primary" />, description: '@gabvdl/ui library' },
+  { id: 'prj-gabvdl', slug: 'gabvdl', group: 'list', label: 'gabvdl', icon: <TagIcon className="size-3 text-primary" />, description: 'personal sites' },
+  { id: 'prj-zine-maker', slug: 'zine-maker', group: 'list', label: 'zine-maker', icon: <TagIcon className="size-3 text-primary" />, description: 'mini-zine maker' },
+  { id: 'prj-moooo', slug: 'moooo', group: 'list', label: 'moooo', icon: <TagIcon className="size-3 text-primary" />, description: 'party game' },
 ];
 
-// Toggle guidelines + search-only mention tags (projects), all reachable via `#`.
-const MENTION_TAGS: GuidelineTag[] = [
-  ...GUIDELINE_TAGS,
-  { id: 'p-ai-agent', slug: 'ai-agent', kind: 'mention', label: 'ai-agent', description: 'conversation viewer', prompt: 'Touch services/ai-agent.' },
-  { id: 'p-design-system', slug: 'design-system', kind: 'mention', label: 'design-system', description: '@gabvdl/ui library', prompt: 'Touch projects/design-system.' },
-  { id: 'p-traefik', slug: 'traefik', kind: 'mention', label: 'traefik', description: 'reverse proxy', prompt: 'Touch services/traefik.' },
-  { id: 'p-pihole', slug: 'pihole', kind: 'mention', label: 'pihole', description: 'ad-blocker', prompt: 'Touch services/pihole.' },
-  { id: 'p-authelia', slug: 'authelia', kind: 'mention', label: 'authelia', description: 'forward-auth', prompt: 'Touch services/authelia.' },
+// Toggle chips + search-only mention tags (projects), all reachable via `#`.
+const MENTION_TAGS: RichTag[] = [
+  ...CHIP_TAGS,
+  { id: 'p-ai-agent', slug: 'ai-agent', kind: 'mention', label: 'ai-agent', description: 'conversation viewer' },
+  { id: 'p-design-system', slug: 'design-system', kind: 'mention', label: 'design-system', description: '@gabvdl/ui library' },
+  { id: 'p-traefik', slug: 'traefik', kind: 'mention', label: 'traefik', description: 'reverse proxy' },
+  { id: 'p-pihole', slug: 'pihole', kind: 'mention', label: 'pihole', description: 'ad-blocker' },
+  { id: 'p-authelia', slug: 'authelia', kind: 'mention', label: 'authelia', description: 'forward-auth' },
 ];
 
 /* ── page ────────────────────────────────────────────────────────────────── */
@@ -138,7 +144,7 @@ export function RichInputPage() {
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
           A batteries-included composer, factored out of the ai-agent conversation viewer. A
           plain textarea grows into: a persisted draft, a saved-drafts shelf, a 3-second un-send
-          window, multi-file upload, toggle-able guideline tags,{' '}
+          window, multi-file upload, toggle-able tags,{' '}
           <span className="mono text-foreground">#</span>-mention search, and a shell-style command
           history. Each capability below is independent — pass only the props you need.
         </p>
@@ -150,6 +156,7 @@ export function RichInputPage() {
       <FilesDemo />
       <GuidelinesDemo />
       <TagListDemo />
+      <NestedTagsDemo />
       <MentionDemo />
       <HistoryDemo />
       <ImperativeDemo />
@@ -239,7 +246,7 @@ function DraftsShelfDemo() {
     >
       <Lede>
         <strong className="text-foreground">Hold (or right-click) the send button</strong> to save
-        the message as a draft instead of sending — the text, the selected tags and guidelines, the
+        the message as a draft instead of sending — the text, the selected tags, the
         attachments and an optional <span className="mono text-foreground">draftExtra</span> payload
         (a model pick living outside the composer, say) are stored in localStorage and the composer
         clears. While drafts exist a <em>drafts</em> button with a count badge sits right of send;
@@ -249,7 +256,7 @@ function DraftsShelfDemo() {
       </Lede>
       <RichInput
         cacheKey="ds-richinput-drafts"
-        tags={GUIDELINE_TAGS}
+        tags={CHIP_TAGS}
         showMax={4}
         undoWindowMs={0}
         placeholder="Type, then hold the send button…"
@@ -311,24 +318,27 @@ function FilesDemo() {
   );
 }
 
-/* 05 — guidelines */
+/* 05 — toggle tags */
 function GuidelinesDemo() {
   const [prompt, setPrompt] = useState<string | null>(null);
   return (
     <Section
       n={5}
-      title="Guideline tags"
+      title="Toggle tags"
       code={`const tags = [
   { id: 'worktree', label: 'Worktree',
-    labelOff: 'On main', defaultOn: true,
-    prompt: 'Work in a worktree.',
-    promptOff: 'Work on main.' },
-  { id: 'deploy', label: 'Deploy',
-    prompt: 'Deploy once it works.' },
+    labelOff: 'On main', defaultOn: true },
+  { id: 'deploy', label: 'Deploy' },
   // …
 ]
 
-<RichInput tags={tags} showMax={4} />`}
+// meaning lives in YOUR code, not the composer
+<RichInput
+  tags={tags}
+  showMax={4}
+  composePrompt={({ text, tags }) =>
+    [text, ...tags.map(t => LINES[t.id])].join('\\n')}
+/>`}
       aside={
         <Readout label="composed prompt">
           {prompt ? (
@@ -340,56 +350,58 @@ function GuidelinesDemo() {
       }
     >
       <Lede>
-        Toggle-able chips that map to injected prompt lines. Each tag carries the exact text it adds
-        (and an optional <span className="mono text-foreground">promptOff</span> for either/or
-        toggles like Worktree ⇄ On main) — no prompt-injection guesswork. With{' '}
-        <span className="mono text-foreground">showMax=4</span> the overflow collapses behind a
-        "+N more" button. The final string is assembled by{' '}
-        <span className="mono text-foreground">composePrompt</span> and handed to{' '}
-        <span className="mono text-foreground">onSubmit</span>.
+        Toggle-able chips. A tag is only an id, a label and an optional{' '}
+        <span className="mono text-foreground">labelOff</span> for either/or toggles (Worktree ⇄ On
+        main) — it carries no text of its own. The composer tracks <em>which</em> tags are on and
+        hands them to your <span className="mono text-foreground">composePrompt</span>; whatever
+        they mean — a guideline line, a model, a target — is resolved in your code. Without a{' '}
+        <span className="mono text-foreground">composePrompt</span> the prompt is just the typed
+        text. With <span className="mono text-foreground">showMax=4</span> the overflow collapses
+        behind a "+N more" button.
       </Lede>
       <RichInput
-        tags={GUIDELINE_TAGS}
+        tags={CHIP_TAGS}
         showMax={4}
         undoWindowMs={0}
-        placeholder="Describe a task, flip some guidelines…"
+        composePrompt={({ text, tags }) => weave(text, tags)}
+        placeholder="Describe a task, flip some tags…"
         onSubmit={(p) => setPrompt(p.prompt)}
       />
     </Section>
   );
 }
 
-/* 06 — guidelines master switch + scrollable tag list */
+/* 06 — master switch + scrollable tag list */
 function TagListDemo() {
   const [prompt, setPrompt] = useState<string | null>(null);
   const [glOn, setGlOn] = useState(true);
   return (
     <Section
       n={6}
-      title="Guidelines switch & tag list"
+      title="Master switch & tag list"
       code={`const tags = [
-  // guideline chips (default group)…
-  { id: 'worktree', label: 'Worktree', prompt: '…' },
+  // chips (default group)…
+  { id: 'worktree', label: 'Worktree' },
   // location chips → scrollable list
   { id: 'svc-traefik', slug: 'traefik',
-    group: 'tag', label: 'traefik' },
+    group: 'list', label: 'traefik' },
   // …
 ]
 
 <RichInput
   tags={tags}
-  guidelinesToggle          // on/off master switch
-  defaultGuidelinesOn
-  onGuidelinesToggle={setGlOn}
+  masterSwitch={{ label: 'Guidelines' }}
+  defaultMasterOn
+  onMasterSwitchChange={setGlOn}
   tagListRows={3}           // scroll after 3 rows
   collapseWhenIdle          // rows hide while empty & unfocused
 />`}
       aside={
         <>
-          <Readout label="guidelines">
+          <Readout label="master switch">
             <p className="text-xs text-foreground">
-              master switch is <span className="mono text-[color:var(--cyan-deep)]">{glOn ? 'on' : 'off'}</span>
-              {glOn ? ' — lines are woven in' : ' — sent as typed'}
+              currently <span className="mono text-[color:var(--cyan-deep)]">{glOn ? 'on' : 'off'}</span>
+              {glOn ? ' — chip tags count' : ' — chip tags are muted'}
             </p>
           </Readout>
           <Readout label="composed prompt">
@@ -403,10 +415,12 @@ function TagListDemo() {
       }
     >
       <Lede>
-        Two clusters. Guideline chips sit under a{' '}
-        <span className="mono text-foreground">guidelinesToggle</span> master switch — flip it off and
-        the guideline lines are dropped from the composed prompt (sent as typed) and the chip row
-        hides, while <span className="mono text-foreground">group: 'tag'</span> chips (project/service
+        Two clusters. The chip row sits under a{' '}
+        <span className="mono text-foreground">masterSwitch</span> — flip it off and those chips
+        hide <em>and</em> stop counting as selected, so they never reach{' '}
+        <span className="mono text-foreground">composePrompt</span> or the send payload (their
+        selection is remembered, not lost). Pass an object to word it (“Guidelines on/off”).
+        Meanwhile <span className="mono text-foreground">group: 'list'</span> chips (project/service
         locations) stay put in their own scrollable list, capped at{' '}
         <span className="mono text-foreground">tagListRows</span> rows before it scrolls. Selected
         chips sort to the front of that list, and the leading <em>search</em> chip opens an inline
@@ -416,14 +430,79 @@ function TagListDemo() {
         the composer is empty and unfocused — click in (or start a draft) and they appear.
       </Lede>
       <RichInput
-        tags={[...GUIDELINE_TAGS, ...LOCATION_TAGS]}
-        guidelinesToggle
-        onGuidelinesToggle={setGlOn}
+        tags={[...CHIP_TAGS, ...LOCATION_TAGS]}
+        masterSwitch={{ label: 'Guidelines' }}
+        onMasterSwitchChange={setGlOn}
         tagListRows={3}
         collapseWhenIdle
         showMax={4}
         undoWindowMs={0}
+        composePrompt={({ text, tags }) => weave(text, tags)}
         placeholder="Toggle guidelines, pick a location…"
+        onSubmit={(p) => setPrompt(p.prompt)}
+      />
+    </Section>
+  );
+}
+
+/* 06b — a caller-owned tag hierarchy */
+const NESTED_ROOTS: RichTag[] = [
+  { id: 'worktree', label: 'Worktree', labelOff: 'On main', icon: <GitBranch className="size-3" />, defaultOn: true },
+  { id: 'deploy', label: 'Deploy', icon: <Rocket className="size-3" /> },
+];
+const NESTED_CHILDREN: Record<string, RichTag[]> = {
+  deploy: [
+    { id: 'deploy-smoke', label: 'Smoke-test', depth: 1 },
+    { id: 'deploy-rollback', label: 'Note rollback', depth: 1 },
+  ],
+};
+
+function NestedTagsDemo() {
+  const [active, setActive] = useState<string[]>([]);
+  const [prompt, setPrompt] = useState<string | null>(null);
+  // Derive the visible tags from the graph + what is currently on: a child only
+  // exists while its parent is selected, so it can neither be shown nor sent.
+  const tags = NESTED_ROOTS.flatMap((t) =>
+    active.includes(t.id) ? [t, ...(NESTED_CHILDREN[t.id] ?? [])] : [t],
+  );
+  return (
+    <Section
+      n={7}
+      title="Nested tags"
+      code={`// the graph is yours; the composer only renders what you pass
+const tags = ROOTS.flatMap(t =>
+  active.includes(t.id)
+    ? [t, ...CHILDREN[t.id] ?? []]   // reveal children
+    : [t])
+
+<RichInput
+  tags={tags}                        // children carry depth: 1
+  onTagsChange={t => setActive(t.map(x => x.id))}
+/>`}
+      aside={
+        <Readout label="composed prompt">
+          {prompt ? (
+            <pre className="whitespace-pre-wrap text-[11px] leading-relaxed text-foreground">{prompt}</pre>
+          ) : (
+            <p className="text-xs text-muted-foreground">turn on Deploy to reveal its children</p>
+          )}
+        </Readout>
+      }
+    >
+      <Lede>
+        The composer has no idea your tags form a graph — and doesn't need one. Feed it a different{' '}
+        <span className="mono text-foreground">tags</span> array as the selection changes and it
+        keeps up: ids that disappear leave the selection with them, so a child turned on under{' '}
+        <em>Deploy</em> stops counting the moment <em>Deploy</em> goes off. The only thing the chip
+        row knows about hierarchy is <span className="mono text-foreground">depth</span>, which
+        indents it behind a <span className="mono text-foreground">↳</span>.
+      </Lede>
+      <RichInput
+        tags={tags}
+        undoWindowMs={0}
+        onTagsChange={(t) => setActive(t.map((x) => x.id))}
+        composePrompt={({ text, tags }) => weave(text, tags)}
+        placeholder="Turn on Deploy…"
         onSubmit={(p) => setPrompt(p.prompt)}
       />
     </Section>
@@ -435,7 +514,7 @@ function MentionDemo() {
   const [prompt, setPrompt] = useState<string | null>(null);
   return (
     <Section
-      n={7}
+      n={8}
       title="Mention search"
       code={`<RichInput
   tags={tags}          // toggles + kind:'mention'
@@ -460,7 +539,7 @@ function MentionDemo() {
         to open a live autocomplete over the tags — including search-only{' '}
         <span className="mono text-foreground">kind: 'mention'</span> tags that never appear as
         chips. Arrow keys navigate, Enter/Tab inserts, Escape dismisses; picking one also flips its
-        guideline on. This is the "show more" path when there are more tags than fit as chips.
+        tag on. This is the "show more" path when there are more tags than fit as chips.
       </Lede>
       <RichInput
         tags={MENTION_TAGS}
@@ -500,7 +579,7 @@ function HistoryDemo() {
   });
   return (
     <Section
-      n={8}
+      n={9}
       title="Command history"
       code={`<RichInput
   cacheKey="demo"   // namespaces history
@@ -535,7 +614,7 @@ function ImperativeDemo() {
   const onSubmit = (p: RichSendPayload) => note(`onSubmit → "${p.text}"`);
   return (
     <Section
-      n={9}
+      n={10}
       title="Imperative handle (forwardRef)"
       code={`const ref = useRef<RichInputHandle>(null)
 
@@ -602,7 +681,7 @@ ref.current.clear()`}
 function ToolbarReorderDemo() {
   return (
     <Section
-      n={10}
+      n={11}
       title="Reorderable toolbar"
       code={`<RichInput
   toolbarReorder="demo"    // persisted arrangement key

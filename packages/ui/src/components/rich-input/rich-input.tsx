@@ -5,6 +5,7 @@ import {
   useImperativeHandle,
   useLayoutEffect,
   useRef,
+  useMemo,
   useState,
   type KeyboardEvent,
   type ReactNode,
@@ -13,19 +14,18 @@ import { History, Loader2, Paperclip, Upload } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
 import { useFileDrop } from '../drop-zone/use-file-drop';
-import { defaultComposePrompt } from './compose';
 import { DraftsMenu, SendDraftButton } from './draft-parts';
 import { useDraft } from './use-draft';
 import { useFileUpload } from './use-file-upload';
-import { useGuidelines } from './use-guidelines';
+import { useTags } from './use-tags';
 import { useInputHistory } from './use-input-history';
 import { useMention } from './use-mention';
 import { useSavedDrafts } from './use-saved-drafts';
 import { ReorderableToolbar, type ToolbarEntry } from './toolbar-reorder';
 import {
   AttachmentChips,
-  GuidelinesSwitch,
   HistorySheet,
+  MasterSwitch,
   MentionMenu,
   ReverseSearchBar,
   SubmitErrorBanner,
@@ -35,7 +35,8 @@ import {
 } from './parts';
 import type {
   ComposeInput,
-  GuidelineTag,
+  MasterSwitchConfig,
+  RichTag,
   RichDraft,
   RichFile,
   RichInputHandle,
@@ -45,6 +46,7 @@ import type {
 } from './types';
 
 const LINE_HEIGHT = 22;
+const DEFAULT_MASTER_SWITCH: MasterSwitchConfig = { label: 'Tags' };
 
 export interface RichInputProps {
   /** Initial text (ignored when a cached draft exists). */
@@ -95,25 +97,39 @@ export interface RichInputProps {
   /** Expand dropped folders into their files (Chromium/WebKit). Default true. */
   dropDirectories?: boolean;
 
-  /** Guideline / mention tags. */
-  tags?: GuidelineTag[];
-  onTagsChange?: (active: GuidelineTag[]) => void;
-  /** Show the guideline toggle chip row. Defaults to true when toggle tags exist. */
-  guidelines?: boolean;
   /**
-   * Render a built-in on/off master switch for the guideline chips. When off,
-   * the guideline lines are dropped from the composed prompt and the guideline
-   * chip row is hidden; `group: 'tag'` chips are unaffected. Default false.
+   * The selectable tags — chips, the scrollable list, and mention-only entries.
+   * The array may change between renders (tags loading in, a caller revealing
+   * a tag's children): vanished ids leave the selection, new `defaultOn` ones
+   * join it.
    */
-  guidelinesToggle?: boolean;
-  /** Initial state of the guidelines master switch. Default true. */
-  defaultGuidelinesOn?: boolean;
-  /** Notified when the guidelines master switch flips. */
-  onGuidelinesToggle?: (on: boolean) => void;
-  /** Height (in chip rows) of the scrollable `group: 'tag'` list. Default 3. */
+  tags?: RichTag[];
+  /**
+   * Notified whenever the selection changes. This is the *raw* selection —
+   * chips muted by the master switch are still in it, because muting them must
+   * not look like the user un-picked them (a caller deriving its tag list from
+   * the selection would otherwise tear its own tags down). The master switch is
+   * reported separately by {@link onMasterSwitchChange}, and applied to what
+   * `composePrompt` and the send payload see.
+   */
+  onTagsChange?: (selected: RichTag[]) => void;
+  /**
+   * Render the built-in master switch: a leading chip that mutes the whole
+   * `group: 'chip'` row. While it is off those chips are hidden and count as
+   * unselected — they stay out of `onTagsChange`, `composePrompt` and the send
+   * payload; `group: 'list'` chips are unaffected. Pass `true` for the default
+   * wording ("Tags on/off") or a {@link MasterSwitchConfig} to word it.
+   * Default false.
+   */
+  masterSwitch?: boolean | MasterSwitchConfig;
+  /** Initial state of the master switch. Default true. */
+  defaultMasterOn?: boolean;
+  /** Notified when the master switch flips. */
+  onMasterSwitchChange?: (on: boolean) => void;
+  /** Height (in chip rows) of the scrollable `group: 'list'` tag list. Default 3. */
   tagListRows?: number;
   /**
-   * Hide the guideline switch and tag chip rows while the composer is idle —
+   * Hide the master switch and tag chip rows while the composer is idle —
    * empty (no text, no attachments) and not focused. They appear on focus and
    * stay while a draft exists. Default false.
    */
@@ -148,7 +164,12 @@ export interface RichInputProps {
   /** Show the tag list's leading search chip (inline filter). Default true. */
   tagSearch?: boolean;
 
-  /** Override how the final prompt string is composed. */
+  /**
+   * Build the string handed to `onSubmit` as {@link RichSendPayload.prompt}
+   * from the typed text, the active tags and the attachments. This is where a
+   * caller weaves its own meaning into the prompt — the composer itself never
+   * appends anything. Defaults to the trimmed text.
+   */
   composePrompt?: (input: ComposeInput) => string;
 
   /** Extra buttons rendered in the toolbar's left cluster. */
@@ -187,10 +208,14 @@ export interface RichInputProps {
 /**
  * @summary The full composer: draft persistence (text + tag selection), a
  * saved-drafts shelf (long-press send to stash, fuzzy-search dropdown to
- * restore), un-send window, file attachments, guideline tags with inline
- * search, `#mention` autocomplete, prompt history, and an optional
- * hold-to-rearrange toolbar (reorder the controls, bench spares in a stash).
- * Use for any chat/agent input.
+ * restore), un-send window, file attachments, toggle tags with inline search,
+ * `#mention` autocomplete, prompt history, and an optional hold-to-rearrange
+ * toolbar (reorder the controls, bench spares in a stash). Use for any
+ * chat/agent input.
+ *
+ * It stays agnostic about what the tags *mean*: it tracks which are selected
+ * and hands them to `onSubmit`/`composePrompt`, leaving the prompt's shape to
+ * the caller.
  */
 export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function RichInput(
   {
@@ -215,10 +240,9 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     dropDirectories = true,
     tags = [],
     onTagsChange,
-    guidelines,
-    guidelinesToggle = false,
-    defaultGuidelinesOn = true,
-    onGuidelinesToggle,
+    masterSwitch = false,
+    defaultMasterOn = true,
+    onMasterSwitchChange,
     tagListRows = 3,
     collapseWhenIdle = false,
     showMax,
@@ -228,7 +252,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     draftExtra,
     onDraftRestore,
     tagSearch = true,
-    composePrompt = defaultComposePrompt,
+    composePrompt,
     toolbarExtra,
     toolbarReorder = false,
     toolbarExtraItems,
@@ -236,13 +260,14 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
   },
   ref,
 ) {
+  const masterConfig = typeof masterSwitch === 'object' ? masterSwitch : DEFAULT_MASTER_SWITCH;
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const draft = useDraft(cacheKey, cacheLocation);
   const { text: value, setText: setValueRaw } = draft;
   const [seeded, setSeeded] = useState(false);
-  const gl = useGuidelines(tags);
+  const sel = useTags(tags);
   const files = useFileUpload({ upload: uploadFiles, accept, maxFiles, filter: fileFilter });
   const hist = useInputHistory(historyEnabled ? (cacheKey ?? 'default') : null);
   const savedDrafts = useSavedDrafts(cacheKey);
@@ -277,10 +302,10 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
   const reorderKey =
     toolbarReorder === true ? (cacheKey ?? 'default') : toolbarReorder || null;
 
-  // Guideline master switch (only surfaced when `guidelinesToggle` is set).
-  // A cached draft's saved state wins over the default.
-  const [guidelinesOn, setGuidelinesOn] = useState(draft.meta?.guidelinesOn ?? defaultGuidelinesOn);
-  const guidelinesActive = !guidelinesToggle || guidelinesOn;
+  // Master switch (only surfaced when `masterSwitch` is set). A cached draft's
+  // saved state wins over the default.
+  const [masterOn, setMasterOn] = useState(draft.meta?.masterOn ?? defaultMasterOn);
+  const chipsActive = !masterSwitch || masterOn;
 
   /* ── tag-selection persistence (part of the cached draft) ────────────────
    * `pendingTags` is the selection a cached/restored draft still wants applied
@@ -295,17 +320,17 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
   }, []);
 
   // (Re-)apply the wanted selection whenever the tag set changes. Registered
-  // after useGuidelines, so its own default-on seeding runs first and this
-  // replace wins the commit.
+  // after useTags, so its own default-on seeding runs first and this replace
+  // wins the commit.
   const idKey = tags.map((t) => t.id).join(',');
   useEffect(() => {
-    if (pendingTags.current) gl.replace(pendingTags.current);
+    if (pendingTags.current) sel.replace(pendingTags.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idKey]);
 
   // Persist the live selection into the draft record. The first (mount) run is
   // skipped — it still sees the pre-restore defaults.
-  const activeKey = gl.active.map((t) => t.id).join(',');
+  const activeKey = sel.active.map((t) => t.id).join(',');
   useEffect(() => {
     if (skipPersist.current) {
       skipPersist.current = false;
@@ -314,12 +339,12 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     if (!tagsDirty.current) return;
     const known = new Set(tags.map((t) => t.id));
     const unknown = (pendingTags.current ?? []).filter((id) => !known.has(id));
-    const ids = [...gl.active.map((t) => t.id), ...unknown];
+    const ids = [...sel.active.map((t) => t.id), ...unknown];
     // Once every wanted id is known the applied selection is the truth.
     pendingTags.current = unknown.length > 0 ? ids : null;
-    draft.setMeta({ tags: ids, ...(guidelinesToggle ? { guidelinesOn } : {}) });
+    draft.setMeta({ tags: ids, ...(masterSwitch ? { masterOn } : {}) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeKey, guidelinesOn]);
+  }, [activeKey, masterOn]);
 
   // Reverse search (Ctrl+R).
   const [rsearch, setRsearch] = useState<{ query: string; match: string | null } | null>(null);
@@ -354,8 +379,27 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     return () => mq.removeEventListener?.('change', update);
   }, []);
 
-  useEffect(() => onTagsChange?.(gl.active), [gl.active, onTagsChange]);
-  useEffect(() => onGuidelinesToggle?.(guidelinesOn), [guidelinesOn, onGuidelinesToggle]);
+  // What gets *sent*. The raw `sel.active` stays the selection of record — it is
+  // what persists and what `onTagsChange` reports, so muting the chips never
+  // reads as un-picking them — and the master switch is applied only here.
+  const activeTags = useMemo(
+    () => (chipsActive ? sel.active : sel.active.filter((t) => t.group === 'list')),
+    [chipsActive, sel.active],
+  );
+
+  // Fire on a real change of *selection*, not on identity churn. A caller that
+  // derives its `tags` array from this callback (a hierarchy revealing children)
+  // hands us a fresh array on every render, which would otherwise re-fire the
+  // notification, re-derive the array, and spin forever.
+  const notifiedTags = useRef<string | null>(null);
+  useEffect(() => {
+    const key = sel.active.map((t) => t.id).join(',');
+    if (notifiedTags.current === key) return;
+    notifiedTags.current = key;
+    onTagsChange?.(sel.active);
+  }, [sel.active, onTagsChange]);
+
+  useEffect(() => onMasterSwitchChange?.(masterOn), [masterOn, onMasterSwitchChange]);
 
   const mention = useMention({
     tags,
@@ -365,7 +409,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     prefix: mentionPrefix,
     onPick: (tag) => {
       touchTags();
-      gl.setOn(tag.id, true);
+      sel.setOn(tag.id, true);
     },
   });
 
@@ -418,40 +462,37 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     // so the post-clear default state doesn't get written as a draft.
     tagsDirty.current = false;
     pendingTags.current = null;
-    gl.clear();
+    sel.clear();
     setExpanded(false);
     hist.resetCursor();
-  }, [draft, files, gl, hist]);
+  }, [draft, files, sel, hist]);
 
   // Every user-driven toggle marks the selection dirty so it persists with the draft.
   const toggleTag = useCallback(
     (id: string) => {
       touchTags();
-      gl.toggle(id);
+      sel.toggle(id);
     },
-    [touchTags, gl],
+    [touchTags, sel],
   );
 
-  // Guideline toggles (default group) vs. scrollable tag toggles (`group: 'tag'`).
-  const guidelineToggles = gl.toggles.filter((t) => (t.group ?? 'guideline') !== 'tag');
-  const tagToggles = gl.toggles.filter((t) => t.group === 'tag');
-  // The guideline chip row shows when there are guideline chips (or forced via
-  // `guidelines`), and only while the master switch is on.
-  const showGuidelines = (guidelines ?? guidelineToggles.length > 0) && guidelinesActive;
+  // Wrapping chip row (default group) vs. the scrollable list (`group: 'list'`).
+  const chipToggles = sel.toggles.filter((t) => (t.group ?? 'chip') !== 'list');
+  const listToggles = sel.toggles.filter((t) => t.group === 'list');
   // Idle ⇒ both chip rows collapse away; typing, attaching or focusing brings
-  // them back. Selected chips don't count as content — default-on guidelines
-  // would otherwise pin the rows open forever.
+  // them back. Selected chips don't count as content — default-on tags would
+  // otherwise pin the rows open forever.
   const idle =
     collapseWhenIdle && !focused && value.trim().length === 0 && files.files.length === 0;
 
   const buildPayload = useCallback((): RichSendPayload | null => {
     const base = value.trim();
     if ((!base && files.files.length === 0) || files.uploading) return null;
-    // Master switch off ⇒ drop the guideline lines (send the prompt as typed).
-    const lines = guidelinesActive ? gl.lines : [];
-    const prompt = composePrompt({ text: base, guidelines: lines, tags: gl.active, files: files.files });
-    return { text: base, prompt, files: files.files, tags: gl.active };
-  }, [value, files.files, files.uploading, composePrompt, gl.lines, gl.active, guidelinesActive]);
+    const prompt = composePrompt
+      ? composePrompt({ text: base, tags: activeTags, files: files.files })
+      : base;
+    return { text: base, prompt, files: files.files, tags: activeTags };
+  }, [value, files.files, files.uploading, composePrompt, activeTags]);
 
   // Put a payload back into the composer — an un-send, or a failed async submit.
   const restorePayload = useCallback(
@@ -459,9 +500,9 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
       setValue(p.text);
       files.setFiles(p.files);
       touchTags();
-      for (const t of p.tags) gl.setOn(t.id, true);
+      for (const t of p.tags) sel.setOn(t.id, true);
     },
-    [setValue, files, gl, touchTags],
+    [setValue, files, sel, touchTags],
   );
 
   const fire = useCallback(
@@ -531,8 +572,8 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
   const draftTagIds = useCallback((): string[] => {
     const known = new Set(tags.map((t) => t.id));
     const unknown = (pendingTags.current ?? []).filter((id) => !known.has(id));
-    return [...gl.active.map((t) => t.id), ...unknown];
-  }, [tags, gl.active]);
+    return [...sel.active.map((t) => t.id), ...unknown];
+  }, [tags, sel.active]);
 
   const stashDraft = useCallback((): RichDraft | null => {
     if (!value.trim() && files.files.length === 0) return null;
@@ -540,10 +581,10 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
       text: value,
       tags: draftTagIds(),
       files: files.files,
-      ...(guidelinesToggle ? { guidelinesOn } : {}),
+      ...(masterSwitch ? { masterOn } : {}),
       ...(draftExtra ? { extra: draftExtra() } : {}),
     });
-  }, [value, files.files, savedDrafts, draftTagIds, guidelinesToggle, guidelinesOn, draftExtra]);
+  }, [value, files.files, savedDrafts, draftTagIds, masterSwitch, masterOn, draftExtra]);
 
   const saveDraft = useCallback(() => {
     if (!draftsEnabled || !stashDraft()) return;
@@ -560,13 +601,13 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
       files.setFiles(d.files);
       tagsDirty.current = true;
       pendingTags.current = [...d.tags];
-      gl.replace(d.tags);
-      if (guidelinesToggle && d.guidelinesOn != null) setGuidelinesOn(d.guidelinesOn);
+      sel.replace(d.tags);
+      if (masterSwitch && d.masterOn != null) setMasterOn(d.masterOn);
       onDraftRestore?.(d.extra);
       hist.resetCursor();
       requestAnimationFrame(() => taRef.current?.focus());
     },
-    [stashDraft, savedDrafts, setValueRaw, files, gl, guidelinesToggle, onDraftRestore, hist],
+    [stashDraft, savedDrafts, setValueRaw, files, sel, masterSwitch, onDraftRestore, hist],
   );
 
   useImperativeHandle(
@@ -754,22 +795,23 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
             )}
           />
 
-          {!idle && (guidelinesToggle || (showGuidelines && guidelineToggles.length > 0)) && (
+          {!idle && (masterSwitch !== false || chipToggles.length > 0) && (
             <div className="px-1 pt-1.5">
               <TagChips
-                tags={showGuidelines ? guidelineToggles : []}
-                selected={gl.selected}
+                tags={chipsActive ? chipToggles : []}
+                selected={sel.selected}
                 onToggle={toggleTag}
                 showMax={showMax}
                 expanded={expanded}
                 onExpand={() => setExpanded(true)}
                 leading={
-                  guidelinesToggle ? (
-                    <GuidelinesSwitch
-                      on={guidelinesOn}
+                  masterSwitch !== false ? (
+                    <MasterSwitch
+                      on={masterOn}
+                      config={masterConfig}
                       onToggle={() => {
                         touchTags();
-                        setGuidelinesOn((v) => !v);
+                        setMasterOn((v) => !v);
                       }}
                     />
                   ) : undefined
@@ -778,11 +820,11 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
             </div>
           )}
 
-          {!idle && tagToggles.length > 0 && (
+          {!idle && listToggles.length > 0 && (
             <div className="px-1 pt-1.5">
               <TagScrollList
-                tags={tagToggles}
-                selected={gl.selected}
+                tags={listToggles}
+                selected={sel.selected}
                 onToggle={toggleTag}
                 rows={tagListRows}
                 searchable={tagSearch}

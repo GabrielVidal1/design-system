@@ -11,7 +11,7 @@ import {
   fmtCost,
   fmtNum,
   useIsMobile,
-  type GuidelineTag,
+  type RichTag,
   type RichSendPayload,
 } from '@gabvdl/ui';
 
@@ -21,7 +21,7 @@ import { DemoShell } from './DemoShell';
  * Agent console — the ai-agent screen rebuilt from the library alone.
  * Left drawer: conversations. Right drawer: the run's receipts. Center: the
  * transcript (assistant turns stream in with ProgressiveText) over a RichInput
- * composer whose guideline chips are the lab's actual house rules.
+ * composer whose toggle chips are the lab's actual house rules.
  */
 
 interface Msg {
@@ -106,29 +106,26 @@ const REPLIES = [
   'Deployed and verified end-to-end — the page renders, the API answers, and the logs are quiet. Anything else while the context is warm?',
 ];
 
-const TAGS: GuidelineTag[] = [
+const TAGS: RichTag[] = [
   {
     id: 'worktree',
     label: 'isolated worktree',
-    prompt: 'Work in an isolated git worktree, never on main.',
     defaultOn: true,
     icon: <GitCommitHorizontal className="size-3.5" />,
   },
   {
     id: 'tests',
     label: 'tests first',
-    prompt: 'Run typecheck and tests before calling anything done.',
     defaultOn: true,
     icon: <TestTubeDiagonal className="size-3.5" />,
   },
   {
     id: 'deploy',
     label: 'deploy when green',
-    prompt: 'Deploy once checks pass, then send the push notification.',
     icon: <Rocket className="size-3.5" />,
   },
-  { id: 'pihole', label: 'services/pihole', kind: 'mention', group: 'tag', description: 'the DNS stack' },
-  { id: 'ui', label: 'projects/design-system', kind: 'mention', group: 'tag', description: 'this library' },
+  { id: 'pihole', label: 'services/pihole', kind: 'mention', group: 'list', description: 'the DNS stack' },
+  { id: 'ui', label: 'projects/design-system', kind: 'mention', group: 'list', description: 'this library' },
 ];
 
 export function ChatDemoPage() {
@@ -335,7 +332,7 @@ export function ChatDemoPage() {
               <RichInput
                 placeholder="Ask the agent — # mentions a location…"
                 tags={TAGS}
-                guidelinesToggle
+                masterSwitch={{ label: 'Guidelines' }}
                 onSubmit={send}
                 undoWindowMs={2000}
                 cacheKey={`demo-chat-${active.id}`}

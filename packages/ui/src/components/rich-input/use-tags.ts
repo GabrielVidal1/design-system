@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { tagGuideline } from './compose';
-import type { GuidelineTag } from './types';
+import type { RichTag } from './types';
 
-export interface Guidelines {
+export interface TagSelection {
   /** Ids of tags currently on. */
   selected: Set<string>;
   toggle: (id: string) => void;
@@ -12,14 +11,12 @@ export interface Guidelines {
   replace: (ids: string[]) => void;
   clear: () => void;
   /** Tags that are active (toggle-on, or mention-picked). */
-  active: GuidelineTag[];
-  /** Injected guideline lines for the current selection. */
-  lines: string[];
-  /** Toggle tags (the chip row); mention-only tags are excluded. */
-  toggles: GuidelineTag[];
+  active: RichTag[];
+  /** Toggle tags (the chip rows); mention-only tags are excluded. */
+  toggles: RichTag[];
 }
 
-function initialSelection(tags: GuidelineTag[]): Set<string> {
+function initialSelection(tags: RichTag[]): Set<string> {
   const out = new Set<string>();
   const claimed = new Set<string>();
   for (const t of tags) {
@@ -34,7 +31,14 @@ function initialSelection(tags: GuidelineTag[]): Set<string> {
   return out;
 }
 
-export function useGuidelines(tags: GuidelineTag[]): Guidelines {
+/**
+ * The composer's tag selection: which of `tags` are on, kept in sync as the tag
+ * list itself changes. A caller whose tags appear and disappear (a hierarchy
+ * that reveals children, an async-loading list) can hand a different array on
+ * every render — ids that vanish drop out of the selection, newly-appeared
+ * `defaultOn` toggles are seeded.
+ */
+export function useTags(tags: RichTag[]): TagSelection {
   const [selected, setSelected] = useState<Set<string>>(() => initialSelection(tags));
 
   // Ids to drop when `id` is turned on: the rest of its exclusive key.
@@ -121,19 +125,5 @@ export function useGuidelines(tags: GuidelineTag[]): Guidelines {
 
   const active = useMemo(() => tags.filter((t) => selected.has(t.id)), [tags, selected]);
 
-  const lines = useMemo(() => {
-    const out: string[] = [];
-    for (const t of toggles) {
-      const line = tagGuideline(t, selected.has(t.id));
-      if (line) out.push(line);
-    }
-    for (const t of tags) {
-      if ((t.kind ?? 'toggle') === 'mention' && selected.has(t.id) && t.prompt?.trim()) {
-        out.push(t.prompt);
-      }
-    }
-    return out;
-  }, [toggles, tags, selected]);
-
-  return { selected, toggle, setOn, replace, clear, active, lines, toggles };
+  return { selected, toggle, setOn, replace, clear, active, toggles };
 }
