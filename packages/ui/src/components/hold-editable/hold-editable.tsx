@@ -318,8 +318,64 @@ function positionsFor(order: string[], a: Arrangement): Map<string, number> {
   return out;
 }
 
-/** The stash popover's fixed-position style for a placement, off the group's rect. */
-function stashPositionStyle(c: Rect, placement: HoldEditableStashPlacement): CSSProperties {
+/**
+ * The anchor the popover hangs off: the group's rect, clipped to the viewport.
+ *
+ * A group can be taller (or wider) than the screen — a column of page sections,
+ * a long panel — and then its own top edge is nowhere near the part of it you
+ * are holding. Hanging the popover off the raw rect puts it off-screen, which
+ * is the same as not having a stash at all. Clipping first keeps the popover
+ * glued to whatever part of the group is actually on screen, and leaves the
+ * common case (a group smaller than the viewport) untouched.
+ */
+function visibleAnchor(c: Rect): Rect {
+  if (typeof window === 'undefined') return c;
+  const left = Math.min(Math.max(c.left, 0), window.innerWidth);
+  const right = Math.max(Math.min(c.left + c.width, window.innerWidth), 0);
+  const top = Math.min(Math.max(c.top, 0), window.innerHeight);
+  const bottom = Math.max(Math.min(c.top + c.height, window.innerHeight), 0);
+  return { left, top, width: Math.max(right - left, 0), height: Math.max(bottom - top, 0) };
+}
+
+/**
+ * The stash popover's fixed-position style for a placement, off the group's
+ * (viewport-clipped) rect. A side with no room left — `top` against the top of
+ * the screen, `left` against its left edge — flips to the opposite side rather
+ * than rendering out of view; `popover` is the popover's own measured size,
+ * absent on the first frame (before the ref lands), where no flip is applied.
+ */
+function stashPositionStyle(
+  raw: Rect,
+  placement: HoldEditableStashPlacement,
+  popover?: { width: number; height: number },
+): CSSProperties {
+  const c = visibleAnchor(raw);
+  if (typeof window !== 'undefined' && popover) {
+    const before = placement === 'top' ? c.top : c.left;
+    const after =
+      placement === 'top' || placement === 'bottom'
+        ? window.innerHeight - (c.top + c.height)
+        : window.innerWidth - (c.left + c.width);
+    const vertical = placement === 'top' || placement === 'bottom';
+    const need = (vertical ? popover.height : popover.width) + STASH_GAP;
+    const room = placement === 'top' || placement === 'left' ? before : after;
+    const other =
+      placement === 'top' || placement === 'left'
+        ? after
+        : vertical
+          ? c.top
+          : c.left;
+    if (need > room) {
+      // The chosen side is against the edge of the screen. Flip if the other
+      // side has room; if neither does — a group that fills the viewport — pin
+      // the popover inside it, along the screen edge the placement points at.
+      if (need <= other) placement = vertical ? (placement === 'top' ? 'bottom' : 'top') : placement === 'left' ? 'right' : 'left';
+      else
+        return vertical
+          ? { left: c.left, top: window.innerHeight - popover.height - STASH_GAP, width: c.width }
+          : { left: window.innerWidth - popover.width - STASH_GAP, top: c.top, maxWidth: 260 };
+    }
+  }
   switch (placement) {
     case 'top':
       return {
@@ -1028,10 +1084,14 @@ export function HoldEditable<T>({
     };
   }, [activeEdit, exitEditMode]);
 
-  // Keep the popover glued to the group across scrolls and resizes.
+  // Keep the popover glued to the group across scrolls and resizes. The bump on
+  // entering edit mode is the one that matters for placement: the first frame
+  // renders before the popover exists, so its size — and with it the decision
+  // to flip to the other side — can only be read on the second.
   useEffect(() => {
     if (!activeEdit) return;
     const bump = () => setAnchorTick((t) => t + 1);
+    bump();
     window.addEventListener('resize', bump);
     window.addEventListener('scroll', bump, true);
     return () => {
@@ -1118,6 +1178,11 @@ export function HoldEditable<T>({
   const showStash = activeEdit;
   const stashAnchor =
     showStash && containerRef.current ? rectOf(containerRef.current) : null;
+  // Its own measured size, for the edge flip in `stashPositionStyle`. Read from
+  // the ref (not state) on the same tick as the anchor, so a scroll re-anchors
+  // and re-decides the side together; the first frame has no ref yet and simply
+  // renders on the requested side.
+  const stashSize = showStash && stashRef.current ? rectOf(stashRef.current) : null;
 
   const canPortal = typeof document !== 'undefined';
 
@@ -1279,7 +1344,11 @@ export function HoldEditable<T>({
           <div
             ref={stashRef}
             data-hold-editable-stash=""
-            style={{ position: 'fixed', zIndex: 90, ...stashPositionStyle(stashAnchor, stashPlacement) }}
+            style={{
+              position: 'fixed',
+              zIndex: 90,
+              ...stashPositionStyle(stashAnchor, stashPlacement, stashSize ?? undefined),
+            }}
             className={cn(
               'rounded-2xl border bg-background/95 p-2 shadow-xl backdrop-blur transition-colors',
               overStash ? 'border-primary/60 bg-primary/5' : 'border-border',
