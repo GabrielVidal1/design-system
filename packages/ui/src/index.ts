@@ -141,7 +141,11 @@ export type { VirtualListProps, VirtualListHandle, VirtualListColumns, GroupBy }
 export { AnimatedList } from './components/animated-list';
 export type { AnimatedListProps } from './components/animated-list';
 export { HoldEditable } from './components/hold-editable';
-export type { HoldEditableProps, HoldEditableItemState } from './components/hold-editable';
+export type {
+  HoldEditableProps,
+  HoldEditableItemState,
+  HoldEditableStashPlacement,
+} from './components/hold-editable';
 export { Collection } from './components/collection';
 export type {
   CollectionProps,
