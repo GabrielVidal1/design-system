@@ -121,6 +121,7 @@ import {
   useLocalStorage,
   useLongPress,
   useModal,
+  useSwipeDismiss,
   useTheme,
   useToast,
 } from '@gabvdl/ui';
@@ -5201,6 +5202,12 @@ function HooksDemo() {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const press = useLongPress((pt) => setMenu(pt), { onClick: () => setMenu(null) });
 
+  const [swipedAway, setSwipedAway] = useState(false);
+  const swipe = useSwipeDismiss(() => {
+    setSwipedAway(true);
+    setTimeout(() => setSwipedAway(false), 1200);
+  });
+
   const [page, setPage] = useState(1);
   const rows = specimens.slice(0, page * 4);
   const hasMore = rows.length < specimens.length;
@@ -5246,6 +5253,25 @@ function HooksDemo() {
             fired at {Math.round(menu.x)}, {Math.round(menu.y)} — anchor a menu there
           </div>
         )}
+      </div>
+
+      <div className="rounded-lg border border-border bg-[var(--surface)] p-4">
+        <p className="eyebrow mb-2 text-muted-foreground">useSwipeDismiss</p>
+        {swipedAway ? (
+          <p className="mono flex h-20 items-center justify-center text-[11px] text-muted-foreground">
+            dismissed — coming back…
+          </p>
+        ) : (
+          <div
+            {...swipe}
+            className="flex h-20 cursor-grab select-none items-center justify-center rounded-lg border border-dashed border-border text-sm text-muted-foreground"
+          >
+            swipe me left or right
+          </div>
+        )}
+        <p className="mt-2 text-xs text-muted-foreground">
+          Past the threshold it flies off; under it, it springs back.
+        </p>
       </div>
 
       <div className="rounded-lg border border-border bg-[var(--surface)] p-4">
