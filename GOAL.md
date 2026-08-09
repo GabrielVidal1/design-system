@@ -44,7 +44,9 @@ What ships today vs. the known gaps, per docs category. Unchecked = to build.
 Has `ResizableLayout` (+ `Dock`), `FloatingPanel`, `PhonePreview`.
 - [ ] `AppShell` — header / collapsible sidebar / content scaffold, bottom nav
       on phones (the shape every service frontend rebuilds)
-- [ ] Standalone `Drawer` / bottom sheet (today only implicit in `Modal`)
+- [ ] Standalone `Drawer` / bottom sheet — still no exported primitive; the
+      pattern keeps getting reimplemented inline (`Modal`, `ResizableLayout`'s
+      `mobileMode: 'drawer'`, `Popover`/`Select`/`PalettePicker`'s mobile sheet)
 
 ### Data display
 Has the `Progressive*` family (text, list, table, timeline, bash),
