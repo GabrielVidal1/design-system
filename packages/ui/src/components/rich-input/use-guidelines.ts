@@ -8,6 +8,8 @@ export interface Guidelines {
   selected: Set<string>;
   toggle: (id: string) => void;
   setOn: (id: string, on: boolean) => void;
+  /** Replace the whole selection (unknown ids are dropped). */
+  replace: (ids: string[]) => void;
   clear: () => void;
   /** Tags that are active (toggle-on, or mention-picked). */
   active: GuidelineTag[];
@@ -105,6 +107,14 @@ export function useGuidelines(tags: GuidelineTag[]): Guidelines {
     [peersOf],
   );
 
+  const replace = useCallback(
+    (ids: string[]) => {
+      const known = new Set(tags.map((t) => t.id));
+      setSelected(new Set(ids.filter((id) => known.has(id))));
+    },
+    [tags],
+  );
+
   const clear = useCallback(() => setSelected(initialSelection(tags)), [tags]);
 
   const toggles = useMemo(() => tags.filter((t) => (t.kind ?? 'toggle') === 'toggle'), [tags]);
@@ -125,5 +135,5 @@ export function useGuidelines(tags: GuidelineTag[]): Guidelines {
     return out;
   }, [toggles, tags, selected]);
 
-  return { selected, toggle, setOn, clear, active, lines, toggles };
+  return { selected, toggle, setOn, replace, clear, active, lines, toggles };
 }

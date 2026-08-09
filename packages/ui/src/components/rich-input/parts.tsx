@@ -1,5 +1,5 @@
-import { useEffect, type ReactNode } from 'react';
-import { File as FileIcon, History, ListChecks, Undo2, X } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { File as FileIcon, History, ListChecks, Search, Undo2, X } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
 import { VirtualList } from '../virtual-list';
@@ -147,28 +147,107 @@ export function TagChips({
 /* ── Scrollable tag list (e.g. project/service locations), capped in height ── */
 const TAG_ROW_H = 30; // approx chip row height (px) incl. vertical gap
 
+/** Selected chips first, each side keeping its original order. */
+function sortSelectedFirst(tags: GuidelineTag[], selected: Set<string>): GuidelineTag[] {
+  return [...tags.filter((t) => selected.has(t.id)), ...tags.filter((t) => !selected.has(t.id))];
+}
+
+function tagMatches(tag: GuidelineTag, q: string): boolean {
+  return `${tag.label} ${tag.slug ?? tag.id} ${tag.description ?? ''}`.toLowerCase().includes(q);
+}
+
 export function TagScrollList({
   tags,
   selected,
   onToggle,
   rows = 3,
+  searchable = true,
 }: {
   tags: GuidelineTag[];
   selected: Set<string>;
   onToggle: (id: string) => void;
   /** Visible height in chip rows before it scrolls. Default 3. */
   rows?: number;
+  /** Show the leading search chip that opens the inline filter. Default true. */
+  searchable?: boolean;
 }) {
+  const [searching, setSearching] = useState(false);
+  const [query, setQuery] = useState('');
+
+  // Selected-first ordering, snapshotted: re-sorted when the tag set changes or
+  // the search opens — NOT on every toggle, so a tapped chip doesn't teleport
+  // out from under the pointer and shift its neighbours mid-interaction.
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
+  const [order, setOrder] = useState<GuidelineTag[]>(() => sortSelectedFirst(tags, selected));
+  useEffect(() => {
+    setOrder(sortSelectedFirst(tags, selectedRef.current));
+  }, [tags, searching]);
+
   if (tags.length === 0) return null;
+
+  const q = query.trim().toLowerCase();
+  const shown = q ? order.filter((t) => tagMatches(t, q)) : order;
+
+  const closeSearch = () => {
+    setSearching(false);
+    setQuery('');
+  };
+
   return (
     <div
       className="overflow-y-auto rounded-lg border border-input/60 bg-background/40 p-1.5"
       style={{ maxHeight: rows * TAG_ROW_H }}
     >
       <div className="flex flex-wrap gap-1.5">
-        {tags.map((t) => (
+        {searchable &&
+          (searching ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-ring bg-background px-2 py-1">
+              <Search className="size-3 shrink-0 text-muted-foreground" />
+              <input
+                autoFocus
+                value={query}
+                placeholder="Filter tags…"
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    closeSearch();
+                  }
+                }}
+                onBlur={() => {
+                  if (!query.trim()) closeSearch();
+                }}
+                className="w-24 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
+              />
+              <button
+                type="button"
+                aria-label="Close tag search"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={closeSearch}
+                className="inline-flex size-4 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <X className="size-3" />
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              aria-label="Search tags"
+              title="Search tags"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setSearching(true)}
+              className="inline-flex items-center rounded-full border border-input px-2 py-1 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Search className="size-3.5" />
+            </button>
+          ))}
+        {shown.map((t) => (
           <TagChip key={t.id} tag={t} on={selected.has(t.id)} onToggle={onToggle} />
         ))}
+        {q && shown.length === 0 && (
+          <span className="px-1 py-1 text-xs text-muted-foreground">No tags match “{query.trim()}”</span>
+        )}
       </div>
     </div>
   );

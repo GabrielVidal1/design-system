@@ -54,6 +54,27 @@ export interface GuidelineTag {
   description?: string;
 }
 
+/**
+ * A saved draft on the composer's drafts shelf (long-press the send button to
+ * save one). Everything needed to restore the composer exactly: the text, the
+ * ids of the tags that were selected (guidelines, projects, …), the attached
+ * files, the guidelines master switch, and an opaque caller payload captured
+ * via `draftExtra` (e.g. a model pick living outside the composer).
+ */
+export interface RichDraft {
+  id: string;
+  text: string;
+  /** Ids of the tags active when the draft was saved. */
+  tags: string[];
+  files: RichFile[];
+  /** Guidelines master switch state (when the composer shows one). */
+  guidelinesOn?: boolean;
+  /** Caller payload captured by `draftExtra` at save time. */
+  extra?: unknown;
+  /** Epoch ms. */
+  savedAt: number;
+}
+
 /** What `onSubmit` receives (and what an un-send restores). */
 export interface RichSendPayload {
   /** Raw textarea text. */
@@ -82,6 +103,12 @@ export interface RichSendButtonProps {
   canSend: boolean;
   /** Submit exactly as the built-in button would (starts the un-send window). */
   submit: () => void;
+  /**
+   * Save the composer's content as a {@link RichDraft} and clear it — what the
+   * built-in button's long-press menu offers. No-op while there is nothing to
+   * save (or when drafts are disabled).
+   */
+  saveDraft: () => void;
 }
 
 /** Imperative handle exposed through `ref`. */
