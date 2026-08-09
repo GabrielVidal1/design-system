@@ -16,6 +16,19 @@ last release → grouped bullets under Unreleased), then curate the prose.
 ## [Unreleased]
 
 ### Added
+- `HoldEditable` — **stash system** for groups with more candidate items than
+  visible slots: pass the benched items as `stash` and edit mode becomes
+  persistent (a drop no longer ends it; a tap outside or Escape does) while a
+  popover of tags — one per benched item — opens beside the group. Drag a
+  slotted item onto the popover to bench it; drag a tag onto a slot to swap it
+  in (the displaced item takes the tag's place in the stash) or onto empty
+  group space to append it. Both directions commit through `onStashChange`;
+  `stashPlacement` picks the popover's side (`top`/`bottom`/`left`/`right`) —
+  deliberately the only customization — and `stashLabel` the tag text.
+- `HoldEditable` — wrapping **grid** support: a grid (several distinct rows
+  *and* columns, detected from the measured slot geometry) switches the reflow
+  to 2D slot-hopping, so a 4×2 stat-tile dashboard rearranges with the same
+  gesture as a row or column. Grid cells are assumed roughly equal-sized.
 - `HoldEditable` — iOS-springboard "hold to rearrange" for small lists, ported
   from the ai-agent frontend: press-and-hold (1.4s default) picks an item up,
   the rest jump in place, dragging hands slots over and release commits the

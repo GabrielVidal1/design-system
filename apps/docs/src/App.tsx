@@ -586,7 +586,8 @@ open(media, { story: true })      // auto-advancing story + progress bar`,
     Demo: HoldEditableDemo,
     code: `// iOS-springboard "hold to rearrange": press-and-hold picks the
 // item up, the rest jump in place, drag hands slots over, release
-// commits the order. Rows OR columns — layout comes from className.
+// commits the order. Rows, columns OR wrapping grids — the layout
+// comes from className (a grid is detected from the slot geometry).
 <HoldEditable
   items={tabs}
   getKey={(t) => t.id}
@@ -597,6 +598,25 @@ open(media, { story: true })      // auto-advancing story + progress bar`,
   {(tab, { held, editing, pressing }) => (
     <Tab tab={tab} muted={editing && !held} />
   )}
+</HoldEditable>
+
+// The stash: when there are more candidate items than visible
+// slots, pass the benched ones as \`stash\` — edit mode becomes
+// persistent (tap outside / Esc dismisses) and a popover of tags
+// opens beside the group while editing. Drag a tile onto it to
+// bench it; drag a tag onto a tile to swap it in, or onto empty
+// group space to append it. Only the placement is customizable.
+<HoldEditable
+  items={tiles}
+  getKey={(t) => t.id}
+  onReorder={setTiles}
+  stash={benched}
+  onStashChange={(items, stash) => { setTiles(items); setBenched(stash); }}
+  stashPlacement="bottom"        // 'top' | 'bottom' | 'left' | 'right'
+  stashLabel={(t) => t.label}    // tag text (defaults to the key)
+  className="grid grid-cols-4 gap-2"
+>
+  {(t, { editing }) => <StatTile {...t} />}
 </HoldEditable>
 
 // The DOM order is frozen during the drag (reorder is transforms
@@ -2641,9 +2661,78 @@ function HoldEditableDemo() {
         press and <span className="text-foreground">hold</span> a card (0.6s here, 1.4s default) to
         pick it up · the rest jump in place · drag over a slot and release to commit — Esc cancels
       </p>
+
+      <div className="mt-6 border-t border-dashed border-border pt-5">
+        <HoldEditableStashDemo />
+      </div>
     </div>
   );
 }
+
+/** A stat dashboard with more tiles than slots: 4×2 visible, 4 benched in the stash. */
+function HoldEditableStashDemo() {
+  const [tiles, setTiles] = useState(() => STASH_STATS.slice(0, 8));
+  const [benched, setBenched] = useState(() => STASH_STATS.slice(8));
+
+  return (
+    <div>
+      <HoldEditable
+        items={tiles}
+        getKey={(t) => t.id}
+        onReorder={setTiles}
+        stash={benched}
+        onStashChange={(items, stash) => {
+          setTiles(items);
+          setBenched(stash);
+        }}
+        stashPlacement="bottom"
+        stashLabel={(t) => t.label}
+        holdDelay={600}
+        className="grid grid-cols-2 gap-2 sm:grid-cols-4"
+      >
+        {(t, { held, pressing }) => (
+          <StatTile
+            label={t.label}
+            value={t.value}
+            delta={t.delta}
+            goodDirection={t.goodDirection}
+            className={cn(
+              'cursor-grab p-3 transition-colors',
+              (held || pressing) && 'border-[color:var(--cyan-deep)]',
+            )}
+          />
+        )}
+      </HoldEditable>
+      <p className="mt-3 mono text-[11px] text-muted-foreground">
+        the same gesture on a <span className="text-foreground">grid</span> — with 12 stats for 8
+        slots, the overflow lives in a <span className="text-foreground">stash</span>: hold a tile
+        to start editing and the stash pops under the grid · drag a tile onto it to bench it · drag
+        a tag onto a tile to swap it in · edit mode survives drops — tap outside or Esc to finish
+      </p>
+    </div>
+  );
+}
+
+const STASH_STATS: {
+  id: string;
+  label: string;
+  value: string;
+  delta?: number;
+  goodDirection?: 'up' | 'down';
+}[] = [
+  { id: 'req', label: 'Requests', value: '48.2k', delta: 12.4 },
+  { id: 'err', label: 'Errors', value: '23', delta: -18, goodDirection: 'down' },
+  { id: 'p95', label: 'p95 latency', value: '212ms', delta: -4.2, goodDirection: 'down' },
+  { id: 'up', label: 'Uptime', value: '99.98%' },
+  { id: 'cpu', label: 'CPU', value: '38%', delta: 6.1, goodDirection: 'down' },
+  { id: 'mem', label: 'Memory', value: '21.4GB', delta: 2.8, goodDirection: 'down' },
+  { id: 'disk', label: 'Disk', value: '61%' },
+  { id: 'net', label: 'Bandwidth', value: '84MB/s', delta: 22 },
+  { id: 'ctn', label: 'Containers', value: '47', delta: 4.4 },
+  { id: 'build', label: 'Builds', value: '128', delta: 9.6 },
+  { id: 'vis', label: 'Visitors', value: '3.1k', delta: 15.2 },
+  { id: 'gpu', label: 'GPU temp', value: '64°C', delta: -3.1, goodDirection: 'down' },
+];
 
 function ChangelogDemo() {
   // Real data, dogfooded: the same /changelog.jsonl this site generates from
