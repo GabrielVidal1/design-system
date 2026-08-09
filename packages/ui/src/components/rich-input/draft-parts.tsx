@@ -1,5 +1,5 @@
 import { useRef, useState, type MouseEvent } from 'react';
-import { NotebookPen, Save, SendHorizontal, Trash2, X } from 'lucide-react';
+import { Loader2, NotebookPen, Save, SendHorizontal, Trash2, X } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
 import { useLongPress } from '../../hooks/use-long-press';
@@ -11,12 +11,15 @@ import type { RichDraft } from './types';
 /* ── Send button with a long-press "save as draft" menu ──────────────────── */
 export function SendDraftButton({
   canSend,
+  sending = false,
   submit,
   onSaveDraft,
   open: openProp,
   onOpenChange,
 }: {
   canSend: boolean;
+  /** An async `onSubmit` is in flight — spinner instead of the send icon. */
+  sending?: boolean;
   submit: () => void;
   /** Absent ⇒ drafts are disabled: the button is a plain send button. */
   onSaveDraft?: () => void;
@@ -67,7 +70,7 @@ export function SendDraftButton({
             : 'bg-muted text-muted-foreground',
         )}
       >
-        <SendHorizontal className="size-4" />
+        {sending ? <Loader2 className="size-4 animate-spin" /> : <SendHorizontal className="size-4" />}
       </button>
 
       {open && (

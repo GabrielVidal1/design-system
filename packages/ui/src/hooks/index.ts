@@ -22,3 +22,5 @@ export {
   usePrefersReducedMotion,
 } from './use-media-query';
 export { useEscape, useOutsideClick, useScrollLock } from './use-overlay';
+export { useSwipeDismiss } from './use-swipe-dismiss';
+export type { UseSwipeDismissOptions } from './use-swipe-dismiss';

@@ -50,6 +50,7 @@ export {
   usePrefersDark,
   usePrefersReducedMotion,
   useScrollLock,
+  useSwipeDismiss,
 } from './hooks';
 export type {
   LongPressPoint,
@@ -57,6 +58,7 @@ export type {
   UseDebouncedValueOptions,
   UseInfiniteScrollOptions,
   UseLongPressOptions,
+  UseSwipeDismissOptions,
 } from './hooks';
 
 export { ToastProvider, Toaster, useToast } from './components/toast';

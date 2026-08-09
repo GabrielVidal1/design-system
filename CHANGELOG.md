@@ -35,6 +35,18 @@ last release → grouped bullets under Unreleased), then curate the prose.
   `toolbarExtraItems` prop (`RichToolbarItem[]`, exported); custom
   `renderSendButton` implementations receive `menuOpen`/`onMenuOpenChange` to
   render their menu under the composer-owned gesture.
+- `useSwipeDismiss` — swipe-left-or-right-to-dismiss as a spreadable-props
+  hook for cards and banners (a sent-message preview, an error toast): the
+  element follows the pointer horizontally and fades, releasing past the
+  threshold flies it off and fires `onDismiss`, anything less springs back.
+  Vertical scrolling passes through (`pan-y` + horizontal-intent detection),
+  mouse drags work too, and the click that trails a drag is swallowed so
+  tappable cards don't also activate.
+- `RichInput` — `onSubmit` may now be **async**: while the returned promise is
+  pending the composer counts as busy (built-in send button shows a spinner;
+  custom `renderSendButton`s receive a new `sending` flag), and a rejection
+  restores the text/attachments/tag selection and surfaces the error as a
+  notification above the composer, dismissible by ✕ or a horizontal swipe.
 - `RichInput` — **saved-drafts shelf**: long-press (or right-click) the send
   button to save the message as a draft instead of sending — the text, the
   selected tag/guideline ids, the attachments and an optional caller payload
@@ -121,6 +133,10 @@ last release → grouped bullets under Unreleased), then curate the prose.
   the same desktop/phone split as `Select`.
 
 ### Changed
+- `RichInput` — the `disabled` treatment dims the composer's contents instead
+  of the whole card, so the surface stays opaque: over a transparent parent
+  (e.g. a docked chat drawer) the page no longer bleeds through a disabled
+  composer.
 - `CharRoll` — multi-digit rolls now step discretely from character to
   character instead of blurring smoothly across the whole distance, so a
   5-digit jump reads as 5 distinct clicks of a real barrel/tape rather than
