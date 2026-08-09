@@ -137,15 +137,16 @@ export function RichInputPage() {
         <h1 className="display text-3xl text-foreground">RichInput</h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
           A batteries-included composer, factored out of the ai-agent conversation viewer. A
-          plain textarea grows into: a persisted draft, a 3-second un-send window, multi-file
-          upload, toggle-able guideline tags, <span className="mono text-foreground">#</span>-mention
-          search, and a shell-style command history. Each capability below is independent — pass
-          only the props you need.
+          plain textarea grows into: a persisted draft, a saved-drafts shelf, a 3-second un-send
+          window, multi-file upload, toggle-able guideline tags,{' '}
+          <span className="mono text-foreground">#</span>-mention search, and a shell-style command
+          history. Each capability below is independent — pass only the props you need.
         </p>
       </div>
 
       <UnsendDemo />
       <DraftDemo />
+      <DraftsShelfDemo />
       <FilesDemo />
       <GuidelinesDemo />
       <TagListDemo />
@@ -222,12 +223,46 @@ function DraftDemo() {
   );
 }
 
-/* 03 — files */
+/* 03 — saved drafts shelf */
+function DraftsShelfDemo() {
+  return (
+    <Section
+      n={3}
+      title="Saved drafts"
+      code={`<RichInput
+  cacheKey="demo"
+  // drafts       — on by default
+  draftExtra={() => ({ model })}
+  onDraftRestore={(x) => setModel(x.model)}
+/>`}
+    >
+      <Lede>
+        <strong className="text-foreground">Hold (or right-click) the send button</strong> to save
+        the message as a draft instead of sending — the text, the selected tags and guidelines, the
+        attachments and an optional <span className="mono text-foreground">draftExtra</span> payload
+        (a model pick living outside the composer, say) are stored in localStorage and the composer
+        clears. While drafts exist a <em>drafts</em> button with a count badge sits right of send;
+        it opens a fuzzy-search dropdown of past drafts. Picking one restores it —{' '}
+        <em>swapping</em>: anything currently typed is stashed as a draft first, so nothing is ever
+        lost. Rows delete via the trash icon.
+      </Lede>
+      <RichInput
+        cacheKey="ds-richinput-drafts"
+        tags={GUIDELINE_TAGS}
+        showMax={4}
+        undoWindowMs={0}
+        placeholder="Type, then hold the send button…"
+      />
+    </Section>
+  );
+}
+
+/* 04 — files */
 function FilesDemo() {
   const [last, setLast] = useState<RichFile[]>([]);
   return (
     <Section
-      n={3}
+      n={4}
       title="File upload"
       code={`<RichInput
   accept="image/*,.pdf"
@@ -275,12 +310,12 @@ function FilesDemo() {
   );
 }
 
-/* 04 — guidelines */
+/* 05 — guidelines */
 function GuidelinesDemo() {
   const [prompt, setPrompt] = useState<string | null>(null);
   return (
     <Section
-      n={4}
+      n={5}
       title="Guideline tags"
       code={`const tags = [
   { id: 'worktree', label: 'Worktree',
@@ -323,13 +358,13 @@ function GuidelinesDemo() {
   );
 }
 
-/* 05 — guidelines master switch + scrollable tag list */
+/* 06 — guidelines master switch + scrollable tag list */
 function TagListDemo() {
   const [prompt, setPrompt] = useState<string | null>(null);
   const [glOn, setGlOn] = useState(true);
   return (
     <Section
-      n={5}
+      n={6}
       title="Guidelines switch & tag list"
       code={`const tags = [
   // guideline chips (default group)…
@@ -372,7 +407,10 @@ function TagListDemo() {
         the guideline lines are dropped from the composed prompt (sent as typed) and the chip row
         hides, while <span className="mono text-foreground">group: 'tag'</span> chips (project/service
         locations) stay put in their own scrollable list, capped at{' '}
-        <span className="mono text-foreground">tagListRows</span> rows before it scrolls. With{' '}
+        <span className="mono text-foreground">tagListRows</span> rows before it scrolls. Selected
+        chips sort to the front of that list, and the leading <em>search</em> chip opens an inline
+        filter over the tags (disable with{' '}
+        <span className="mono text-foreground">tagSearch={'{false}'}</span>). With{' '}
         <span className="mono text-foreground">collapseWhenIdle</span> both rows stay hidden while
         the composer is empty and unfocused — click in (or start a draft) and they appear.
       </Lede>
@@ -391,12 +429,12 @@ function TagListDemo() {
   );
 }
 
-/* 06 — mention */
+/* 07 — mention */
 function MentionDemo() {
   const [prompt, setPrompt] = useState<string | null>(null);
   return (
     <Section
-      n={6}
+      n={7}
       title="Mention search"
       code={`<RichInput
   tags={tags}          // toggles + kind:'mention'
@@ -435,7 +473,7 @@ function MentionDemo() {
   );
 }
 
-/* 07 — history */
+/* 08 — history */
 function HistoryDemo() {
   // Seed a few entries synchronously (before the child mounts) so the demo is
   // explorable immediately.
@@ -461,7 +499,7 @@ function HistoryDemo() {
   });
   return (
     <Section
-      n={6}
+      n={8}
       title="Command history"
       code={`<RichInput
   cacheKey="demo"   // namespaces history
@@ -488,7 +526,7 @@ function HistoryDemo() {
   );
 }
 
-/* 08 — imperative handle */
+/* 09 — imperative handle */
 function ImperativeDemo() {
   const ref = useRef<RichInputHandle>(null);
   const [log, setLog] = useState<string[]>([]);
@@ -496,7 +534,7 @@ function ImperativeDemo() {
   const onSubmit = (p: RichSendPayload) => note(`onSubmit → "${p.text}"`);
   return (
     <Section
-      n={7}
+      n={9}
       title="Imperative handle (forwardRef)"
       code={`const ref = useRef<RichInputHandle>(null)
 

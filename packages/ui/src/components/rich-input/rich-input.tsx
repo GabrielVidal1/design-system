@@ -9,16 +9,18 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react';
-import { History, Loader2, Paperclip, SendHorizontal, Upload } from 'lucide-react';
+import { History, Loader2, Paperclip, Upload } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
 import { useFileDrop } from '../drop-zone/use-file-drop';
 import { defaultComposePrompt } from './compose';
+import { DraftsMenu, SendDraftButton } from './draft-parts';
 import { useDraft } from './use-draft';
 import { useFileUpload } from './use-file-upload';
 import { useGuidelines } from './use-guidelines';
 import { useInputHistory } from './use-input-history';
 import { useMention } from './use-mention';
+import { useSavedDrafts } from './use-saved-drafts';
 import {
   AttachmentChips,
   GuidelinesSwitch,
@@ -32,6 +34,7 @@ import {
 import type {
   ComposeInput,
   GuidelineTag,
+  RichDraft,
   RichFile,
   RichInputHandle,
   RichSendButtonProps,
@@ -114,6 +117,28 @@ export interface RichInputProps {
   /** Enable Up-arrow / Ctrl+R history + the mobile history sheet. Default true. */
   history?: boolean;
 
+  /**
+   * Enable the saved-drafts shelf: long-pressing (or right-clicking) the send
+   * button offers **Save as draft** — the text, selected tags, attachments and
+   * `draftExtra` payload are stored (localStorage, namespaced by `cacheKey`)
+   * and the composer clears. While drafts exist, a drafts button appears next
+   * to the send button opening a fuzzy-search dropdown; picking one restores
+   * it (swapping: anything currently typed is saved as a draft first, so
+   * nothing is lost) and removes it from the shelf. Default true.
+   */
+  drafts?: boolean;
+  /**
+   * Capture caller state living outside the composer (a model pick, a target
+   * select, …) into each saved draft. Called at save time; the value must be
+   * JSON-serialisable.
+   */
+  draftExtra?: () => unknown;
+  /** Re-apply a restored draft's {@link draftExtra} payload. */
+  onDraftRestore?: (extra: unknown) => void;
+
+  /** Show the tag list's leading search chip (inline filter). Default true. */
+  tagSearch?: boolean;
+
   /** Override how the final prompt string is composed. */
   composePrompt?: (input: ComposeInput) => string;
 
@@ -132,9 +157,11 @@ export interface RichInputProps {
 }
 
 /**
- * @summary The full composer: draft persistence, un-send window, file attachments,
- * guideline tags, `#mention` autocomplete and prompt history. Use for any
- * chat/agent input.
+ * @summary The full composer: draft persistence (text + tag selection), a
+ * saved-drafts shelf (long-press send to stash, fuzzy-search dropdown to
+ * restore), un-send window, file attachments, guideline tags with inline
+ * search, `#mention` autocomplete and prompt history. Use for any chat/agent
+ * input.
  */
 export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function RichInput(
   {
@@ -168,6 +195,10 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     showMax,
     mentionPrefix = '#',
     history: historyEnabled = true,
+    drafts: draftsEnabled = true,
+    draftExtra,
+    onDraftRestore,
+    tagSearch = true,
     composePrompt = defaultComposePrompt,
     toolbarExtra,
     renderSendButton,
@@ -177,11 +208,13 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const [value, setValueRaw, clearDraft] = useDraft(cacheKey, cacheLocation);
+  const draft = useDraft(cacheKey, cacheLocation);
+  const { text: value, setText: setValueRaw } = draft;
   const [seeded, setSeeded] = useState(false);
   const gl = useGuidelines(tags);
   const files = useFileUpload({ upload: uploadFiles, accept, maxFiles, filter: fileFilter });
   const hist = useInputHistory(historyEnabled ? (cacheKey ?? 'default') : null);
+  const savedDrafts = useSavedDrafts(cacheKey);
 
   const filesEnabled = uploadFiles !== undefined || accept !== undefined || maxFiles !== undefined;
   const busy = disabled || files.uploading;
@@ -202,8 +235,48 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
   const [focused, setFocused] = useState(false);
 
   // Guideline master switch (only surfaced when `guidelinesToggle` is set).
-  const [guidelinesOn, setGuidelinesOn] = useState(defaultGuidelinesOn);
+  // A cached draft's saved state wins over the default.
+  const [guidelinesOn, setGuidelinesOn] = useState(draft.meta?.guidelinesOn ?? defaultGuidelinesOn);
   const guidelinesActive = !guidelinesToggle || guidelinesOn;
+
+  /* ── tag-selection persistence (part of the cached draft) ────────────────
+   * `pendingTags` is the selection a cached/restored draft still wants applied
+   * — tag lists often load async, so unknown ids wait for their tags to show
+   * up. `tagsDirty` gates writing: only a selection the user (or a restore)
+   * actually touched is persisted, never the mount-time defaults. */
+  const pendingTags = useRef<string[] | null>(draft.meta ? [...draft.meta.tags] : null);
+  const tagsDirty = useRef(draft.meta != null);
+  const skipPersist = useRef(true);
+  const touchTags = useCallback(() => {
+    tagsDirty.current = true;
+  }, []);
+
+  // (Re-)apply the wanted selection whenever the tag set changes. Registered
+  // after useGuidelines, so its own default-on seeding runs first and this
+  // replace wins the commit.
+  const idKey = tags.map((t) => t.id).join(',');
+  useEffect(() => {
+    if (pendingTags.current) gl.replace(pendingTags.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idKey]);
+
+  // Persist the live selection into the draft record. The first (mount) run is
+  // skipped — it still sees the pre-restore defaults.
+  const activeKey = gl.active.map((t) => t.id).join(',');
+  useEffect(() => {
+    if (skipPersist.current) {
+      skipPersist.current = false;
+      return;
+    }
+    if (!tagsDirty.current) return;
+    const known = new Set(tags.map((t) => t.id));
+    const unknown = (pendingTags.current ?? []).filter((id) => !known.has(id));
+    const ids = [...gl.active.map((t) => t.id), ...unknown];
+    // Once every wanted id is known the applied selection is the truth.
+    pendingTags.current = unknown.length > 0 ? ids : null;
+    draft.setMeta({ tags: ids, ...(guidelinesToggle ? { guidelinesOn } : {}) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeKey, guidelinesOn]);
 
   // Reverse search (Ctrl+R).
   const [rsearch, setRsearch] = useState<{ query: string; match: string | null } | null>(null);
@@ -247,7 +320,10 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     setValue,
     taRef,
     prefix: mentionPrefix,
-    onPick: (tag) => gl.setOn(tag.id, true),
+    onPick: (tag) => {
+      touchTags();
+      gl.setOn(tag.id, true);
+    },
   });
 
   // Auto-grow the textarea between min/max rows. In `fill` mode the flex layout
@@ -293,12 +369,25 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
   useEffect(() => () => clearTimers(), [clearTimers]);
 
   const resetInput = useCallback(() => {
-    clearDraft();
+    draft.clear();
     files.reset();
+    // Back to the default selection — and stop persisting until touched again,
+    // so the post-clear default state doesn't get written as a draft.
+    tagsDirty.current = false;
+    pendingTags.current = null;
     gl.clear();
     setExpanded(false);
     hist.resetCursor();
-  }, [clearDraft, files, gl, hist]);
+  }, [draft, files, gl, hist]);
+
+  // Every user-driven toggle marks the selection dirty so it persists with the draft.
+  const toggleTag = useCallback(
+    (id: string) => {
+      touchTags();
+      gl.toggle(id);
+    },
+    [touchTags, gl],
+  );
 
   // Guideline toggles (default group) vs. scrollable tag toggles (`group: 'tag'`).
   const guidelineToggles = gl.toggles.filter((t) => (t.group ?? 'guideline') !== 'tag');
@@ -356,10 +445,56 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     setPending(null);
     setValue(restored.text);
     files.setFiles(restored.files);
+    touchTags();
     for (const t of restored.tags) gl.setOn(t.id, true);
     requestAnimationFrame(() => taRef.current?.focus());
     return restored;
-  }, [pending, clearTimers, setValue, files, gl]);
+  }, [pending, clearTimers, setValue, files, gl, touchTags]);
+
+  /* ── saved drafts ────────────────────────────────────────────────────────
+   * The selection stored with a draft is the applied one plus any ids still
+   * waiting for their (async-loading) tags — same union the live record keeps.
+   */
+  const draftTagIds = useCallback((): string[] => {
+    const known = new Set(tags.map((t) => t.id));
+    const unknown = (pendingTags.current ?? []).filter((id) => !known.has(id));
+    return [...gl.active.map((t) => t.id), ...unknown];
+  }, [tags, gl.active]);
+
+  const stashDraft = useCallback((): RichDraft | null => {
+    if (!value.trim() && files.files.length === 0) return null;
+    return savedDrafts.save({
+      text: value,
+      tags: draftTagIds(),
+      files: files.files,
+      ...(guidelinesToggle ? { guidelinesOn } : {}),
+      ...(draftExtra ? { extra: draftExtra() } : {}),
+    });
+  }, [value, files.files, savedDrafts, draftTagIds, guidelinesToggle, guidelinesOn, draftExtra]);
+
+  const saveDraft = useCallback(() => {
+    if (!draftsEnabled || !stashDraft()) return;
+    resetInput();
+  }, [draftsEnabled, stashDraft, resetInput]);
+
+  const restoreDraft = useCallback(
+    (d: RichDraft) => {
+      // Swap semantics: whatever is currently typed becomes a draft itself, so
+      // picking a draft never loses work.
+      stashDraft();
+      savedDrafts.remove(d.id);
+      setValueRaw(d.text);
+      files.setFiles(d.files);
+      tagsDirty.current = true;
+      pendingTags.current = [...d.tags];
+      gl.replace(d.tags);
+      if (guidelinesToggle && d.guidelinesOn != null) setGuidelinesOn(d.guidelinesOn);
+      onDraftRestore?.(d.extra);
+      hist.resetCursor();
+      requestAnimationFrame(() => taRef.current?.focus());
+    },
+    [stashDraft, savedDrafts, setValueRaw, files, gl, guidelinesToggle, onDraftRestore, hist],
+  );
 
   useImperativeHandle(
     ref,
@@ -546,13 +681,19 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
               <TagChips
                 tags={showGuidelines ? guidelineToggles : []}
                 selected={gl.selected}
-                onToggle={gl.toggle}
+                onToggle={toggleTag}
                 showMax={showMax}
                 expanded={expanded}
                 onExpand={() => setExpanded(true)}
                 leading={
                   guidelinesToggle ? (
-                    <GuidelinesSwitch on={guidelinesOn} onToggle={() => setGuidelinesOn((v) => !v)} />
+                    <GuidelinesSwitch
+                      on={guidelinesOn}
+                      onToggle={() => {
+                        touchTags();
+                        setGuidelinesOn((v) => !v);
+                      }}
+                    />
                   ) : undefined
                 }
               />
@@ -564,8 +705,9 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
               <TagScrollList
                 tags={tagToggles}
                 selected={gl.selected}
-                onToggle={gl.toggle}
+                onToggle={toggleTag}
                 rows={tagListRows}
+                searchable={tagSearch}
               />
             </div>
           )}
@@ -609,22 +751,20 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
                 </IconButton>
               )}
               {renderSendButton ? (
-                renderSendButton({ canSend, submit })
+                renderSendButton({ canSend, submit, saveDraft })
               ) : (
-                <button
-                  type="button"
-                  aria-label="Send"
-                  disabled={!canSend}
-                  onClick={submit}
-                  className={cn(
-                    'inline-flex size-8 items-center justify-center rounded-lg transition-colors',
-                    canSend
-                      ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                      : 'bg-muted text-muted-foreground',
-                  )}
-                >
-                  <SendHorizontal className="size-4" />
-                </button>
+                <SendDraftButton
+                  canSend={canSend}
+                  submit={submit}
+                  onSaveDraft={draftsEnabled ? saveDraft : undefined}
+                />
+              )}
+              {draftsEnabled && (
+                <DraftsMenu
+                  drafts={savedDrafts.drafts}
+                  onPick={restoreDraft}
+                  onDelete={savedDrafts.remove}
+                />
               )}
             </div>
           </div>

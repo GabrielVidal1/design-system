@@ -16,6 +16,27 @@ last release → grouped bullets under Unreleased), then curate the prose.
 ## [Unreleased]
 
 ### Added
+- `RichInput` — **saved-drafts shelf**: long-press (or right-click) the send
+  button to save the message as a draft instead of sending — the text, the
+  selected tag/guideline ids, the attachments and an optional caller payload
+  (new `draftExtra()` prop, restored through `onDraftRestore`) are stored in
+  localStorage (namespaced by `cacheKey`) and the composer clears. While
+  drafts exist a badge-counted drafts button sits right of send, opening a
+  fuzzy-search dropdown of past drafts; picking one restores it (swap
+  semantics — anything currently typed is stashed as a draft first) and rows
+  delete inline. Disable with `drafts={false}`; custom `renderSendButton`
+  implementations receive a new `saveDraft` callback. The `RichDraft` type and
+  `useSavedDrafts` hook are exported.
+- `RichInput` — the live (auto-persisted) draft now also remembers the
+  **selected tags, guidelines and the guidelines master switch**, and restores
+  them on mount — a reload no longer drops the project/guideline selection.
+  Legacy plain-string drafts are still read. Selections whose tags load async
+  are applied as the tags arrive.
+- `RichInput` — the scrollable tag list gained a leading **search chip** that
+  expands into an inline filter over the tags (label/slug/description;
+  disable with `tagSearch={false}`), and **selected tags now sort to the
+  front** of the list (snapshotted per mount/tag-set change, so chips don't
+  teleport mid-tap).
 - `HoldEditable` — **stash system** for groups with more candidate items than
   visible slots: pass the benched items as `stash` and edit mode becomes
   persistent (a drop no longer ends it; a tap outside or Escape does) while a

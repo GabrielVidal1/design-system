@@ -210,15 +210,17 @@ export { Slider } from './components/slider';
 export type { SliderProps } from './components/slider';
 export { Select } from './components/select';
 export type { SelectOption, SelectProps } from './components/select';
-export { RichInput, defaultComposePrompt } from './components/rich-input';
+export { RichInput, defaultComposePrompt, useSavedDrafts } from './components/rich-input';
 export type {
   RichInputProps,
   RichFile,
   GuidelineTag,
+  RichDraft,
   RichSendPayload,
   RichSendButtonProps,
   RichInputHandle,
   ComposeInput,
+  SavedDrafts,
 } from './components/rich-input';
 export { CharRoll } from './components/char-roll';
 export type { CharRollProps } from './components/char-roll';
