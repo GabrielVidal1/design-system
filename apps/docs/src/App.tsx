@@ -630,12 +630,12 @@ open(media, { story: true })      // auto-advancing story + progress bar`,
   )}
 </HoldEditable>
 
-// The stash: when there are more candidate items than visible
-// slots, pass the benched ones as \`stash\` — edit mode becomes
-// persistent (tap outside / Esc dismisses) and a popover of tags
-// opens beside the group while editing. Drag a tile onto it to
-// bench it; drag a tag onto a tile to swap it in, or onto empty
-// group space to append it. Only the placement is customizable.
+// The stash is ON by default: edit mode is persistent (tap
+// outside / Esc dismisses) and a popover of tags opens beside the
+// group while editing. Drag a tile onto it to bench it; drag a tag
+// onto a tile to swap it in, or onto empty group space to append
+// it — so removing an item is never destructive. Own the bench
+// (to persist it) by passing \`stash\`; \`stash={false}\` opts out.
 <HoldEditable
   items={tiles}
   getKey={(t) => t.id}
@@ -658,6 +658,17 @@ open(media, { story: true })      // auto-advancing story + progress bar`,
   onItemHold={(t) => t.id === 'send' && openMenu()}  // false = no action
   holdActionDelay={500}
   canStash={(t) => t.id !== 'send'}
+  ...
+/>
+
+// Compact edit mode: a COLUMN of tall cards is unreorderable in
+// practice (two of them fill the screen). Any item over ~96px and
+// the whole list collapses to label rows while editing, then comes
+// back on dismiss. compactEdit={false} to drag the cards themselves.
+<HoldEditable
+  items={cards}
+  compactLabel={(c) => c.title}  // falls back to stashLabel, then the key
+  className="space-y-3"
   ...
 />
 
@@ -2755,6 +2766,7 @@ function HoldEditableDemo() {
         getKey={(r) => r.id}
         onReorder={setRows}
         holdDelay={600}
+        stashLabel={(r) => r.label}
         className="space-y-2"
       >
         {(r, { held, editing, pressing, index }) => (
@@ -2775,12 +2787,55 @@ function HoldEditableDemo() {
       </HoldEditable>
       <p className="mt-3 mono text-[11px] text-muted-foreground">
         press and <span className="text-foreground">hold</span> a card (0.6s here, 1.4s default) to
-        pick it up · the rest jump in place · drag over a slot and release to commit — Esc cancels
+        pick it up · the rest jump in place · drag over a slot and release to commit — Esc cancels ·
+        the stash popover is on by default, so dragging a card into it{' '}
+        <span className="text-foreground">removes it undoably</span>
       </p>
+
+      <div className="mt-6 border-t border-dashed border-border pt-5">
+        <HoldEditableCompactDemo />
+      </div>
 
       <div className="mt-6 border-t border-dashed border-border pt-5">
         <HoldEditableStashDemo />
       </div>
+    </div>
+  );
+}
+
+/** Tall cards: entering edit mode collapses the column to label rows. */
+function HoldEditableCompactDemo() {
+  const [cards, setCards] = useState(() => [
+    { id: 'cost', label: 'Cost', body: '$12.40 · 4.2M tokens · 38 turns' },
+    { id: 'footprint', label: 'Estimated footprint', body: '31 g eqCO₂ · 0.4 L · 0.08 kWh' },
+    { id: 'commits', label: 'Commits', body: '6 commits · 214 additions · 51 deletions' },
+  ]);
+
+  return (
+    <div>
+      <HoldEditable
+        items={cards}
+        getKey={(c) => c.id}
+        onReorder={setCards}
+        holdDelay={600}
+        compactLabel={(c) => c.label}
+        stashLabel={(c) => c.label}
+        className="space-y-3"
+      >
+        {(c) => (
+          <div className="rounded-xl border border-border bg-[var(--tint)] p-3">
+            <div className="mono text-[10px] uppercase tracking-wide text-muted-foreground">
+              {c.label}
+            </div>
+            <div className="mt-2 text-sm text-foreground">{c.body}</div>
+            <div className="mt-3 h-12 rounded-lg border border-dashed border-border" />
+          </div>
+        )}
+      </HoldEditable>
+      <p className="mt-3 mono text-[11px] text-muted-foreground">
+        cards taller than 96px <span className="text-foreground">collapse to label rows</span> for
+        the duration of edit mode — the whole list fits on screen, so a reorder is one short drag
+      </p>
     </div>
   );
 }
