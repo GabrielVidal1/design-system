@@ -23,6 +23,8 @@ Two audiences, one library:
      removes its own line in the same commit that ticks the checkbox. Leave
      the section empty (this comment only) when nothing is in flight. -->
 
+- [design-system] `Field` wrapper — label + hint + error, so forms look uniform — @2026-08-09T22:42Z
+
 ## Principles
 
 1. **Mobile-first, desktop-compatible.** Designed for touch first (gestures,
