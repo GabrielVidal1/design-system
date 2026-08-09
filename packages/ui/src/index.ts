@@ -216,11 +216,12 @@ export { Slider } from './components/slider';
 export type { SliderProps } from './components/slider';
 export { Select } from './components/select';
 export type { SelectOption, SelectProps } from './components/select';
-export { RichInput, defaultComposePrompt, useSavedDrafts } from './components/rich-input';
+export { RichInput, useSavedDrafts } from './components/rich-input';
 export type {
   RichInputProps,
   RichFile,
-  GuidelineTag,
+  RichTag,
+  MasterSwitchConfig,
   RichDraft,
   RichSendPayload,
   RichSendButtonProps,

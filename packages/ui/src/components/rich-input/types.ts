@@ -14,20 +14,21 @@ export interface RichFile {
 }
 
 /**
- * A guideline tag. In its default form it is a toggle chip that injects
- * {@link prompt} into the composed text when on (or {@link promptOff} when off).
- * With `kind: 'mention'` it is hidden from the chip row and only reachable by
- * typing the mention prefix (`#` by default) + its {@link slug}.
+ * A tag the composer can select. In its default form it is a toggle chip; with
+ * `kind: 'mention'` it is hidden from the chip row and only reachable by typing
+ * the mention prefix (`#` by default) + its {@link slug}.
+ *
+ * A tag carries no prompt text of its own — the composer only tracks *which*
+ * tags are selected and hands them back on {@link RichSendPayload.tags}. What a
+ * tag means (a guideline to append, a location to work in, a model to pick) is
+ * entirely the caller's business, resolved in its own
+ * {@link RichInputProps.composePrompt}.
  */
-export interface GuidelineTag {
+export interface RichTag {
   id: string;
   label: string;
   /** Alternate label shown while the toggle is off. */
   labelOff?: string;
-  /** Text woven into the composed prompt while the tag is on. */
-  prompt?: string;
-  /** Text woven in while the tag is off (for either/or toggles). */
-  promptOff?: string;
   /** Whether the toggle starts on. Default false. */
   defaultOn?: boolean;
   /** Leading icon for the chip / mention row. */
@@ -36,12 +37,18 @@ export interface GuidelineTag {
   kind?: 'toggle' | 'mention';
   /**
    * Which cluster a toggle chip renders in:
-   * - `'guideline'` (default) — a chip in the guideline row, governed by the
-   *   guidelines master switch (see {@link RichInputProps.guidelinesToggle}).
-   * - `'tag'` — a chip in the scrollable tag list (e.g. project/service
-   *   locations); never affected by the guidelines switch.
+   * - `'chip'` (default) — a chip in the wrapping chip row, governed by the
+   *   master switch (see {@link RichInputProps.masterSwitch}).
+   * - `'list'` — a chip in the scrollable, searchable tag list (e.g. a long
+   *   list of locations); never affected by the master switch.
    */
-  group?: 'guideline' | 'tag';
+  group?: 'chip' | 'list';
+  /**
+   * Nesting depth, for display only: a chip at depth > 0 is drawn indented
+   * behind a `↳` marker. The composer never derives it — a caller with a tag
+   * hierarchy computes the visible tags itself and labels their depth.
+   */
+  depth?: number;
   /**
    * Radio behaviour: tags sharing an `exclusive` key are mutually exclusive —
    * turning one on turns the others in that key off (e.g. a model picker).
@@ -55,11 +62,29 @@ export interface GuidelineTag {
 }
 
 /**
+ * Wording for the built-in master switch — the leading chip that turns the
+ * whole `group: 'chip'` row on and off ({@link RichInputProps.masterSwitch}).
+ * The switch renders `<label> on` / `<label> off`, so keep the label a noun.
+ */
+export interface MasterSwitchConfig {
+  /** Default `'Tags'`. */
+  label: string;
+  /** Alternate noun while the switch is off. */
+  labelOff?: string;
+  /** Tooltip while on. */
+  title?: string;
+  /** Tooltip while off. */
+  titleOff?: string;
+  /** Leading glyph. Defaults to a checklist icon. */
+  icon?: ReactNode;
+}
+
+/**
  * A saved draft on the composer's drafts shelf (long-press the send button to
  * save one). Everything needed to restore the composer exactly: the text, the
- * ids of the tags that were selected (guidelines, projects, …), the attached
- * files, the guidelines master switch, and an opaque caller payload captured
- * via `draftExtra` (e.g. a model pick living outside the composer).
+ * ids of the tags that were selected, the attached files, the master switch,
+ * and an opaque caller payload captured via `draftExtra` (e.g. a model pick
+ * living outside the composer).
  */
 export interface RichDraft {
   id: string;
@@ -67,8 +92,8 @@ export interface RichDraft {
   /** Ids of the tags active when the draft was saved. */
   tags: string[];
   files: RichFile[];
-  /** Guidelines master switch state (when the composer shows one). */
-  guidelinesOn?: boolean;
+  /** Master switch state (when the composer shows one). */
+  masterOn?: boolean;
   /** Caller payload captured by `draftExtra` at save time. */
   extra?: unknown;
   /** Epoch ms. */
@@ -79,21 +104,22 @@ export interface RichDraft {
 export interface RichSendPayload {
   /** Raw textarea text. */
   text: string;
-  /** Composed text: guidelines + tags + attachments woven into `text`. */
+  /** The text run through {@link RichInputProps.composePrompt} (the raw text when there is none). */
   prompt: string;
   /** Attached files at submit time. */
   files: RichFile[];
-  /** Tags that were active (toggled on, or picked via mention). */
-  tags: GuidelineTag[];
+  /**
+   * Tags that count as active: toggled on or mention-picked, minus the
+   * `group: 'chip'` ones while the master switch is off.
+   */
+  tags: RichTag[];
 }
 
 /** Inputs handed to a custom {@link RichInputProps.composePrompt}. */
 export interface ComposeInput {
   text: string;
-  /** Injected lines from the active guideline tags. */
-  guidelines: string[];
-  /** The active tags themselves. */
-  tags: GuidelineTag[];
+  /** The active tags — same list as {@link RichSendPayload.tags}. */
+  tags: RichTag[];
   files: RichFile[];
 }
 

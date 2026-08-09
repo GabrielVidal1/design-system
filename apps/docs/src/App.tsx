@@ -1101,7 +1101,7 @@ ref.current?.toggle('bottom')`,
     code: `<RichInput
   cacheKey="chat"          // persisted draft + history
   undoWindowMs={3000}      // 3s un-send window
-  tags={guidelineTags}     // toggle chips + #mention
+  tags={tags}              // toggle chips + #mention
   accept="image/*"         // multi-file upload
   toolbarReorder           // hold-to-rearrange toolbar + stash
   onSubmit={(p) => send(p.prompt, p.files)}

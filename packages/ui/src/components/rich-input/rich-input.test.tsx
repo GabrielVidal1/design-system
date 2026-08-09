@@ -1,9 +1,10 @@
+import { useState } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { RichInput } from './rich-input';
-import type { GuidelineTag, RichSendButtonProps } from './types';
+import type { RichTag, RichSendButtonProps, RichSendPayload } from './types';
 
 // @tanstack/react-virtual (behind the drafts dropdown's FuzzyList) measures the
 // scroll container via offsetHeight and renders nothing when it reads 0 — which
@@ -19,11 +20,11 @@ beforeAll(() => {
   });
 });
 
-const TAGS: GuidelineTag[] = [
-  { id: 'careful', label: 'Careful', prompt: 'Be careful.', group: 'guideline' },
-  { id: 'proj-a', label: 'project-a', group: 'tag' },
-  { id: 'proj-b', label: 'project-b', group: 'tag' },
-  { id: 'proj-c', label: 'other-c', group: 'tag' },
+const TAGS: RichTag[] = [
+  { id: 'careful', label: 'Careful', group: 'chip' },
+  { id: 'proj-a', label: 'project-a', group: 'list' },
+  { id: 'proj-b', label: 'project-b', group: 'list' },
+  { id: 'proj-c', label: 'other-c', group: 'list' },
 ];
 
 /** A send button that surfaces `saveDraft` as a plain button (the built-in one
@@ -255,6 +256,127 @@ describe('TagScrollList search & ordering', () => {
 
     await user.keyboard('{Escape}');
     expect(screen.getByRole('button', { name: 'other-c' })).toBeInTheDocument();
+  });
+});
+
+describe('RichInput tag semantics', () => {
+  it('hands the active tags to composePrompt and leaves the prompt to the caller', async () => {
+    const user = userEvent.setup();
+    let payload: RichSendPayload | null = null;
+    render(
+      <RichInput
+        cacheKey="tg1"
+        undoWindowMs={0}
+        tags={TAGS}
+        composePrompt={({ text, tags }) => [text, ...tags.map((t) => `<${t.id}>`)].join(' ')}
+        onSubmit={(p) => {
+          payload = p;
+        }}
+        renderSendButton={(p) => <TestSendButton {...p} />}
+      />,
+    );
+
+    await user.type(screen.getByRole('textbox'), 'go');
+    await user.click(screen.getByRole('button', { name: 'Careful' }));
+    await user.click(screen.getByText('send-now'));
+
+    expect(payload!.prompt).toBe('go <careful>');
+    expect(payload!.tags.map((t) => t.id)).toEqual(['careful']);
+  });
+
+  it('sends the raw text when no composePrompt is given', async () => {
+    const user = userEvent.setup();
+    let payload: RichSendPayload | null = null;
+    render(
+      <RichInput
+        cacheKey="tg2"
+        undoWindowMs={0}
+        tags={TAGS}
+        onSubmit={(p) => {
+          payload = p;
+        }}
+        renderSendButton={(p) => <TestSendButton {...p} />}
+      />,
+    );
+
+    await user.type(screen.getByRole('textbox'), 'as typed  ');
+    await user.click(screen.getByRole('button', { name: 'Careful' }));
+    await user.click(screen.getByText('send-now'));
+
+    expect(payload!.prompt).toBe('as typed');
+  });
+
+  it('master switch off hides the chip row and drops those tags from the payload', async () => {
+    const user = userEvent.setup();
+    let payload: RichSendPayload | null = null;
+    render(
+      <RichInput
+        cacheKey="tg3"
+        undoWindowMs={0}
+        tags={TAGS}
+        masterSwitch={{ label: 'Guidelines' }}
+        onSubmit={(p) => {
+          payload = p;
+        }}
+        renderSendButton={(p) => <TestSendButton {...p} />}
+      />,
+    );
+
+    await user.type(screen.getByRole('textbox'), 'quiet');
+    await user.click(screen.getByRole('button', { name: 'Careful' }));
+    await user.click(screen.getByRole('button', { name: 'project-a' }));
+    await user.click(screen.getByRole('button', { name: 'Guidelines on' }));
+
+    // The chip row is gone…
+    expect(screen.queryByRole('button', { name: 'Careful' })).not.toBeInTheDocument();
+    // …but the list group is untouched.
+    expect(screen.getByRole('button', { name: 'project-a' })).toBeInTheDocument();
+
+    await user.click(screen.getByText('send-now'));
+    expect(payload!.tags.map((t) => t.id)).toEqual(['proj-a']);
+  });
+
+  it('keeps a muted chip selected — flipping the switch back restores it', async () => {
+    const user = userEvent.setup();
+    render(<RichInput cacheKey="tg4" tags={TAGS} masterSwitch />);
+
+    await user.click(screen.getByRole('button', { name: 'Careful' }));
+    await user.click(screen.getByRole('button', { name: 'Tags on' }));
+    await user.click(screen.getByRole('button', { name: 'Tags off' }));
+
+    expect(screen.getByRole('button', { name: 'Careful' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
+  it('follows a caller-driven hierarchy: children appear with the parent and leave with it', async () => {
+    const user = userEvent.setup();
+    // The classic DAG wiring: the caller derives the visible tags from its own
+    // graph and the live selection, so a child only exists while its parent is on.
+    function Hierarchy() {
+      const [active, setActive] = useState<string[]>([]);
+      const tags: RichTag[] = [
+        { id: 'parent', label: 'Parent' },
+        ...(active.includes('parent')
+          ? [{ id: 'child', label: 'Child', depth: 1 } satisfies RichTag]
+          : []),
+      ];
+      return <RichInput cacheKey="tg5" tags={tags} onTagsChange={(t) => setActive(t.map((x) => x.id))} />;
+    }
+    render(<Hierarchy />);
+
+    expect(screen.queryByRole('button', { name: 'Child' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Parent' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Child' })).toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: 'Child' }));
+    await user.click(screen.getByRole('button', { name: 'Parent' }));
+    // Parent off ⇒ the child is gone, and its selection with it.
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Child' })).not.toBeInTheDocument(),
+    );
   });
 });
 

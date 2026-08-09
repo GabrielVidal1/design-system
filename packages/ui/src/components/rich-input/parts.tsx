@@ -1,11 +1,20 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { File as FileIcon, History, ListChecks, Search, TriangleAlert, Undo2, X } from 'lucide-react';
+import {
+  CornerDownRight,
+  File as FileIcon,
+  History,
+  ListChecks,
+  Search,
+  TriangleAlert,
+  Undo2,
+  X,
+} from 'lucide-react';
 
 import { cn } from '../../lib/utils';
 import { useSwipeDismiss } from '../../hooks/use-swipe-dismiss';
 import { VirtualList } from '../virtual-list';
 import { tagSlug } from './use-mention';
-import type { GuidelineTag, RichFile } from './types';
+import type { MasterSwitchConfig, RichTag, RichFile } from './types';
 
 export function fmtBytes(n: number): string {
   if (!Number.isFinite(n) || n <= 0) return '0 B';
@@ -56,14 +65,16 @@ export function AttachmentChips({
 }
 
 /* ── A single toggle chip ────────────────────────────────────────────────── */
-function TagChip({ tag, on, onToggle }: { tag: GuidelineTag; on: boolean; onToggle: (id: string) => void }) {
+function TagChip({ tag, on, onToggle }: { tag: RichTag; on: boolean; onToggle: (id: string) => void }) {
   const label = on ? tag.label : (tag.labelOff ?? tag.label);
+  const depth = Math.max(0, Math.min(tag.depth ?? 0, 4));
   return (
     <button
       type="button"
       aria-pressed={on}
       onMouseDown={(e) => e.preventDefault()}
       onClick={() => onToggle(tag.id)}
+      style={depth > 0 ? { marginLeft: depth * 10 } : undefined}
       className={cn(
         'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors',
         on
@@ -71,25 +82,34 @@ function TagChip({ tag, on, onToggle }: { tag: GuidelineTag; on: boolean; onTogg
           : 'border-input text-muted-foreground hover:text-foreground',
       )}
     >
+      {/* A nested chip announces its parent with a corner marker, so a revealed
+          child reads as belonging to the chip before it. */}
+      {depth > 0 && <CornerDownRight className="-ml-0.5 size-3 shrink-0 text-muted-foreground" />}
       {tag.icon}
       {label}
     </button>
   );
 }
 
-/* ── Guideline master on/off switch ──────────────────────────────────────── */
-export function GuidelinesSwitch({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+/* ── Master on/off switch for the chip row ───────────────────────────────── */
+export function MasterSwitch({
+  on,
+  onToggle,
+  config,
+}: {
+  on: boolean;
+  onToggle: () => void;
+  config: MasterSwitchConfig;
+}) {
+  const label = on ? config.label : (config.labelOff ?? config.label);
+  const title = on ? config.title : (config.titleOff ?? config.title);
   return (
     <button
       type="button"
       aria-pressed={on}
       onMouseDown={(e) => e.preventDefault()}
       onClick={onToggle}
-      title={
-        on
-          ? 'Guidelines are appended to the prompt — click to send it as typed'
-          : 'Prompt is sent as typed — click to append the guidelines again'
-      }
+      title={title}
       className={cn(
         'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-medium transition-colors',
         on
@@ -97,8 +117,8 @@ export function GuidelinesSwitch({ on, onToggle }: { on: boolean; onToggle: () =
           : 'border-input bg-transparent text-muted-foreground hover:text-foreground',
       )}
     >
-      <ListChecks className="size-3" />
-      Guidelines {on ? 'on' : 'off'}
+      {config.icon ?? <ListChecks className="size-3" />}
+      {label} {on ? 'on' : 'off'}
     </button>
   );
 }
@@ -113,7 +133,7 @@ export function TagChips({
   onExpand,
   leading,
 }: {
-  tags: GuidelineTag[];
+  tags: RichTag[];
   selected: Set<string>;
   onToggle: (id: string) => void;
   showMax?: number;
@@ -149,11 +169,11 @@ export function TagChips({
 const TAG_ROW_H = 30; // approx chip row height (px) incl. vertical gap
 
 /** Selected chips first, each side keeping its original order. */
-function sortSelectedFirst(tags: GuidelineTag[], selected: Set<string>): GuidelineTag[] {
+function sortSelectedFirst(tags: RichTag[], selected: Set<string>): RichTag[] {
   return [...tags.filter((t) => selected.has(t.id)), ...tags.filter((t) => !selected.has(t.id))];
 }
 
-function tagMatches(tag: GuidelineTag, q: string): boolean {
+function tagMatches(tag: RichTag, q: string): boolean {
   return `${tag.label} ${tag.slug ?? tag.id} ${tag.description ?? ''}`.toLowerCase().includes(q);
 }
 
@@ -164,7 +184,7 @@ export function TagScrollList({
   rows = 3,
   searchable = true,
 }: {
-  tags: GuidelineTag[];
+  tags: RichTag[];
   selected: Set<string>;
   onToggle: (id: string) => void;
   /** Visible height in chip rows before it scrolls. Default 3. */
@@ -180,7 +200,7 @@ export function TagScrollList({
   // out from under the pointer and shift its neighbours mid-interaction.
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
-  const [order, setOrder] = useState<GuidelineTag[]>(() => sortSelectedFirst(tags, selected));
+  const [order, setOrder] = useState<RichTag[]>(() => sortSelectedFirst(tags, selected));
   useEffect(() => {
     setOrder(sortSelectedFirst(tags, selectedRef.current));
   }, [tags, searching]);
@@ -262,11 +282,11 @@ export function MentionMenu({
   onHover,
   onPick,
 }: {
-  matches: GuidelineTag[];
+  matches: RichTag[];
   active: number;
   prefix: string;
   onHover: (i: number) => void;
-  onPick: (tag: GuidelineTag) => void;
+  onPick: (tag: RichTag) => void;
 }) {
   return (
     <div className="mb-1.5 max-h-56 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-lg">
