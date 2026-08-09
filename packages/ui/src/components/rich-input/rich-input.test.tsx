@@ -168,6 +168,63 @@ describe('RichInput live-draft tag persistence', () => {
   });
 });
 
+describe('RichInput async submit', () => {
+  it('shows sending, then settles quietly when the async onSubmit resolves', async () => {
+    const user = userEvent.setup();
+    let resolve!: () => void;
+    const onSubmit = () =>
+      new Promise<void>((r) => {
+        resolve = r;
+      });
+    render(
+      <RichInput
+        cacheKey="t9"
+        undoWindowMs={0}
+        onSubmit={onSubmit}
+        renderSendButton={(p) => (
+          <button type="button" disabled={!p.canSend} onClick={p.submit}>
+            {p.sending ? 'sending…' : 'send-now'}
+          </button>
+        )}
+      />,
+    );
+
+    await user.type(screen.getByRole('textbox'), 'off it goes');
+    await user.click(screen.getByText('send-now'));
+
+    // In flight: composer cleared, button reports sending.
+    expect(screen.getByRole('textbox')).toHaveValue('');
+    expect(screen.getByText('sending…')).toBeInTheDocument();
+
+    resolve();
+    await waitFor(() => expect(screen.getByText('send-now')).toBeInTheDocument());
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('surfaces a rejection as a dismissible error and restores the text', async () => {
+    const user = userEvent.setup();
+    const onSubmit = () => Promise.reject(new Error('spawn failed'));
+    render(
+      <RichInput
+        cacheKey="t10"
+        undoWindowMs={0}
+        onSubmit={onSubmit}
+        renderSendButton={(p) => <TestSendButton {...p} />}
+      />,
+    );
+
+    await user.type(screen.getByRole('textbox'), 'doomed send');
+    await user.click(screen.getByText('send-now'));
+
+    // The error notification appears and the composer gets its text back.
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('spawn failed'));
+    expect(screen.getByRole('textbox')).toHaveValue('doomed send');
+
+    await user.click(screen.getByRole('button', { name: 'Dismiss error' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+});
+
 describe('TagScrollList search & ordering', () => {
   it('orders selected tags first (snapshotted at mount)', () => {
     window.localStorage.setItem(

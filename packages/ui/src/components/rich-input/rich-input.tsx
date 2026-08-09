@@ -27,6 +27,7 @@ import {
   HistorySheet,
   MentionMenu,
   ReverseSearchBar,
+  SubmitErrorBanner,
   TagChips,
   TagScrollList,
   UnsendBanner,
@@ -60,7 +61,13 @@ export interface RichInputProps {
    */
   fill?: boolean;
 
-  /** Fired once the un-send window elapses (or immediately when it is 0). */
+  /**
+   * Fired once the un-send window elapses (or immediately when it is 0). May
+   * return a promise: while it is pending the composer counts as busy (send
+   * disabled, `sending` exposed to {@link renderSendButton}); a rejection
+   * restores the text / attachments / tag selection and surfaces the error as
+   * a dismissible notification above the composer (tap ✕ or swipe it away).
+   */
   onSubmit?: (payload: RichSendPayload) => void | Promise<void>;
   /** ms to hold a submission so it can be un-sent. 0 disables. Default 3000. */
   undoWindowMs?: number;
@@ -217,7 +224,13 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
   const savedDrafts = useSavedDrafts(cacheKey);
 
   const filesEnabled = uploadFiles !== undefined || accept !== undefined || maxFiles !== undefined;
-  const busy = disabled || files.uploading;
+
+  // Async submit: while an onSubmit promise is in flight the composer is busy;
+  // a rejection restores the payload and surfaces `submitError`.
+  const [sending, setSending] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const busy = disabled || files.uploading || sending;
 
   // A drop is just another way to pick files: useFileDrop only hands us the
   // dragged files (expanding folders), `files.add` still runs the accept /
@@ -410,11 +423,44 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     return { text: base, prompt, files: files.files, tags: gl.active };
   }, [value, files.files, files.uploading, composePrompt, gl.lines, gl.active, guidelinesActive]);
 
+  // Put a payload back into the composer — an un-send, or a failed async submit.
+  const restorePayload = useCallback(
+    (p: RichSendPayload) => {
+      setValue(p.text);
+      files.setFiles(p.files);
+      touchTags();
+      for (const t of p.tags) gl.setOn(t.id, true);
+    },
+    [setValue, files, gl, touchTags],
+  );
+
   const fire = useCallback(
     (payload: RichSendPayload) => {
-      void onSubmit?.(payload);
+      if (!onSubmit) return;
+      setSubmitError(null);
+      const fail = (e: unknown) => {
+        setSubmitError(e instanceof Error ? e.message : String(e));
+        restorePayload(payload);
+      };
+      let result: void | Promise<void>;
+      try {
+        result = onSubmit(payload);
+      } catch (e) {
+        fail(e);
+        return;
+      }
+      if (result && typeof result.then === 'function') {
+        setSending(true);
+        result.then(
+          () => setSending(false),
+          (e) => {
+            setSending(false);
+            fail(e);
+          },
+        );
+      }
     },
-    [onSubmit],
+    [onSubmit, restorePayload],
   );
 
   const submit = useCallback(() => {
@@ -443,13 +489,10 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     clearTimers();
     const restored = pending;
     setPending(null);
-    setValue(restored.text);
-    files.setFiles(restored.files);
-    touchTags();
-    for (const t of restored.tags) gl.setOn(t.id, true);
+    restorePayload(restored);
     requestAnimationFrame(() => taRef.current?.focus());
     return restored;
-  }, [pending, clearTimers, setValue, files, gl, touchTags]);
+  }, [pending, clearTimers, restorePayload]);
 
   /* ── saved drafts ────────────────────────────────────────────────────────
    * The selection stored with a draft is the applied one plus any ids still
@@ -603,6 +646,9 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
 
   return (
     <div className={cn('flex flex-col gap-2', fill && 'h-full min-h-0', className)}>
+      {submitError && (
+        <SubmitErrorBanner message={submitError} onDismiss={() => setSubmitError(null)} />
+      )}
       {pending ? (
         <UnsendBanner countdown={countdown} onUndo={cancelSend} />
       ) : (
@@ -617,7 +663,9 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
           className={cn(
             'relative rounded-2xl border border-input bg-card p-2 transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40',
             fill && 'flex min-h-0 flex-1 flex-col',
-            disabled && 'opacity-60',
+            // Dim the contents, not the card: whole-element opacity would make
+            // the surface translucent and let whatever is behind bleed through.
+            disabled && '[&>*]:opacity-60',
             drop.dragging && 'border-primary ring-2 ring-primary/40',
           )}
         >
@@ -751,10 +799,11 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
                 </IconButton>
               )}
               {renderSendButton ? (
-                renderSendButton({ canSend, submit, saveDraft })
+                renderSendButton({ canSend, sending, submit, saveDraft })
               ) : (
                 <SendDraftButton
                   canSend={canSend}
+                  sending={sending}
                   submit={submit}
                   onSaveDraft={draftsEnabled ? saveDraft : undefined}
                 />

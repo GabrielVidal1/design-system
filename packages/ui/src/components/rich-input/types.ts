@@ -101,6 +101,8 @@ export interface ComposeInput {
 export interface RichSendButtonProps {
   /** Whether there's anything to send and nothing is blocking it (upload in flight, `disabled`) — mirrors the built-in button's disabled state. */
   canSend: boolean;
+  /** An async `onSubmit` is still in flight — the built-in button shows a spinner. */
+  sending: boolean;
   /** Submit exactly as the built-in button would (starts the un-send window). */
   submit: () => void;
   /**

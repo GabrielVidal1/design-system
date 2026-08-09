@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { File as FileIcon, History, ListChecks, Search, Undo2, X } from 'lucide-react';
+import { File as FileIcon, History, ListChecks, Search, TriangleAlert, Undo2, X } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
+import { useSwipeDismiss } from '../../hooks/use-swipe-dismiss';
 import { VirtualList } from '../virtual-list';
 import { tagSlug } from './use-mention';
 import type { GuidelineTag, RichFile } from './types';
@@ -406,6 +407,39 @@ export function HistorySheet({
           />
         )}
       </div>
+    </div>
+  );
+}
+
+/* ── Submit-error notification ───────────────────────────────────────────── */
+/** Shown when an async `onSubmit` rejects. Dismiss with ✕ or a horizontal swipe. */
+export function SubmitErrorBanner({
+  message,
+  onDismiss,
+}: {
+  message: string;
+  onDismiss: () => void;
+}) {
+  const swipe = useSwipeDismiss(onDismiss);
+  return (
+    <div
+      {...swipe}
+      role="alert"
+      className="flex items-start gap-2 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+    >
+      <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
+      <span className="min-w-0 flex-1 break-words">{message}</span>
+      <button
+        type="button"
+        aria-label="Dismiss error"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDismiss();
+        }}
+        className="-m-1 rounded p-1 transition-colors hover:text-foreground"
+      >
+        <X className="size-3.5" />
+      </button>
     </div>
   );
 }
