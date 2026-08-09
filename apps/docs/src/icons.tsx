@@ -464,6 +464,40 @@ export function AnimatedListIcon() {
   );
 }
 
+/** HoldEditable — the held row lifts and roams while the others jump in place;
+ * a dashed outline marks the slot it will land in. */
+export function HoldEditableIcon() {
+  return (
+    <Svg>
+      <rect x="52" y="26" width="104" height="78" rx="8" stroke={DIM} strokeWidth="2" />
+      {/* the vacated slot — a dashed outline where the held row will land */}
+      <rect
+        x="64"
+        y="60"
+        width="68"
+        height="10"
+        rx="5"
+        stroke={CY}
+        strokeWidth="2"
+        strokeDasharray="5 4"
+        opacity="0.45"
+      />
+      {/* neighbours jump in place, out of phase */}
+      <g className="a-drift" style={v({ '--dy': '-3px', '--dur': '0.9s' })}>
+        <rect x="64" y="38" width="56" height="10" rx="5" fill={DIM} opacity="0.45" />
+      </g>
+      <g className="a-drift" style={v({ '--dy': '-3px', '--dur': '1.15s' })}>
+        <rect x="64" y="84" width="44" height="10" rx="5" fill={DIM} opacity="0.45" />
+      </g>
+      {/* the held row, lifted out of the flow, following the pointer */}
+      <g className="a-drift" style={v({ '--dx': '16px', '--dy': '-14px', '--dur': '3.6s' })}>
+        <rect x="64" y="60" width="68" height="10" rx="5" fill={CY} opacity="0.9" />
+        <circle cx="120" cy="65" r="5" fill={CY} stroke={PAPER} strokeWidth="2" />
+      </g>
+    </Svg>
+  );
+}
+
 /** Nav2D — the stick rolls its gate while the ray marches to the target. */
 export function Nav2DIcon() {
   return (

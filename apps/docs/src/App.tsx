@@ -89,6 +89,7 @@ import {
   ViewableImage,
   VirtualList,
   AnimatedList,
+  HoldEditable,
   cn,
   fmtBytes,
   fmtCost,
@@ -121,6 +122,7 @@ import {
   FormatIcon,
   FuzzyListIcon,
   GlobalSearchIcon,
+  HoldEditableIcon,
   HooksIcon,
   IframePreviewIcon,
   ImageViewerIcon,
@@ -235,6 +237,7 @@ const GROUP_OF: Record<string, Group> = {
   'file-editor': 'Inputs',
   'char-roll': 'Animation',
   'animated-list': 'Animation',
+  'hold-editable': 'Animation',
   'progressive-text': 'Animation',
   'progressive-list': 'Animation',
   'progressive-bash': 'Animation',
@@ -286,6 +289,7 @@ const SOURCE_FILE: Record<string, string> = {
   'global-search': 'global-search.tsx',
   'virtual-list': 'virtual-list.tsx',
   'animated-list': 'animated-list.tsx',
+  'hold-editable': 'hold-editable.tsx',
   collection: 'collection.tsx',
   'progressive-text': 'progressive-text.tsx',
   'progressive-list': 'progressive-list.tsx',
@@ -572,6 +576,33 @@ open(media, { story: true })      // auto-advancing story + progress bar`,
 // vs VirtualList: use VirtualList for LONG lists (virtualized, needs a
 // bounded-height scroll container); use AnimatedList when the list is
 // short enough to render whole and should size to its content.`,
+  },
+  {
+    id: 'hold-editable',
+    name: 'HoldEditable',
+    sig: '<T>(items, getKey, onReorder, children, holdDelay?)',
+    tag: 'animation',
+    Icon: HoldEditableIcon,
+    Demo: HoldEditableDemo,
+    code: `// iOS-springboard "hold to rearrange": press-and-hold picks the
+// item up, the rest jump in place, drag hands slots over, release
+// commits the order. Rows OR columns — layout comes from className.
+<HoldEditable
+  items={tabs}
+  getKey={(t) => t.id}
+  onReorder={(next) => save(next.map((t) => t.id))}
+  className="flex items-stretch justify-between"
+  holdDelay={1400}               // press duration before pickup
+>
+  {(tab, { held, editing, pressing }) => (
+    <Tab tab={tab} muted={editing && !held} />
+  )}
+</HoldEditable>
+
+// The DOM order is frozen during the drag (reorder is transforms
+// only, committed on drop) — that is what keeps a touch drag alive
+// across slot hand-overs. Keep interactive sub-trees pressable with
+// data-hold-editable-ignore.`,
   },
   {
     id: 'progressive-text',
@@ -2566,6 +2597,49 @@ function AnimatedListDemo() {
       <p className="mt-3 mono text-[11px] text-muted-foreground">
         six rows auto-sort by cost · the list sizes to its content (no scroll box) · rows{' '}
         <span className="text-foreground">glide</span> to their new slot when the order changes
+      </p>
+    </div>
+  );
+}
+
+function HoldEditableDemo() {
+  // Short hold for the demo (600ms) so the gesture is quick to try; the
+  // library default is a deliberate 1.4s.
+  const [rows, setRows] = useState(() =>
+    ['Traefik', 'Authelia', 'Grafana', 'Jellyfin', 'Gitea'].map((label, i) => ({
+      id: String(i),
+      label,
+    })),
+  );
+
+  return (
+    <div>
+      <HoldEditable
+        items={rows}
+        getKey={(r) => r.id}
+        onReorder={setRows}
+        holdDelay={600}
+        className="space-y-2"
+      >
+        {(r, { held, editing, pressing, index }) => (
+          <div
+            className={cn(
+              'flex cursor-grab items-center gap-3 rounded-xl border border-border bg-[var(--tint)] px-3 py-2.5 transition-colors',
+              (held || pressing) && 'border-[color:var(--cyan-deep)]',
+              editing && !held && 'opacity-80',
+            )}
+          >
+            <span className="mono w-5 shrink-0 text-[11px] tabular-nums text-[color:var(--cyan-deep)]">
+              {index + 1}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-sm text-foreground">{r.label}</span>
+            <span className="mono shrink-0 text-[11px] text-muted-foreground">⠿</span>
+          </div>
+        )}
+      </HoldEditable>
+      <p className="mt-3 mono text-[11px] text-muted-foreground">
+        press and <span className="text-foreground">hold</span> a card (0.6s here, 1.4s default) to
+        pick it up · the rest jump in place · drag over a slot and release to commit — Esc cancels
       </p>
     </div>
   );

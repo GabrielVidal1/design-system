@@ -16,6 +16,13 @@ last release → grouped bullets under Unreleased), then curate the prose.
 ## [Unreleased]
 
 ### Added
+- `HoldEditable` — iOS-springboard "hold to rearrange" for small lists, ported
+  from the ai-agent frontend: press-and-hold (1.4s default) picks an item up,
+  the rest jump in place, dragging hands slots over and release commits the
+  new order via `onReorder`. Layout-agnostic (rows or columns from the
+  caller's flex/grid classes); the DOM order is frozen during the drag so
+  touch drags survive slot hand-overs. Opt sub-trees out of pickup with
+  `data-hold-editable-ignore`.
 - `DropZone` / `useFileDrop` — new `paste` option: Ctrl/⌘+V anywhere on the
   page drops clipboard files (screenshots, images copied from other apps) into
   the zone, through the same accept/size/count validation as a drag. Pastes
