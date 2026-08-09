@@ -400,6 +400,39 @@ export function TextareaIcon() {
   );
 }
 
+/** Field — a label bar sits above a boxed control; the helper line below it
+ * breathes as the whole row's outline pulses, standing in for the
+ * hint/error swap. */
+export function FieldIcon() {
+  return (
+    <Svg>
+      <rect className="a-grow" style={v({ '--g0': '0.15', '--dur': '4s' })} x="48" y="28" width="60" height="7" rx="3.5" fill={DIM} opacity="0.7" />
+      <rect
+        className="a-fade"
+        style={v({ '--o0': '0.4', '--o1': '1', '--dur': '4s', animationDelay: '0.15s' })}
+        x="48"
+        y="44"
+        width="124"
+        height="28"
+        rx="8"
+        stroke={CY}
+        strokeWidth="2.5"
+      />
+      <line className="a-blink" x1="60" y1="54" x2="60" y2="64" stroke={CY} strokeWidth="2" />
+      <rect
+        className="a-fade"
+        style={v({ '--o0': '0.25', '--o1': '0.75', '--dur': '4s', animationDelay: '0.3s' })}
+        x="48"
+        y="82"
+        width="88"
+        height="6"
+        rx="3"
+        fill={DIM}
+      />
+    </Svg>
+  );
+}
+
 /** cn — two class tokens fold into one resolved pill. */
 export function CnIcon() {
   return (

@@ -45,6 +45,7 @@ import {
   DockProvider,
   DropZone,
   EmptyState,
+  Field,
   FileEditor,
   FloatingPanel,
   FuzzyList,
@@ -137,6 +138,7 @@ import {
   DataTableIcon,
   DropZoneIcon,
   EmptyStateIcon,
+  FieldIcon,
   FloatingPanelIcon,
   FormatIcon,
   FuzzyListIcon,
@@ -244,6 +246,7 @@ const GROUP_OF: Record<string, Group> = {
   button: 'Inputs',
   input: 'Inputs',
   textarea: 'Inputs',
+  field: 'Inputs',
   'rich-input': 'Inputs',
   'search-input': 'Inputs',
   'tag-filter': 'Inputs',
@@ -333,6 +336,7 @@ const SOURCE_FILE: Record<string, string> = {
   button: 'button.tsx',
   input: 'input.tsx',
   textarea: 'textarea.tsx',
+  field: 'field.tsx',
   select: 'select.tsx',
   switch: 'switch.tsx',
   checkbox: 'checkbox.tsx',
@@ -1003,6 +1007,21 @@ ref.current?.toggle('bottom')`,
 
 // fixed height, native resize handle
 <Textarea autoGrow={false} rows={4} />`,
+  },
+  {
+    id: 'field',
+    name: 'Field',
+    sig: 'label · hint · error — wraps one control',
+    tag: 'input',
+    Icon: FieldIcon,
+    Demo: FieldDemo,
+    code: `<Field label="Display name" hint="Shown on your public profile">
+  <Input placeholder="Ada Lovelace" />
+</Field>
+
+<Field label="Email" required error={error}>
+  <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+</Field>`,
   },
   {
     id: 'select',
@@ -3051,6 +3070,26 @@ function TextareaDemo() {
         <p className="mt-1.5 mono text-[11px] text-muted-foreground">rows=2 · maxRows=5</p>
       </div>
       <Textarea disabled placeholder="Disabled" />
+    </div>
+  );
+}
+
+function FieldDemo() {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('not-an-email');
+  const emailError = email && !email.includes('@') ? 'Enter a valid email address' : undefined;
+
+  return (
+    <div className="max-w-sm space-y-4">
+      <Field label="Display name" hint="Shown on your public profile">
+        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ada Lovelace" />
+      </Field>
+      <Field label="Email" required error={emailError}>
+        <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+      </Field>
+      <Field label="Bio" hint="Optional — a couple of sentences">
+        <Textarea rows={2} placeholder="What are you building?" />
+      </Field>
     </div>
   );
 }
