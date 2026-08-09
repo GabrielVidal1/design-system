@@ -1,0 +1,72 @@
+/*
+ * Motion for the editor toolkit — <ColorPicker>'s dropdown/sheet, <Toolbar>'s
+ * overflow menu and <InspectorPanel>'s mobile sheet.
+ *
+ * Plain CSS (no Tailwind directives) so it works whether or not the consumer's
+ * Tailwind scans this package, mirroring overlay.css. All under
+ * prefers-reduced-motion so the panels just appear when motion is off.
+ */
+
+@keyframes ds-editor-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+
+@keyframes ds-editor-pop-up {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+}
+
+@keyframes ds-editor-rise {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes ds-editor-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ColorPicker dropdown: anchored below the trigger by default (pops down),
+ * flips to above (`.bottom-full`) near the bottom of the viewport. */
+.ds-color-panel {
+  animation: ds-editor-pop 160ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: top center;
+}
+.ds-color-panel.bottom-full {
+  animation: ds-editor-pop-up 160ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: bottom center;
+}
+
+.ds-toolbar-overflow {
+  animation: ds-editor-pop 140ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: top right;
+}
+
+.ds-color-scrim,
+.ds-inspector-scrim {
+  animation: ds-editor-fade 160ms ease-out;
+}
+
+.ds-color-sheet,
+.ds-inspector-sheet {
+  animation: ds-editor-rise 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-color-panel,
+  .ds-color-panel.bottom-full,
+  .ds-toolbar-overflow,
+  .ds-color-scrim,
+  .ds-inspector-scrim,
+  .ds-color-sheet,
+  .ds-inspector-sheet {
+    animation: ds-editor-fade 1ms linear;
+  }
+}

@@ -1578,3 +1578,126 @@ export function FileEditorIcon() {
     </Svg>
   );
 }
+
+/** ColorPicker — the saturation/value square with its thumb wandering, and a
+ * hue strip below with a drifting thumb of its own. */
+export function ColorPickerIcon() {
+  const x0 = 62;
+  const y0 = 22;
+  const w = 96;
+  const h = 62;
+  const steps = 6;
+  return (
+    <Svg>
+      <rect x={x0} y={y0} width={w} height={h} rx="8" stroke={DIM} strokeWidth="2" />
+      {/* opacity-stepped columns stand in for the saturation gradient */}
+      {Array.from({ length: steps }, (_, i) => (
+        <rect
+          key={i}
+          x={x0 + 4 + i * ((w - 8) / steps)}
+          y={y0 + 4}
+          width={(w - 8) / steps - 2}
+          height={h - 8}
+          rx="3"
+          fill={CY}
+          fillOpacity={0.08 + (i / (steps - 1)) * 0.55}
+        />
+      ))}
+      {/* the picker thumb wandering across the square */}
+      <g className="a-drift" style={v({ '--dx': '56px', '--dur': '5s' })}>
+        <circle cx={x0 + 22} cy={y0 + 26} r="7" fill={PAPER} stroke={CY} strokeWidth="2.5" />
+      </g>
+      {/* hue strip */}
+      {Array.from({ length: 8 }, (_, i) => (
+        <rect
+          key={`h${i}`}
+          x={x0 + i * (w / 8)}
+          y={y0 + h + 12}
+          width={w / 8 - 2}
+          height="10"
+          rx="3"
+          fill={CY}
+          fillOpacity={[0.9, 0.7, 0.5, 0.35, 0.5, 0.65, 0.8, 0.95][i]}
+        />
+      ))}
+      <g className="a-drift" style={v({ '--dx': '-60px', '--dur': '5s' })}>
+        <circle cx={x0 + w - 14} cy={y0 + h + 17} r="7.5" fill={PAPER} stroke={CY} strokeWidth="2.5" />
+      </g>
+    </Svg>
+  );
+}
+
+/** Toolbar — a strip of tool cells; the active highlight hops along the strip
+ * while the overflow "⋯" blinks at the end. */
+export function ToolbarIcon() {
+  const s = 24;
+  const g = 7;
+  const n = 4;
+  const x0 = 40;
+  const y0 = 53;
+  return (
+    <Svg>
+      <rect
+        x={x0 - 8}
+        y={y0 - 8}
+        width={n * (s + g) + 26 + s + 8}
+        height={s + 16}
+        rx="10"
+        stroke={DIM}
+        strokeWidth="2"
+      />
+      {/* the active-tool highlight hopping between the first cells */}
+      <g className="a-drift" style={v({ '--dx': `${2 * (s + g)}px`, '--dur': '4.6s' })}>
+        <rect x={x0} y={y0} width={s} height={s} rx="6" fill={CY} fillOpacity="0.85" />
+      </g>
+      {Array.from({ length: n }, (_, i) => (
+        <g key={i}>
+          <rect x={x0 + i * (s + g)} y={y0} width={s} height={s} rx="6" stroke={DIM} strokeWidth="2" />
+          <circle cx={x0 + i * (s + g) + s / 2} cy={y0 + s / 2} r="4" fill={DIM} opacity="0.5" />
+        </g>
+      ))}
+      {/* group hairline then the overflow ⋯ */}
+      <line
+        x1={x0 + n * (s + g) + 3}
+        y1={y0 + 2}
+        x2={x0 + n * (s + g) + 3}
+        y2={y0 + s - 2}
+        stroke={DIM}
+        strokeWidth="2"
+      />
+      <g className="a-fade" style={v({ '--o0': '0.3', '--o1': '1', '--dur': '2.6s' })}>
+        {[0, 1, 2].map((i) => (
+          <circle key={i} cx={x0 + n * (s + g) + 18 + i * 8} cy={y0 + s / 2} r="2.5" fill={CY} />
+        ))}
+      </g>
+    </Svg>
+  );
+}
+
+/** InspectorPanel — a property panel whose label/control rows breathe in
+ * sequence under two section headers. */
+export function InspectorPanelIcon() {
+  const x0 = 62;
+  const y0 = 16;
+  const w = 96;
+  const row = (y: number, i: number) => (
+    <g key={i} className="a-fade" style={v({ '--o0': '0.35', '--o1': '1', '--dur': '4s', '--delay': `${i * 0.35}s` })}>
+      <rect x={x0 + 10} y={y} width="26" height="5" rx="2.5" fill={DIM} opacity="0.6" />
+      <rect x={x0 + 46} y={y - 3} width="40" height="11" rx="4" stroke={CY} strokeWidth="2" />
+    </g>
+  );
+  return (
+    <Svg>
+      <rect x={x0} y={y0} width={w} height="98" rx="10" stroke={DIM} strokeWidth="2" />
+      {/* section header: chevron + title */}
+      <path d={`M ${x0 + 12} 30 l 5 4 l -5 4`} stroke={CY} strokeWidth="2.5" strokeLinecap="round" fill="none" />
+      <rect x={x0 + 24} y="31" width="34" height="5" rx="2.5" fill={CY} fillOpacity="0.8" />
+      {row(48, 0)}
+      {row(64, 1)}
+      <line x1={x0 + 6} y1="78" x2={x0 + w - 6} y2="78" stroke={DIM} strokeWidth="1.5" opacity="0.7" />
+      <path d={`M ${x0 + 12} 84 l 5 4 l -5 4`} stroke={CY} strokeWidth="2.5" strokeLinecap="round" fill="none" />
+      <rect x={x0 + 24} y="85" width="26" height="5" rx="2.5" fill={CY} fillOpacity="0.8" />
+      {row(102, 2)}
+    </Svg>
+  );
+}

@@ -16,6 +16,27 @@ last release → grouped bullets under Unreleased), then curate the prose.
 ## [Unreleased]
 
 ### Added
+- `ColorPicker` — a real colour picker to replace `<input type="color">`: a
+  pointer-captured saturation/value square, hue and optional alpha sliders
+  (emitting `#rrggbbaa`), a hex field, an eyedropper button where the browser
+  has one, and preset swatches. Keeps its own HSV state so hue survives
+  round-trips through black/white/grey. Behind its trigger it opens a
+  dropdown on desktop and a bottom sheet on phones; `inline` embeds the panel
+  (e.g. in an inspector row). The underlying HSV maths (`rgbToHsv`,
+  `hsvToRgb`, `hexToHsv`, `hsvToHex`) ship from the package root.
+- `Toolbar` / `ToolbarGroup` / `ToolbarButton` / `ToolbarSeparator` — the
+  editor toolbar: groups of icon tools with hairlines between them, an
+  `active` (selected-tool) state via `aria-pressed`, arrow-key navigation,
+  and a horizontal or vertical (`orientation`) strip. When the strip outgrows
+  its container, trailing children collapse into a "⋯" overflow menu (sized
+  live via ResizeObserver) where each tool becomes a labelled row with its
+  shortcut and groups become titled sections.
+- `InspectorPanel` / `InspectorSection` / `InspectorRow` — the property panel
+  of an editor: a titled scrollable column of collapsible sections whose rows
+  keep every label/control pair aligned (`stacked` for full-width controls),
+  plus an optional pinned footer. Presentation-free inline on desktop (drop
+  it in a `FloatingPanel`, a `ResizableLayout` pane or any sidebar); on
+  phones it becomes a bottom sheet controlled via `open`/`onClose`.
 - `HoldEditable` — **stash system** for groups with more candidate items than
   visible slots: pass the benched items as `stash` and edit mode becomes
   persistent (a drop no longer ends it; a tap outside or Escape does) while a

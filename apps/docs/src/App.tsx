@@ -4,17 +4,28 @@ import {
   ArrowLeft,
   ArrowUpRight,
   Check,
+  Circle,
   Copy,
   Cpu,
   FileText,
+  Grid3x3,
+  Hand,
   Inbox,
   Layers,
+  MousePointer2,
+  PenTool,
   Play,
   Plus,
+  Redo2,
   Save,
   Settings2,
+  Square,
   Terminal,
   Trash2,
+  Type,
+  Undo2,
+  ZoomIn,
+  ZoomOut,
   icons as lucideIcons,
 } from 'lucide-react';
 import {
@@ -50,6 +61,10 @@ import {
   Nav2DItem,
   useNav2D,
   CharRoll,
+  ColorPicker,
+  InspectorPanel,
+  InspectorRow,
+  InspectorSection,
   PhonePreview,
   Progress,
   ProgressiveBash,
@@ -86,6 +101,9 @@ import {
   Textarea,
   ThemeToggle,
   ToastProvider,
+  Toolbar,
+  ToolbarButton,
+  ToolbarGroup,
   ViewableImage,
   VirtualList,
   AnimatedList,
@@ -164,6 +182,9 @@ import {
   ElementPickerIcon,
   TabsIcon,
   FileEditorIcon,
+  ColorPickerIcon,
+  ToolbarIcon,
+  InspectorPanelIcon,
 } from './icons';
 import pkg from '@gabvdl/ui/package.json';
 import { SandpackProvider, SandpackCodeEditor, type SandpackTheme } from '@codesandbox/sandpack-react';
@@ -196,6 +217,7 @@ const GROUPS = [
   'Animation',
   'Feedback',
   'Layout',
+  'Editor',
   'Hooks',
   'Utilities',
 ] as const;
@@ -254,6 +276,9 @@ const GROUP_OF: Record<string, Group> = {
   'floating-panel': 'Layout',
   'resizable-layout': 'Layout',
   modal: 'Layout',
+  toolbar: 'Editor',
+  'inspector-panel': 'Editor',
+  'color-picker': 'Editor',
   hooks: 'Hooks',
   cn: 'Utilities',
   theme: 'Utilities',
@@ -269,6 +294,7 @@ const GROUP_BLURB: Record<Group, string> = {
   Animation: 'Typewriter text and staggered reveals that share one timeline.',
   Feedback: 'What the app says back — toasts, spinners, skeletons, empty states, release notes.',
   Layout: 'Device frames, scaffolding, and the modal every project re-implements.',
+  Editor: 'The primitives online editors share — toolbars, inspector panels, a real colour picker.',
   Hooks: 'The headless half: gestures, storage, media queries, clipboard, intersection.',
   Utilities: 'Class names, theming and the formatters shared across the lab.',
 };
@@ -332,6 +358,9 @@ const SOURCE_FILE: Record<string, string> = {
   'tag-filter': 'tag-filter.tsx',
   'icon-picker': 'icon-picker.tsx',
   'palette-picker': 'palette-picker.tsx',
+  'color-picker': 'color-picker.tsx',
+  toolbar: 'toolbar.tsx',
+  'inspector-panel': 'inspector-panel.tsx',
   'relative-time': 'relative-time.tsx',
   theme: 'theme.tsx',
   format: 'format.ts',
@@ -1357,6 +1386,79 @@ if (await confirm({ title: 'Delete note?', destructive: true })) remove()
     tag: 'input',
     Icon: PalettePickerIcon,
     Page: PalettePickerPage,
+  },
+  {
+    id: 'color-picker',
+    name: 'ColorPicker',
+    sig: 'SV square · hue · alpha · hex · eyedropper · swatches',
+    tag: 'editor',
+    Icon: ColorPickerIcon,
+    Demo: ColorPickerDemo,
+    code: `<ColorPicker
+  label="Fill"
+  value={fill}                 // '#8b5cf6'
+  onChange={setFill}
+  swatches={documentPalette}
+/>
+
+<ColorPicker
+  label="Shadow"
+  alpha                        // opacity slider, emits #rrggbbaa
+  value={shadow}
+  onChange={setShadow}
+/>
+
+<ColorPicker inline value={fill} onChange={setFill} />`,
+  },
+  {
+    id: 'toolbar',
+    name: 'Toolbar',
+    sig: 'groups · active tool · ⋯ overflow via ResizeObserver',
+    tag: 'editor',
+    Icon: ToolbarIcon,
+    Demo: ToolbarDemo,
+    code: `<Toolbar label="Editor tools">
+  <ToolbarGroup label="Tools">
+    <ToolbarButton label="Select" shortcut="V"
+      active={tool === 'select'}
+      onClick={() => setTool('select')}>
+      <MousePointer2 />
+    </ToolbarButton>
+    …
+  </ToolbarGroup>
+  <ToolbarSeparator />
+  <ToolbarGroup label="History">
+    <ToolbarButton label="Undo" shortcut="⌘Z" onClick={undo}>
+      <Undo2 />
+    </ToolbarButton>
+  </ToolbarGroup>
+</Toolbar>
+// too narrow? trailing tools collapse into a ⋯ menu`,
+  },
+  {
+    id: 'inspector-panel',
+    name: 'InspectorPanel',
+    sig: 'sections · aligned rows · bottom sheet on phones',
+    tag: 'editor',
+    Icon: InspectorPanelIcon,
+    Demo: InspectorPanelDemo,
+    code: `<InspectorPanel title="Rectangle"
+  open={open} onClose={() => setOpen(false)}>
+  <InspectorSection title="Transform">
+    <InspectorRow label="X">
+      <Input type="number" value={x} … />
+    </InspectorRow>
+    <InspectorRow label="Rotation">
+      <Slider value={angle} max={360} … />
+    </InspectorRow>
+  </InspectorSection>
+  <InspectorSection title="Fill">
+    <InspectorRow label="Colour" stacked>
+      <ColorPicker inline value={fill} onChange={setFill} />
+    </InspectorRow>
+  </InspectorSection>
+</InspectorPanel>
+// desktop: a column for your sidebar — phones: a bottom sheet`,
   },
   {
     id: 'drop-zone',
@@ -3044,6 +3146,176 @@ function SliderDemo() {
       <p className="text-sm text-muted-foreground">
         Tap anywhere on the track to jump, then drag — the whole strip is the touch target. The
         thumb takes arrows, Page keys, Home and End.
+      </p>
+    </div>
+  );
+}
+
+/* ─── Editor toolkit ──────────────────────────────────────────────────────── */
+
+function ColorPickerDemo() {
+  const [fill, setFill] = useState('#8b5cf6');
+  const [shadow, setShadow] = useState('#22d3eeb3');
+  const swatches = ['#8b5cf6', '#22d3ee', '#f59e0b', '#ef4444', '#10b981', '#f5f5f4', '#1c1917'];
+
+  return (
+    <div className="max-w-sm space-y-6">
+      <div className="flex items-center justify-center rounded-lg border border-border bg-muted/40 p-6">
+        <div
+          className="size-20 rounded-xl transition-colors"
+          style={{ backgroundColor: fill, boxShadow: `0 12px 32px ${shadow}` }}
+        />
+      </div>
+      <ColorPicker label="Fill" value={fill} onChange={setFill} swatches={swatches} />
+      <ColorPicker label="Shadow" alpha value={shadow} onChange={setShadow} />
+      <p className="text-sm text-muted-foreground">
+        A pointer-captured saturation square with hue (and optional alpha) sliders, a hex field,
+        an eyedropper where the browser has one, and preset swatches. On phones the trigger opens
+        a bottom sheet; pass <code className="mono text-xs">inline</code> to embed the panel — say,
+        in an inspector.
+      </p>
+    </div>
+  );
+}
+
+/** Returned as an ARRAY (not a fragment): the toolbar collapses at
+ *  direct-children granularity, so each group must be its own child. */
+function demoTools(tool: string, setTool: (t: string) => void) {
+  const tools = [
+    { id: 'select', label: 'Select', shortcut: 'V', Icon: MousePointer2 },
+    { id: 'pan', label: 'Pan', shortcut: 'H', Icon: Hand },
+    { id: 'pen', label: 'Pen', shortcut: 'P', Icon: PenTool },
+    { id: 'rect', label: 'Rectangle', shortcut: 'R', Icon: Square },
+    { id: 'ellipse', label: 'Ellipse', shortcut: 'O', Icon: Circle },
+    { id: 'text', label: 'Text', shortcut: 'T', Icon: Type },
+  ];
+  return [
+    <ToolbarGroup key="tools" label="Tools">
+      {tools.map(({ id, label, shortcut, Icon }) => (
+        <ToolbarButton
+          key={id}
+          label={label}
+          shortcut={shortcut}
+          active={tool === id}
+          onClick={() => setTool(id)}
+        >
+          <Icon />
+        </ToolbarButton>
+      ))}
+    </ToolbarGroup>,
+    <ToolbarGroup key="history" label="History">
+      <ToolbarButton label="Undo" shortcut="⌘Z">
+        <Undo2 />
+      </ToolbarButton>
+      <ToolbarButton label="Redo" shortcut="⇧⌘Z" disabled>
+        <Redo2 />
+      </ToolbarButton>
+    </ToolbarGroup>,
+    <ToolbarGroup key="view" label="View">
+      <ToolbarButton label="Zoom in">
+        <ZoomIn />
+      </ToolbarButton>
+      <ToolbarButton label="Zoom out">
+        <ZoomOut />
+      </ToolbarButton>
+      <ToolbarButton label="Toggle grid">
+        <Grid3x3 />
+      </ToolbarButton>
+    </ToolbarGroup>,
+  ];
+}
+
+function ToolbarDemo() {
+  const [tool, setTool] = useState('select');
+  return (
+    <div className="space-y-6">
+      <Toolbar label="Editor tools">{demoTools(tool, setTool)}</Toolbar>
+      <div>
+        <p className="mb-2 text-xs text-muted-foreground">
+          The same toolbar in a 280px container — trailing groups collapse into ⋯:
+        </p>
+        <div className="max-w-[280px]">
+          <Toolbar label="Editor tools (narrow)">{demoTools(tool, setTool)}</Toolbar>
+        </div>
+      </div>
+      <p className="text-sm text-muted-foreground">
+        Groups separate with hairlines and become titled sections in the overflow menu, where each
+        tool shows its label and shortcut. The active tool is <code className="mono text-xs">aria-pressed</code>;
+        arrow keys walk the strip.
+      </p>
+    </div>
+  );
+}
+
+function InspectorPanelDemo() {
+  const isMobile = useIsMobile();
+  const [open, setOpen] = useState(false);
+  const [x, setX] = useState(120);
+  const [y, setY] = useState(64);
+  const [angle, setAngle] = useState(0);
+  const [opacity, setOpacity] = useState(100);
+  const [fill, setFill] = useState('#8b5cf6');
+  const [visible, setVisible] = useState(true);
+
+  const panel = (
+    <InspectorPanel
+      title="Rectangle"
+      open={!isMobile || open}
+      onClose={isMobile ? () => setOpen(false) : undefined}
+      footer={
+        <Button variant="outline" size="sm" className="w-full">
+          <Trash2 /> Delete layer
+        </Button>
+      }
+    >
+      <InspectorSection title="Transform">
+        <InspectorRow label="X">
+          <Input type="number" value={x} onChange={(e) => setX(Number(e.target.value))} />
+        </InspectorRow>
+        <InspectorRow label="Y">
+          <Input type="number" value={y} onChange={(e) => setY(Number(e.target.value))} />
+        </InspectorRow>
+        <InspectorRow label="Rotation">
+          <Slider value={angle} onValueChange={setAngle} max={360} showValue format={(v) => `${v}°`} />
+        </InspectorRow>
+      </InspectorSection>
+      <InspectorSection title="Appearance">
+        <InspectorRow label="Opacity">
+          <Slider value={opacity} onValueChange={setOpacity} showValue format={(v) => `${v}%`} />
+        </InspectorRow>
+        <InspectorRow label="Fill">
+          <ColorPicker value={fill} onChange={setFill} label="Fill" />
+        </InspectorRow>
+        <InspectorRow label="Visible">
+          <Switch checked={visible} onCheckedChange={setVisible} />
+        </InspectorRow>
+      </InspectorSection>
+      <InspectorSection title="Export" defaultCollapsed>
+        <InspectorRow label="Format">
+          <Select
+            defaultValue="png"
+            options={[
+              { value: 'png', label: 'PNG' },
+              { value: 'svg', label: 'SVG' },
+              { value: 'webp', label: 'WebP' },
+            ]}
+          />
+        </InspectorRow>
+      </InspectorSection>
+    </InspectorPanel>
+  );
+
+  return (
+    <div className="space-y-4">
+      {isMobile && (
+        <Button variant="outline" onClick={() => setOpen(true)}>
+          <Settings2 /> Open inspector
+        </Button>
+      )}
+      <div className={isMobile ? undefined : 'h-[26rem] max-w-xs'}>{panel}</div>
+      <p className="max-w-sm text-sm text-muted-foreground">
+        Sections fold, rows keep labels and controls aligned, and every control is just a library
+        component. On a phone this same panel becomes a bottom sheet over the stage.
       </p>
     </div>
   );

@@ -22,6 +22,10 @@ export {
   rgbToHex,
   rgbToHsl,
   hslToRgb,
+  rgbToHsv,
+  hsvToRgb,
+  hexToHsv,
+  hsvToHex,
   isValidHex,
   normalizeHex,
   luminance,
@@ -29,7 +33,7 @@ export {
   generatePalette,
   randomColor,
 } from './lib/color';
-export type { HSL, Harmony, GenerateOptions } from './lib/color';
+export type { HSL, HSV, Harmony, GenerateOptions } from './lib/color';
 
 export {
   useCopyToClipboard,
@@ -261,6 +265,16 @@ export type {
   DrawerSide,
   MobileMode,
 } from './components/resizable-layout';
+export { ColorPicker } from './components/color-picker';
+export type { ColorPickerProps } from './components/color-picker';
+export { Toolbar, ToolbarButton, ToolbarGroup, ToolbarSeparator } from './components/toolbar';
+export type { ToolbarProps, ToolbarButtonProps, ToolbarGroupProps } from './components/toolbar';
+export { InspectorPanel, InspectorRow, InspectorSection } from './components/inspector-panel';
+export type {
+  InspectorPanelProps,
+  InspectorRowProps,
+  InspectorSectionProps,
+} from './components/inspector-panel';
 export { FloatingPanel, Dock, DockProvider, useDockContext, useDock } from './components/floating-panel';
 export type {
   FloatingPanelProps,
