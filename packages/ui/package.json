@@ -52,6 +52,7 @@
     "./virtual-list.css": "./dist/virtual-list.css",
     "./overlay.css": "./dist/overlay.css",
     "./palette.css": "./dist/palette.css",
+    "./editor.css": "./dist/editor.css",
     "./progress.css": "./dist/progress.css",
     "./tooltip.css": "./dist/tooltip.css",
     "./package.json": "./package.json"

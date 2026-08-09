@@ -113,6 +113,16 @@ import '@gabvdl/ui/styles.css'; // or theme.css for tokens only
 | **[ResizableLayout](https://ui.gabvdl.xyz/#/c/resizable-layout)** | `ResizableLayout` | App scaffold with resizable left/right/top/bottom panels on desktop that become panels or drawers on mobile. |
 | **[Modal](https://ui.gabvdl.xyz/#/c/modal)** | `Modal` · `ModalProvider` · `useConfirm` · `useModal` | Modal dialog plus the imperative layer — `useModal` to open one from code and `useConfirm` for yes/no. Use instead of re-implementing a dialog. |
 
+## Editor
+
+*The primitives online editors share — toolbars, inspector panels, a real colour picker.*
+
+| Component | Exports | What it is for |
+| --- | --- | --- |
+| **[ColorPicker](https://ui.gabvdl.xyz/#/c/color-picker)** | `ColorPicker` | Full HSV colour picker (saturation square, hue + optional alpha sliders, hex field, eyedropper, swatches) — dropdown on desktop, bottom sheet on mobile, or inline. |
+| **[Toolbar](https://ui.gabvdl.xyz/#/c/toolbar)** | `Toolbar` · `ToolbarButton` · `ToolbarGroup` · `ToolbarSeparator` | Editor toolbar — grouped icon buttons with an active-tool state that collapse into a "⋯" menu when they don't fit. |
+| **[InspectorPanel](https://ui.gabvdl.xyz/#/c/inspector-panel)** | `InspectorPanel` · `InspectorRow` · `InspectorSection` | Editor property panel — titled sections of aligned label/control rows; a sidebar column on desktop, a bottom sheet on phones. |
+
 ## Hooks
 
 *The headless half: gestures, storage, media queries, clipboard, intersection.*
@@ -152,4 +162,4 @@ import '@gabvdl/ui/styles.css'; // or theme.css for tokens only
 
 ---
 
-56 catalogue entries · 14 hooks · conventions and contribution rules in [CLAUDE.md](../CLAUDE.md), direction in [GOAL.md](../GOAL.md).
+59 catalogue entries · 14 hooks · conventions and contribution rules in [CLAUDE.md](../CLAUDE.md), direction in [GOAL.md](../GOAL.md).

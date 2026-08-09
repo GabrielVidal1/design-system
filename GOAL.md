@@ -89,12 +89,16 @@ The primitives online editors share, extracted so zine-maker, the marble
 machine and a card-game editor don't each reinvent them:
 - [ ] `EditorStage` — zoom/pan canvas surface (wheel, pinch, space-drag) with
       a controlled viewport
-- [ ] `Toolbar` — tool groups, active state, overflow on small screens
-- [ ] `InspectorPanel` — property editing panel (pairs with `FloatingPanel` /
-      `ResizableLayout` on desktop, bottom sheet on phones)
+- [x] `Toolbar` — tool groups, active state, overflow on small screens —
+      + `ToolbarGroup` / `ToolbarButton` / `ToolbarSeparator`, ⋯ menu via
+      ResizeObserver
+- [x] `InspectorPanel` — property editing panel (pairs with `FloatingPanel` /
+      `ResizableLayout` on desktop, bottom sheet on phones) —
+      + `InspectorSection` / `InspectorRow`
 - [ ] Layers list (reorder, visibility, selection)
 - [ ] Selection & transform handles (move/scale/rotate, touch-friendly)
-- [ ] Color picker
+- [x] Color picker — `ColorPicker`: SV square, hue/alpha sliders, hex,
+      eyedropper, swatches; HSV maths exported
 - [ ] `useUndoRedo` + keyboard-shortcut manager
 
 ## Full-page demos
