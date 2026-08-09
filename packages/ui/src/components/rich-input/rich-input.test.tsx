@@ -200,3 +200,45 @@ describe('TagScrollList search & ordering', () => {
     expect(screen.getByRole('button', { name: 'other-c' })).toBeInTheDocument();
   });
 });
+
+describe('reorderable toolbar', () => {
+  const orderKey = 'rich-input:toolbar:tb';
+  const itemIds = (container: HTMLElement) =>
+    [...container.querySelectorAll('[data-hold-editable-item]')].map(
+      (el) =>
+        el.querySelector('[aria-label]')?.getAttribute('aria-label') ?? 'spacer',
+    );
+
+  it('renders every control as a HoldEditable entry, spacer between the clusters', () => {
+    const { container } = render(<RichInput cacheKey="tb" toolbarReorder="tb" accept="*" />);
+    expect(itemIds(container)).toEqual(['Attach files', 'spacer', 'Send']);
+  });
+
+  it('applies a persisted order and benches stashed controls', () => {
+    window.localStorage.setItem(
+      orderKey,
+      JSON.stringify({ order: ['send', 'spacer', 'attach'], stash: [] }),
+    );
+    const { container, unmount } = render(
+      <RichInput cacheKey="tb" toolbarReorder="tb" accept="*" />,
+    );
+    expect(itemIds(container)).toEqual(['Send', 'spacer', 'Attach files']);
+    unmount();
+
+    window.localStorage.setItem(
+      orderKey,
+      JSON.stringify({ order: ['spacer', 'send'], stash: ['attach'] }),
+    );
+    const second = render(<RichInput cacheKey="tb" toolbarReorder="tb" accept="*" />);
+    expect(itemIds(second.container)).toEqual(['spacer', 'Send']);
+  });
+
+  it('never benches the send button, even if the stored stash says so', () => {
+    window.localStorage.setItem(
+      orderKey,
+      JSON.stringify({ order: [], stash: ['send'] }),
+    );
+    const { container } = render(<RichInput cacheKey="tb" toolbarReorder="tb" accept="*" />);
+    expect(itemIds(container)).toContain('Send');
+  });
+});

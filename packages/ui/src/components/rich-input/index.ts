@@ -8,6 +8,7 @@ export type {
   RichSendButtonProps,
   RichInputHandle,
   ComposeInput,
+  RichToolbarItem,
 } from './types';
 export { defaultComposePrompt } from './compose';
 export { useSavedDrafts } from './use-saved-drafts';

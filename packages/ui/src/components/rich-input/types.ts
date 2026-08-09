@@ -97,6 +97,20 @@ export interface ComposeInput {
   files: RichFile[];
 }
 
+/**
+ * An extra toolbar control, itemized so the reorderable toolbar
+ * ({@link RichInputProps.toolbarReorder}) can move and stash it individually.
+ * Ids must not collide with the built-in items (`attach`, `spacer`, `history`,
+ * `send`, `drafts`).
+ */
+export interface RichToolbarItem {
+  /** Stable id — the persisted toolbar order/stash are lists of these. */
+  id: string;
+  /** Label shown on the item's stash tag while it is benched. */
+  label: string;
+  node: ReactNode;
+}
+
 /** What a custom {@link RichInputProps.renderSendButton} is handed. */
 export interface RichSendButtonProps {
   /** Whether there's anything to send and nothing is blocking it (upload in flight, `disabled`) — mirrors the built-in button's disabled state. */
@@ -109,6 +123,16 @@ export interface RichSendButtonProps {
    * save (or when drafts are disabled).
    */
   saveDraft: () => void;
+  /**
+   * Reorderable-toolbar mode only ({@link RichInputProps.toolbarReorder}): the
+   * composer owns the long-press gesture (the toolbar's first-stage hold) and
+   * asks the button to render its menu open/closed through this pair — don't
+   * run your own long-press when they are present. `onMenuOpenChange` reports
+   * a close (outside tap, Escape, an action) and any self-initiated open
+   * (e.g. right-click).
+   */
+  menuOpen?: boolean;
+  onMenuOpenChange?: (open: boolean) => void;
 }
 
 /** Imperative handle exposed through `ref`. */

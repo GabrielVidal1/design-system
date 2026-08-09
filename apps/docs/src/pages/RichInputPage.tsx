@@ -153,6 +153,7 @@ export function RichInputPage() {
       <MentionDemo />
       <HistoryDemo />
       <ImperativeDemo />
+      <ToolbarReorderDemo />
     </div>
   );
 }
@@ -593,6 +594,42 @@ ref.current.clear()`}
           Clear
         </Button>
       </div>
+    </Section>
+  );
+}
+
+/* 10 — reorderable toolbar */
+function ToolbarReorderDemo() {
+  return (
+    <Section
+      n={10}
+      title="Reorderable toolbar"
+      code={`<RichInput
+  toolbarReorder="demo"    // persisted arrangement key
+  toolbarExtraItems={[     // extras as movable items
+    { id: 'model', label: 'Model', node: <ModelSelect /> },
+  ]}
+  accept="image/*"
+/>`}
+    >
+      <Lede>
+        With <span className="mono text-foreground">toolbarReorder</span> the bottom toolbar
+        becomes a <span className="mono text-foreground">HoldEditable</span> group:{' '}
+        <strong className="text-foreground">hold any control</strong> (~1.4s) to enter edit mode,
+        then drag to rearrange — including the invisible <em>spacer</em> that splits the left and
+        right clusters — or drag a control onto the stash popover to bench it (the send button
+        can't be benched). Holding <strong className="text-foreground">send</strong> passes
+        through a first stage (~0.5s) that opens its draft menu; keep holding to reach edit mode.
+        The arrangement persists per storage key. Extras become individually movable via{' '}
+        <span className="mono text-foreground">toolbarExtraItems</span>.
+      </Lede>
+      <RichInput
+        cacheKey="ds-richinput-toolbar"
+        toolbarReorder="ds-demo"
+        accept="image/*"
+        undoWindowMs={0}
+        placeholder="Hold a toolbar button to rearrange the row…"
+      />
     </Section>
   );
 }

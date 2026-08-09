@@ -69,10 +69,35 @@ export interface HoldEditableProps<T> {
   children: (item: T, state: HoldEditableItemState) => ReactNode;
   /** Classes for the group container — this is where the layout lives. */
   className?: string;
-  /** Classes for each item's wrapper (rarely needed; the item renders its own box). */
-  itemClassName?: string;
+  /**
+   * Classes for each item's wrapper (rarely needed; the item renders its own
+   * box). A function receives the item, for per-item layout classes (e.g. a
+   * `flex-1` spacer among fixed-size buttons).
+   */
+  itemClassName?: string | ((item: T) => string | undefined);
   /** Hold duration before an item is picked up, in ms. */
   holdDelay?: number;
+  /**
+   * First-stage hold action. Fired once when a press has been held for
+   * {@link holdActionDelay} ms — well before the {@link holdDelay} pickup — so
+   * an item can own a "hold for options" gesture (a popover, a menu) *and*
+   * still be reorderable: keep holding through the action and the pickup
+   * happens as usual (close the popover in {@link onEditStart}). Return
+   * `false` for items with no hold action. When the action ran and the press
+   * ends before the pickup, the trailing click is swallowed — releasing into
+   * the popover must not also activate the item. Skipped while the group is
+   * already in (persistent) edit mode.
+   */
+  onItemHold?: (item: T) => boolean | void;
+  /** Hold duration before {@link onItemHold} fires, in ms. Default 500. */
+  holdActionDelay?: number;
+  /**
+   * Whether an item may be benched into the stash. Dragging a `false` item
+   * over the popover neither highlights it nor benches on release (the item
+   * flies back). Only consulted when the stash system is on. E.g. a toolbar's
+   * send button stays un-stashable so the group can't lose its last control.
+   */
+  canStash?: (item: T) => boolean;
   /** Jump cycle of the non-held items while editing, in ms. */
   jumpInterval?: number;
   /** Turns the whole interaction off — items render, nothing is draggable. */
@@ -365,6 +390,13 @@ const sameOver = (a: StashOver | null, b: StashOver | null) =>
  * item takes the tag's place in the stash) or onto empty group space to append
  * it. Both directions commit through {@link HoldEditableProps.onStashChange}.
  *
+ * **Two-stage holds.** {@link HoldEditableProps.onItemHold} gives an item a
+ * *first-stage* hold action, fired part-way through the hold (500ms by
+ * default): a send button can open its long-press menu there, and a user who
+ * keeps holding still reaches the pickup — one gesture, two depths. The
+ * release click after a fired action is swallowed, so releasing into the
+ * popover never also activates the item.
+ *
  * ```tsx
  * <HoldEditable
  *   items={tiles}
@@ -392,12 +424,15 @@ export function HoldEditable<T>({
   className,
   itemClassName,
   holdDelay = 1400,
+  onItemHold,
+  holdActionDelay = 500,
   jumpInterval = 800,
   disabled = false,
   onEditStart,
   onEditEnd,
   stash,
   onStashChange,
+  canStash,
   stashPlacement = 'bottom',
   stashLabel,
 }: HoldEditableProps<T>) {
@@ -464,6 +499,10 @@ export function HoldEditable<T>({
   /** Timestamp of the last drop — see the click-suppression effect below. */
   const droppedAt = useRef(0);
   const holdTimer = useRef<number | null>(null);
+  /** Pending first-stage hold action (see {@link HoldEditableProps.onItemHold}). */
+  const actionTimer = useRef<number | null>(null);
+  /** The first-stage action ran for the current press — swallow the release click. */
+  const actionFired = useRef(false);
   const dropTimer = useRef<number | null>(null);
   const chipTimer = useRef<number | null>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -500,6 +539,10 @@ export function HoldEditable<T>({
     if (holdTimer.current !== null) {
       window.clearTimeout(holdTimer.current);
       holdTimer.current = null;
+    }
+    if (actionTimer.current !== null) {
+      window.clearTimeout(actionTimer.current);
+      actionTimer.current = null;
     }
   };
 
@@ -576,6 +619,7 @@ export function HoldEditable<T>({
     pointerId.current = e.pointerId;
     setPressKey(key);
     clearHoldTimer();
+    actionFired.current = false;
     holdTimer.current = window.setTimeout(() => {
       holdTimer.current = null;
       // Pick up wherever the pointer is *now*, not where it went down: over
@@ -583,6 +627,18 @@ export function HoldEditable<T>({
       // the item jump out from under the cursor.
       beginDrag(key, lastPointer.current.x, lastPointer.current.y);
     }, effectiveHoldDelay);
+    // First-stage action: only on the deliberate (non-edit-mode) hold, and only
+    // when it actually lands before the pickup would.
+    if (onItemHold && !editModeRef.current && holdActionDelay < effectiveHoldDelay) {
+      actionTimer.current = window.setTimeout(() => {
+        actionTimer.current = null;
+        const item = byKey.get(key);
+        if (item !== undefined && onItemHold(item) !== false) {
+          actionFired.current = true;
+          navigator.vibrate?.(8);
+        }
+      }, holdActionDelay);
+    }
   };
 
   /* ------------------------------------------------------------ reordering */
@@ -640,7 +696,16 @@ export function HoldEditable<T>({
       setPressKey(null);
       const d = dragRef.current;
       const a = arrangementRef.current;
-      if (!d || !a) return;
+      if (!d || !a) {
+        // The first-stage hold action ran but the press never became a pickup:
+        // the release lands in the caller's popover, and the click it fires
+        // must not also activate the item under the pointer.
+        if (actionFired.current) {
+          actionFired.current = false;
+          droppedAt.current = Date.now();
+        }
+        return;
+      }
 
       // Released over the stash popover: the item leaves the group entirely.
       // No settle animation for the survivors — the parent's state changes and
@@ -888,8 +953,11 @@ export function HoldEditable<T>({
       }
       setDrag({ ...d, x: e.clientX, y: e.clientY });
       // Over the stash popover the slots stop re-filing — releasing there
-      // benches the item instead of dropping it into a slot.
-      const s = stashEnabled ? stashRef.current : null;
+      // benches the item instead of dropping it into a slot. Items the caller
+      // marked un-stashable never enter that state: the popover stays inert.
+      const held = byKey.get(d.key);
+      const stashable = !canStash || (held !== undefined && canStash(held) !== false);
+      const s = stashEnabled && stashable ? stashRef.current : null;
       const inStash = !!s && hits(rectOf(s), e.clientX, e.clientY);
       if (inStash !== overStashRef.current) {
         overStashRef.current = inStash;
@@ -926,7 +994,7 @@ export function HoldEditable<T>({
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('touchmove', onTouchMove);
     };
-  }, [pressKey, drag, stashDrag, endDrag, endStashDrag, considerMove, considerStashMove, stashEnabled]);
+  }, [pressKey, drag, stashDrag, endDrag, endStashDrag, considerMove, considerStashMove, stashEnabled, byKey, canStash]);
 
   /* -------------------------------------------------- edit mode (w/ stash) */
 
@@ -1083,7 +1151,7 @@ export function HoldEditable<T>({
                 if (pressing || editing) e.preventDefault();
               }}
               onPointerDown={(e) => onPointerDown(e, key)}
-              className={itemClassName}
+              className={typeof itemClassName === 'function' ? itemClassName(item) : itemClassName}
               style={
                 arrangement && shift
                   ? {

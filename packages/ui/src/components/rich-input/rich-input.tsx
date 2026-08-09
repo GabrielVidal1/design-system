@@ -21,6 +21,7 @@ import { useGuidelines } from './use-guidelines';
 import { useInputHistory } from './use-input-history';
 import { useMention } from './use-mention';
 import { useSavedDrafts } from './use-saved-drafts';
+import { ReorderableToolbar, type ToolbarEntry } from './toolbar-reorder';
 import {
   AttachmentChips,
   GuidelinesSwitch,
@@ -39,6 +40,7 @@ import type {
   RichInputHandle,
   RichSendButtonProps,
   RichSendPayload,
+  RichToolbarItem,
 } from './types';
 
 const LINE_HEIGHT = 22;
@@ -146,6 +148,25 @@ export interface RichInputProps {
   toolbarExtra?: ReactNode;
 
   /**
+   * Make the bottom toolbar user-arrangeable: hold any control (~1.4s) to
+   * enter edit mode and drag to reorder — including across the draggable
+   * spacer that splits the left/right clusters — and bench controls you don't
+   * use into the stash popover. Holding the **send button** passes through a
+   * first stage (~0.5s) that opens its draft menu; keep holding to reach edit
+   * mode. The arrangement persists in localStorage: pass a string to name the
+   * storage key (share it across composers that should stay arranged alike),
+   * or `true` to fall back to `cacheKey`.
+   */
+  toolbarReorder?: boolean | string;
+  /**
+   * Extra toolbar controls as *items*, so a reorderable toolbar can move and
+   * stash each one individually. Preferred over {@link toolbarExtra} when
+   * {@link toolbarReorder} is on (a plain `toolbarExtra` then moves as one
+   * block).
+   */
+  toolbarExtraItems?: RichToolbarItem[];
+
+  /**
    * Replace the built-in send button. Receives `{ canSend, submit }` — call
    * `submit` for a plain send (e.g. from `onClick`) and layer on whatever else
    * the caller needs (a long-press menu, a split button, …). The built-in
@@ -160,8 +181,9 @@ export interface RichInputProps {
  * @summary The full composer: draft persistence (text + tag selection), a
  * saved-drafts shelf (long-press send to stash, fuzzy-search dropdown to
  * restore), un-send window, file attachments, guideline tags with inline
- * search, `#mention` autocomplete and prompt history. Use for any chat/agent
- * input.
+ * search, `#mention` autocomplete, prompt history, and an optional
+ * hold-to-rearrange toolbar (reorder the controls, bench spares in a stash).
+ * Use for any chat/agent input.
  */
 export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function RichInput(
   {
@@ -201,6 +223,8 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     tagSearch = true,
     composePrompt = defaultComposePrompt,
     toolbarExtra,
+    toolbarReorder = false,
+    toolbarExtraItems,
     renderSendButton,
   },
   ref,
@@ -233,6 +257,12 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
   const [sheetOpen, setSheetOpen] = useState(false);
   // Focus-within tracking, only consulted by `collapseWhenIdle`.
   const [focused, setFocused] = useState(false);
+
+  // Reorderable-toolbar mode: the send button's draft menu opens on the
+  // toolbar's first-stage hold, so the composer owns its open state.
+  const [sendMenuOpen, setSendMenuOpen] = useState(false);
+  const reorderKey =
+    toolbarReorder === true ? (cacheKey ?? 'default') : toolbarReorder || null;
 
   // Guideline master switch (only surfaced when `guidelinesToggle` is set).
   // A cached draft's saved state wins over the default.
@@ -714,60 +744,118 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
 
           {files.error && <p className="px-2 pt-1 text-xs text-destructive">{files.error}</p>}
 
-          <div className="mt-1.5 flex items-center gap-1.5 px-1">
-            {uploadFiles !== undefined || accept !== undefined || maxFiles !== undefined ? (
-              <>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  multiple
-                  accept={accept}
-                  className="hidden"
-                  onChange={(e) => void files.add(e.target.files)}
-                  onClick={(e) => {
-                    (e.currentTarget as HTMLInputElement).value = '';
-                  }}
-                />
-                <IconButton
-                  label="Attach files"
-                  disabled={busy}
-                  onClick={() => fileRef.current?.click()}
-                >
-                  {files.uploading ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Paperclip className="size-4" />
-                  )}
-                </IconButton>
-              </>
-            ) : null}
+          {filesEnabled && (
+            <input
+              ref={fileRef}
+              type="file"
+              multiple
+              accept={accept}
+              className="hidden"
+              onChange={(e) => void files.add(e.target.files)}
+              onClick={(e) => {
+                (e.currentTarget as HTMLInputElement).value = '';
+              }}
+            />
+          )}
 
-            {toolbarExtra}
-
-            <div className="ml-auto flex items-center gap-1.5">
-              {historyEnabled && hist.entries.length > 0 && (
+          {(() => {
+            const attachNode = filesEnabled ? (
+              <IconButton
+                label="Attach files"
+                disabled={busy}
+                onClick={() => fileRef.current?.click()}
+              >
+                {files.uploading ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Paperclip className="size-4" />
+                )}
+              </IconButton>
+            ) : null;
+            const historyNode =
+              historyEnabled && hist.entries.length > 0 ? (
                 <IconButton label="History" onClick={() => setSheetOpen(true)}>
                   <History className="size-4" />
                 </IconButton>
-              )}
-              {renderSendButton ? (
-                renderSendButton({ canSend, submit, saveDraft })
-              ) : (
-                <SendDraftButton
-                  canSend={canSend}
-                  submit={submit}
-                  onSaveDraft={draftsEnabled ? saveDraft : undefined}
-                />
-              )}
-              {draftsEnabled && (
-                <DraftsMenu
-                  drafts={savedDrafts.drafts}
-                  onPick={restoreDraft}
-                  onDelete={savedDrafts.remove}
-                />
-              )}
-            </div>
-          </div>
+              ) : null;
+            const sendNode = renderSendButton ? (
+              renderSendButton({
+                canSend,
+                submit,
+                saveDraft,
+                ...(reorderKey
+                  ? { menuOpen: sendMenuOpen, onMenuOpenChange: setSendMenuOpen }
+                  : {}),
+              })
+            ) : (
+              <SendDraftButton
+                canSend={canSend}
+                submit={submit}
+                onSaveDraft={draftsEnabled ? saveDraft : undefined}
+                {...(reorderKey ? { open: sendMenuOpen, onOpenChange: setSendMenuOpen } : {})}
+              />
+            );
+            const draftsNode = draftsEnabled ? (
+              <DraftsMenu
+                drafts={savedDrafts.drafts}
+                onPick={restoreDraft}
+                onDelete={savedDrafts.remove}
+              />
+            ) : null;
+
+            if (!reorderKey)
+              return (
+                <div className="mt-1.5 flex items-center gap-1.5 px-1">
+                  {attachNode}
+                  {toolbarExtra}
+                  <div className="ml-auto flex items-center gap-1.5">
+                    {historyNode}
+                    {sendNode}
+                    {draftsNode}
+                  </div>
+                </div>
+              );
+
+            // Reorderable toolbar: every control is a HoldEditable entry, the
+            // classic left/right split lives on as the draggable spacer, and
+            // the send button's first-stage hold opens its draft menu.
+            const extraEntries: ToolbarEntry[] = toolbarExtraItems
+              ? toolbarExtraItems.map((it) => ({
+                  id: it.id,
+                  label: it.label,
+                  stashable: true,
+                  node: it.node,
+                }))
+              : toolbarExtra != null
+                ? [{ id: 'extra', label: 'Extras', stashable: true, node: toolbarExtra }]
+                : [];
+            const entries: ToolbarEntry[] = [
+              ...(attachNode
+                ? [{ id: 'attach', label: 'Attach', stashable: true, node: attachNode }]
+                : []),
+              ...extraEntries,
+              { id: 'spacer', label: 'Spacer', stashable: true, flex: true, node: null },
+              ...(historyNode
+                ? [{ id: 'history', label: 'History', stashable: true, node: historyNode }]
+                : []),
+              { id: 'send', label: 'Send', stashable: false, node: sendNode },
+              ...(draftsNode && savedDrafts.drafts.length > 0
+                ? [{ id: 'drafts', label: 'Drafts', stashable: true, node: draftsNode }]
+                : []),
+            ];
+            const sendHasMenu = renderSendButton !== undefined || draftsEnabled;
+            return (
+              <ReorderableToolbar
+                storageKey={reorderKey}
+                entries={entries}
+                onEditStart={() => setSendMenuOpen(false)}
+                onItemHold={(e) => {
+                  if (e.id !== 'send' || !canSend || !sendHasMenu) return false;
+                  setSendMenuOpen(true);
+                }}
+              />
+            );
+          })()}
         </div>
       )}
 

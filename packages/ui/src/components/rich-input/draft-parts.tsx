@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type MouseEvent } from 'react';
 import { NotebookPen, Save, SendHorizontal, Trash2, X } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
@@ -13,14 +13,25 @@ export function SendDraftButton({
   canSend,
   submit,
   onSaveDraft,
+  open: openProp,
+  onOpenChange,
 }: {
   canSend: boolean;
   submit: () => void;
   /** Absent ⇒ drafts are disabled: the button is a plain send button. */
   onSaveDraft?: () => void;
+  /**
+   * Controlled menu (the reorderable toolbar's first-stage hold owns the
+   * gesture): `open` renders the menu, `onOpenChange` reports closes and the
+   * right-click open. The internal long-press is off in this mode.
+   */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const close = () => setOpen(false);
+  const controlled = onOpenChange !== undefined;
+  const [openState, setOpen] = useState(false);
+  const open = controlled ? (openProp ?? false) : openState;
+  const close = () => (controlled ? onOpenChange(false) : setOpen(false));
   const wrapRef = useOutsideClick<HTMLDivElement>(close, open);
   useEscape(close, open);
 
@@ -31,10 +42,20 @@ export function SendDraftButton({
     },
   });
 
+  // Controlled mode: a plain click sends; right-click still opens the menu.
+  const controlledHandlers = {
+    onClick: submit,
+    onContextMenu: (e: MouseEvent) => {
+      if (!canSend || !onSaveDraft) return;
+      e.preventDefault();
+      onOpenChange?.(true);
+    },
+  };
+
   return (
     <div ref={wrapRef} className="relative inline-flex">
       <button
-        {...(onSaveDraft ? lp : { onClick: submit })}
+        {...(controlled ? controlledHandlers : onSaveDraft ? lp : { onClick: submit })}
         type="button"
         aria-label="Send"
         title={onSaveDraft ? 'Send · hold to save as draft' : 'Send'}

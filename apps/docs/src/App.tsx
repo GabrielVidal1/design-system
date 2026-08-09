@@ -648,6 +648,18 @@ open(media, { story: true })      // auto-advancing story + progress bar`,
   {(t, { editing }) => <StatTile {...t} />}
 </HoldEditable>
 
+// Two-stage holds: onItemHold fires part-way through the hold
+// (500ms) so an item can own a "hold for options" popover AND stay
+// reorderable — keep holding through it to reach the pickup. The
+// release click after a fired action is swallowed. canStash marks
+// items that may never be benched (a toolbar's send button).
+<HoldEditable
+  onItemHold={(t) => t.id === 'send' && openMenu()}  // false = no action
+  holdActionDelay={500}
+  canStash={(t) => t.id !== 'send'}
+  ...
+/>
+
 // The DOM order is frozen during the drag (reorder is transforms
 // only, committed on drop) — that is what keeps a touch drag alive
 // across slot hand-overs. Keep interactive sub-trees pressable with
@@ -1090,6 +1102,7 @@ ref.current?.toggle('bottom')`,
   undoWindowMs={3000}      // 3s un-send window
   tags={guidelineTags}     // toggle chips + #mention
   accept="image/*"         // multi-file upload
+  toolbarReorder           // hold-to-rearrange toolbar + stash
   onSubmit={(p) => send(p.prompt, p.files)}
 />`,
   },

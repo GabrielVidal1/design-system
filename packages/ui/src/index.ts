@@ -225,6 +225,7 @@ export type {
   RichInputHandle,
   ComposeInput,
   SavedDrafts,
+  RichToolbarItem,
 } from './components/rich-input';
 export { CharRoll } from './components/char-roll';
 export type { CharRollProps } from './components/char-roll';

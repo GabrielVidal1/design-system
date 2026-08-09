@@ -16,6 +16,25 @@ last release → grouped bullets under Unreleased), then curate the prose.
 ## [Unreleased]
 
 ### Added
+- `HoldEditable` — **two-stage holds**: new `onItemHold` / `holdActionDelay`
+  props give an item a *first-stage* hold action fired part-way through the
+  hold (500ms by default) — a send button can open its long-press menu there
+  while a longer hold still reaches the pickup, one gesture with two depths.
+  The release click after a fired action is swallowed, so releasing into the
+  popover never also activates the item. Plus `canStash` (mark items that may
+  never be benched into the stash popover) and `itemClassName` now also takes
+  a function of the item, for per-item layout classes (a `flex-1` spacer).
+- `RichInput` — **reorderable toolbar**: with the new `toolbarReorder` prop
+  the bottom toolbar (attach, extras, history, send, drafts) becomes a
+  `HoldEditable` group — hold any control to enter edit mode and drag to
+  rearrange, including the draggable spacer that splits the left/right
+  clusters, and bench controls you don't use into the stash popover (send is
+  un-stashable). Holding the send button first opens its draft menu; holding
+  longer enters edit mode. The arrangement persists in localStorage under the
+  given key (or `cacheKey`). Extras become individually movable via the new
+  `toolbarExtraItems` prop (`RichToolbarItem[]`, exported); custom
+  `renderSendButton` implementations receive `menuOpen`/`onMenuOpenChange` to
+  render their menu under the composer-owned gesture.
 - `RichInput` — **saved-drafts shelf**: long-press (or right-click) the send
   button to save the message as a draft instead of sending — the text, the
   selected tag/guideline ids, the attachments and an optional caller payload
