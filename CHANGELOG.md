@@ -16,6 +16,14 @@ last release → grouped bullets under Unreleased), then curate the prose.
 ## [Unreleased]
 
 ### Changed
+- `HoldEditable` — **the stash is on by default.** Every group now has the
+  overflow bench, so any item can be taken out and put back and a removal is
+  never a deletion: edit mode is persistent (a drop no longer ends it — a tap
+  outside or Escape does) and the tag popover opens beside the group while
+  editing. `stash` still lets a caller *own* the bench (to persist it, seed it
+  or share it) via `onStashChange`; leave it out and the component keeps the
+  bench in local state for the lifetime of the mount. The new `stash={false}`
+  opts a group out entirely and restores the old drop-ends-edit-mode behaviour.
 - `RichInput` — **the composer no longer writes prompts.** Tags used to carry
   the text they injected (`prompt` / `promptOff`) and the component assembled a
   `Guidelines:` / `Context:` / `Attachments:` block for you. That belongs to the
@@ -36,6 +44,14 @@ last release → grouped bullets under Unreleased), then curate the prose.
   so deriving `tags` from it can't loop.
 
 ### Added
+- `HoldEditable` — **compact edit mode.** A column of tall cards was
+  unreorderable in practice: two of them fill the screen, so every move was a
+  blind drag against an auto-scrolling edge. When the group is a single-axis
+  list (not a grid) and any item runs longer than ~96px, entering edit mode now
+  collapses *every* item to a short label row — the whole list fits at once and
+  a reorder is one short drag — and dismissing edit mode restores the real
+  items. `compactLabel` names an item's row (falling back to `stashLabel`, then
+  its key) and `compactEdit={false}` keeps dragging the cards themselves.
 - `RichInput` — `RichTag.depth` indents a chip behind a `↳` marker, so a caller
   whose tags form a hierarchy can show children under the tag that revealed
   them. The composer stays flat and unaware: hand it a different `tags` array as

@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -32,6 +33,14 @@ const CLICK_SUPPRESS_MS = 500;
 const EDIT_HOLD_MS = 150;
 /** Gap between the group and the stash popover, in px. */
 const STASH_GAP = 10;
+/**
+ * An item longer than this along the main axis is "big" — big enough that a
+ * column of them doesn't fit on screen, which is what makes drag-reordering
+ * miserable. One such item switches the group into compact edit mode.
+ */
+const COMPACT_TRIGGER_PX = 96;
+/** What every item is clipped to in compact edit mode (main axis, px). */
+const COMPACT_PX = 52;
 /**
  * Sub-trees a press must not turn into a pickup: native text entry (a hold
  * there means "select text"), plus an explicit `data-hold-editable-ignore`
@@ -108,14 +117,21 @@ export interface HoldEditableProps<T> {
   onEditEnd?: () => void;
   /**
    * The benched items — everything that could fill a slot but currently
-   * doesn't. Passing this (even `[]`) turns on the **stash system**: edit mode
-   * becomes persistent (it survives a drop, until a tap outside or Escape
-   * dismisses it) and, while editing, a popover of tags opens beside the
-   * group. Slotted items dragged onto the popover are benched; a tag dragged
-   * onto a slot swaps in and benches the item it displaces; a tag dropped on
-   * the group's empty space is appended. See {@link onStashChange}.
+   * doesn't. The **stash system is on by default**: edit mode is persistent
+   * (it survives a drop, until a tap outside or Escape dismisses it) and,
+   * while editing, a popover of tags opens beside the group. Slotted items
+   * dragged onto the popover are benched; a tag dragged onto a slot swaps in
+   * and benches the item it displaces; a tag dropped on the group's empty
+   * space is appended. Every removal is therefore undoable — the bench is
+   * where removed items wait, never a delete.
+   *
+   * Pass an array to **control** the bench (persist it, seed it, share it) and
+   * pair it with {@link onStashChange}. Leave it out and the component keeps
+   * its own bench in local state — the affordance is there with no wiring,
+   * but it lives and dies with the mount. Pass `false` to turn the whole
+   * system off: no popover, and edit mode ends on the drop.
    */
-  stash?: T[];
+  stash?: T[] | false;
   /** Called when an item crosses the stash boundary, with both updated lists. */
   onStashChange?: (items: T[], stash: T[]) => void;
   /**
@@ -126,6 +142,22 @@ export interface HoldEditableProps<T> {
   stashPlacement?: HoldEditableStashPlacement;
   /** Tag label for a stashed item. Defaults to the item's key. */
   stashLabel?: (item: T) => ReactNode;
+  /**
+   * **Compact edit mode.** A column of tall items (cards, panels, sections) is
+   * unreorderable in practice: two of them fill the screen, so every move is a
+   * blind drag against an auto-scrolling edge. When the group is a single-axis
+   * list — not a grid — and any item runs longer than ~96px, entering edit mode
+   * collapses *every* item to a short label row, so the whole list is visible
+   * at once and a reorder is one short drag. Dropping out of edit mode restores
+   * the real items. Set `false` to always drag the items themselves.
+   * @default true
+   */
+  compactEdit?: boolean;
+  /**
+   * Label for an item's compact row. Falls back to {@link stashLabel}, then to
+   * the item's key — so a group with either one already reads well collapsed.
+   */
+  compactLabel?: (item: T) => ReactNode;
 }
 
 interface Rect {
@@ -403,6 +435,28 @@ function stashPositionStyle(
 const TAG_CLASS =
   'mono inline-flex max-w-full cursor-grab items-center rounded-full border border-border bg-background px-2.5 py-1 text-[11px] leading-4 text-foreground shadow-sm';
 
+/** The collapsed stand-in an item is dragged as in compact edit mode. */
+function CompactRow({ children }: { children: ReactNode }) {
+  return (
+    <div
+      className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 text-xs text-foreground shadow-sm"
+      style={{ height: COMPACT_PX - 8 }}
+    >
+      <svg
+        aria-hidden
+        viewBox="0 0 10 16"
+        className="h-3.5 w-2.5 shrink-0 text-muted-foreground"
+        fill="currentColor"
+      >
+        {[3, 8, 13].map((cy) =>
+          [2.5, 7.5].map((cx) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="1.2" />),
+        )}
+      </svg>
+      <span className="min-w-0 flex-1 truncate">{children}</span>
+    </div>
+  );
+}
+
 const sameOver = (a: StashOver | null, b: StashOver | null) =>
   a === b || (!!a && !!b && a.type === b.type && (a.type !== 'slot' || a.key === (b as { key?: string }).key));
 
@@ -436,15 +490,22 @@ const sameOver = (a: StashOver | null, b: StashOver | null) =>
  * glides to the rect of the slot it now occupies. Grid cells are assumed
  * roughly equal-sized.
  *
- * **The stash.** Pass {@link HoldEditableProps.stash} and the group gains an
- * overflow bench for when there are more candidate items than visible slots.
- * Edit mode becomes persistent — a drop no longer ends it; a tap outside or
- * Escape does — and while editing a popover of tags (one per benched item)
- * opens beside the group ({@link HoldEditableProps.stashPlacement} picks the
- * side; that placement is the only customization). Drag a slotted item onto
- * the popover to bench it; drag a tag onto a slot to swap it in (the displaced
- * item takes the tag's place in the stash) or onto empty group space to append
- * it. Both directions commit through {@link HoldEditableProps.onStashChange}.
+ * **The stash — on by default.** Every group has an overflow bench, so any
+ * item can be taken out of the group and put back: a removal is never
+ * destructive. Edit mode is persistent — a drop no longer ends it; a tap
+ * outside or Escape does — and while editing a popover of tags (one per
+ * benched item) opens beside the group ({@link HoldEditableProps.stashPlacement}
+ * picks the side; that placement is the only customization). Drag a slotted
+ * item onto the popover to bench it; drag a tag onto a slot to swap it in (the
+ * displaced item takes the tag's place in the stash) or onto empty group space
+ * to append it. Pass {@link HoldEditableProps.stash} to own the bench (and
+ * persist it) via {@link HoldEditableProps.onStashChange}; leave it out and the
+ * component keeps the bench in local state; pass `stash={false}` to opt out.
+ *
+ * **Compact edit mode.** A column of tall cards collapses to short label rows
+ * while editing (see {@link HoldEditableProps.compactEdit}) so a reorder is one
+ * short drag instead of a blind fight with the scroll edge. Grids and rows of
+ * small controls are left alone.
  *
  * **Two-stage holds.** {@link HoldEditableProps.onItemHold} gives an item a
  * *first-stage* hold action, fired part-way through the hold (500ms by
@@ -491,6 +552,8 @@ export function HoldEditable<T>({
   canStash,
   stashPlacement = 'bottom',
   stashLabel,
+  compactEdit = true,
+  compactLabel,
 }: HoldEditableProps<T>) {
   useHoldEditableStyles();
 
@@ -508,20 +571,49 @@ export function HoldEditable<T>({
   const [chipDrop, setChipDrop] = useState<ChipDropState | null>(null);
   /** Bumped on scroll/resize while the stash is open, to re-anchor the popover. */
   const [anchorTick, setAnchorTick] = useState(0);
+  /** Tall items are collapsed to label rows for the duration of edit mode. */
+  const [compact, setCompact] = useState(false);
+  /** A pickup deferred by one commit, so it measures the *collapsed* slots. */
+  const [pendingPickup, setPendingPickup] = useState<string | null>(null);
 
-  const stashEnabled = stash !== undefined;
-  const stashItems = useMemo(() => stash ?? [], [stash]);
+  const stashEnabled = stash !== false;
+  /** The caller owns the bench; otherwise it lives here, keyed, for this mount. */
+  const controlledStash = Array.isArray(stash);
+  const [ownStashKeys, setOwnStashKeys] = useState<string[]>([]);
+
+  // Uncontrolled bench: `items` is still the full list, so the benched ones are
+  // filtered out of the slots here. Membership is tracked by key — an item the
+  // parent stopped shipping simply falls out of the bench with it.
+  const ownStashed = useMemo(() => new Set(controlledStash ? [] : ownStashKeys), [
+    controlledStash,
+    ownStashKeys,
+  ]);
+  const slotted = useMemo(
+    () => (ownStashed.size === 0 ? items : items.filter((it) => !ownStashed.has(getKey(it)))),
+    [items, ownStashed, getKey],
+  );
+  const stashItems = useMemo(() => {
+    if (controlledStash) return stash as T[];
+    if (ownStashKeys.length === 0) return [];
+    const byId = new Map(items.map((it) => [getKey(it), it]));
+    return ownStashKeys.map((k) => byId.get(k)).filter((it): it is T => it !== undefined);
+  }, [controlledStash, stash, ownStashKeys, items, getKey]);
+
   const activeEdit = stashEnabled && editMode;
   const stashLabelOf = useCallback(
     (item: T): ReactNode => (stashLabel ? stashLabel(item) : getKey(item)),
     [stashLabel, getKey],
   );
+  const compactLabelOf = useCallback(
+    (item: T): ReactNode => (compactLabel ? compactLabel(item) : stashLabelOf(item)),
+    [compactLabel, stashLabelOf],
+  );
 
   const byKey = useMemo(() => {
     const m = new Map<string, T>();
-    for (const it of items) m.set(getKey(it), it);
+    for (const it of slotted) m.set(getKey(it), it);
     return m;
-  }, [items, getKey]);
+  }, [slotted, getKey]);
 
   const stashByKey = useMemo(() => {
     const m = new Map<string, T>();
@@ -529,19 +621,40 @@ export function HoldEditable<T>({
     return m;
   }, [stashItems, getKey]);
 
+  /**
+   * Commit a bench crossing. A controlled bench goes back to the caller as
+   * both lists; an uncontrolled one is recorded here, and the caller still
+   * hears about the slots that remain — that's a reorder like any other.
+   */
+  const commitStash = useCallback(
+    (nextItems: T[], nextStash: T[]) => {
+      if (controlledStash) {
+        onStashChange?.(nextItems, nextStash);
+        return;
+      }
+      setOwnStashKeys(nextStash.map(getKey));
+      onStashChange?.(nextItems, nextStash);
+      onReorder(nextItems);
+    },
+    [controlledStash, onStashChange, onReorder, getKey],
+  );
+
   // While a drag is in flight we render the frozen DOM order; otherwise the
   // parent's. The frozen order is dropped if it no longer describes exactly the
   // items we were handed (the parent may add or remove one mid-drag).
   const list = useMemo(() => {
     const dom = arrangement?.dom;
-    if (!dom || dom.length !== items.length) return items;
-    if (dom.some((k) => !byKey.has(k))) return items;
+    if (!dom || dom.length !== slotted.length) return slotted;
+    if (dom.some((k) => !byKey.has(k))) return slotted;
     return dom.map((k) => byKey.get(k)!);
-  }, [arrangement, items, byKey]);
+  }, [arrangement, slotted, byKey]);
 
   const keys = useMemo(() => list.map(getKey), [list, getKey]);
   const keysRef = useRef(keys);
   keysRef.current = keys;
+  /** Mirror of `pressKey`, readable from the deferred-pickup layout effect. */
+  const pressKeyRef = useRef<string | null>(null);
+  pressKeyRef.current = pressKey;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   /** Wrapper element per key — the measurable "slot". */
@@ -605,6 +718,26 @@ export function HoldEditable<T>({
   /** Once in edit mode, the next pickup shouldn't demand the full deliberate hold. */
   const effectiveHoldDelay = activeEdit ? Math.min(EDIT_HOLD_MS, holdDelay) : holdDelay;
 
+  /* -------------------------------------------------- compact edit mode */
+
+  /**
+   * Whether this group should collapse to label rows while editing: a
+   * single-axis list (a grid already fits — its cells are small and 2D
+   * slot-hopping needs the real geometry) holding at least one item too long
+   * to drag comfortably.
+   */
+  const shouldCompact = useCallback((): boolean => {
+    if (!compactEdit) return false;
+    const rects: Rect[] = [];
+    for (const k of keysRef.current) {
+      const el = slots.current.get(k);
+      if (el) rects.push(rectOf(el));
+    }
+    if (rects.length < 2 || isGrid(rects)) return false;
+    const horizontal = isHorizontal(rects);
+    return rects.some((r) => (horizontal ? r.width : r.height) > COMPACT_TRIGGER_PX);
+  }, [compactEdit]);
+
   /* ---------------------------------------------------------------- pickup */
 
   const beginDrag = useCallback(
@@ -647,7 +780,17 @@ export function HoldEditable<T>({
         grid: isGrid(home),
       });
       setPressKey(null);
-      setDrag({ key, w: r.width, h: r.height, grabX: x - r.left, grabY: y - r.top, x, y });
+      // Clamped: in compact edit mode the item collapsed under the finger, so
+      // the point it was grabbed at can now sit outside it entirely.
+      setDrag({
+        key,
+        w: r.width,
+        h: r.height,
+        grabX: Math.min(Math.max(x - r.left, 0), r.width),
+        grabY: Math.min(Math.max(y - r.top, 0), r.height),
+        x,
+        y,
+      });
       navigator.vibrate?.(12);
       if (stashEnabled) {
         // With a stash, edit mode outlives the drag; onEditStart marks entering
@@ -663,6 +806,44 @@ export function HoldEditable<T>({
     [onEditStart, stashEnabled],
   );
 
+  /**
+   * The hold has landed. Normally that is the pickup — but a list of tall items
+   * collapses to label rows first, and the pickup has to wait one commit for
+   * that: `beginDrag` freezes the slot geometry, and geometry measured against
+   * the full-height cards would describe a layout that no longer exists. The
+   * pointer is captured on the (unchanging) slot wrapper before the collapse,
+   * so swapping the item's own subtree out from under a finger can't cancel the
+   * touch mid-gesture.
+   */
+  const requestPickup = useCallback(
+    (key: string) => {
+      const { x, y } = lastPointer.current;
+      if (!compact && shouldCompact()) {
+        const el = slots.current.get(key);
+        if (el && pointerId.current !== null) {
+          try {
+            el.setPointerCapture(pointerId.current);
+          } catch {
+            /* pointer already gone — the pickup will no-op on the next event */
+          }
+        }
+        setCompact(true);
+        setPendingPickup(key);
+        return;
+      }
+      beginDrag(key, x, y);
+    },
+    [compact, shouldCompact, beginDrag],
+  );
+
+  // The collapsed rows are in the DOM now — pick up against *their* geometry.
+  useLayoutEffect(() => {
+    if (pendingPickup === null) return;
+    setPendingPickup(null);
+    if (pressKeyRef.current !== pendingPickup) return; // released in between
+    beginDrag(pendingPickup, lastPointer.current.x, lastPointer.current.y);
+  }, [pendingPickup, beginDrag]);
+
   const onPointerDown = (e: React.PointerEvent, key: string) => {
     if (disabled || dragRef.current || stashDragRef.current || drop) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
@@ -670,6 +851,10 @@ export function HoldEditable<T>({
     // semantics: holding inside a textarea must select text, not lift the card.
     const target = e.target as Element | null;
     if (target?.closest?.(NO_HOLD_SELECTOR)) return;
+    // Groups nest — a hold-editable grid of stats inside a hold-editable stack
+    // of cards. The press belongs to the innermost group that takes it, or a
+    // single hold would arm both and pick up two items at once.
+    e.stopPropagation();
     pressPos.current = { x: e.clientX, y: e.clientY };
     lastPointer.current = { x: e.clientX, y: e.clientY };
     pointerId.current = e.pointerId;
@@ -681,7 +866,7 @@ export function HoldEditable<T>({
       // Pick up wherever the pointer is *now*, not where it went down: over
       // 1.4s a mouse drifts, and starting the drag at a stale point would make
       // the item jump out from under the cursor.
-      beginDrag(key, lastPointer.current.x, lastPointer.current.y);
+      requestPickup(key);
     }, effectiveHoldDelay);
     // First-stage action: only on the deliberate (non-edit-mode) hold, and only
     // when it actually lands before the pickup would.
@@ -763,6 +948,15 @@ export function HoldEditable<T>({
         return;
       }
 
+      // Never bench the last slot. An empty group has nothing left to hold, so
+      // there would be no way back into edit mode — and the popover that holds
+      // everything the user took out only exists while editing. The drop falls
+      // through to a normal one instead.
+      if (overStashRef.current && a.order.length <= 1) {
+        overStashRef.current = false;
+        setOverStash(false);
+      }
+
       // Released over the stash popover: the item leaves the group entirely.
       // No settle animation for the survivors — the parent's state changes and
       // the grid reflows to the remaining items at once — but the held ghost
@@ -798,7 +992,7 @@ export function HoldEditable<T>({
           const nextItems = remaining
             .map((k) => byKey.get(k))
             .filter((it): it is T => it !== undefined);
-          onStashChange?.(nextItems, [...stashItems, item]);
+          commitStash(nextItems, [...stashItems, item]);
         }
         return;
       }
@@ -833,8 +1027,11 @@ export function HoldEditable<T>({
         dropTimer.current = null;
         setDrop(null);
         // Only now does the DOM reorder — into exactly the arrangement the
-        // transforms were already showing, so the swap is invisible.
+        // transforms were already showing, so the swap is invisible. Without a
+        // stash the drop also ends edit mode, so the real items come back with
+        // it — after the ghost has landed, never under it.
         setArrangement(null);
+        if (!stashEnabled) setCompact(false);
       }, DROP_MS);
 
       const changed =
@@ -847,7 +1044,7 @@ export function HoldEditable<T>({
       // user dismisses it (tap outside / Escape), in the effect below.
       if (!stashEnabled) onEditEnd?.();
     },
-    [byKey, onReorder, onEditEnd, stashEnabled, stashItems, onStashChange],
+    [byKey, onReorder, onEditEnd, stashEnabled, stashItems, commitStash],
   );
 
   /* ------------------------------------------------------ stash-tag drags */
@@ -863,7 +1060,7 @@ export function HoldEditable<T>({
     // normal drag uses, minus the reflow (a tag targets a slot, it doesn't
     // displace it until the drop commits the swap).
     const c = rectOf(container);
-    const slotKeys = items.map(getKey);
+    const slotKeys = slotted.map(getKey);
     const home: Rect[] = [];
     for (const k of slotKeys) {
       const slot = slots.current.get(k);
@@ -927,19 +1124,19 @@ export function HoldEditable<T>({
       if (item !== undefined && over && container) {
         const c = rectOf(container);
         if (over.type === 'slot') {
-          const idx = items.findIndex((it) => getKey(it) === over.key);
+          const idx = slotted.findIndex((it) => getKey(it) === over.key);
           const model = stashSlots.current;
           const slot = model ? model.home[model.keys.indexOf(over.key)] : undefined;
           if (idx >= 0 && slot) {
             // Swap: the tag takes the slot, the displaced item takes the tag's
             // place in the stash — the bench never silently grows or shrinks.
-            const nextItems = [...items];
+            const nextItems = [...slotted];
             const displaced = nextItems[idx];
             nextItems[idx] = item;
             const nextStash = [...stashItems];
             const tagIdx = nextStash.findIndex((it) => getKey(it) === sd.key);
             if (tagIdx >= 0) nextStash[tagIdx] = displaced;
-            onStashChange?.(nextItems, nextStash);
+            commitStash(nextItems, nextStash);
             flight = {
               x: c.left + slot.left + slot.width / 2 - sd.w / 2,
               y: c.top + slot.top + slot.height / 2 - sd.h / 2,
@@ -947,8 +1144,8 @@ export function HoldEditable<T>({
             };
           }
         } else {
-          onStashChange?.(
-            [...items, item],
+          commitStash(
+            [...slotted, item],
             stashItems.filter((it) => getKey(it) !== sd.key),
           );
           flight = { x: sd.x - sd.grabX, y: sd.y - sd.grabY, fade: true };
@@ -974,7 +1171,7 @@ export function HoldEditable<T>({
         }, DROP_MS);
       }
     },
-    [items, stashItems, stashByKey, getKey, onStashChange, stashLabelOf],
+    [slotted, stashItems, stashByKey, getKey, commitStash, stashLabelOf],
   );
 
   // Window-level pointer handling: a drag must survive the pointer leaving the
@@ -1058,6 +1255,7 @@ export function HoldEditable<T>({
     clearHoldTimer();
     setPressKey(null);
     setEditMode(false);
+    setCompact(false);
     onEditEnd?.();
   }, [onEditEnd]);
 
@@ -1256,11 +1454,15 @@ export function HoldEditable<T>({
                         : { transition: 'transform 140ms ease-out' }
                 }
               >
-                {children(
-                  item,
-                  held
-                    ? { held: false, editing: false, pressing: false, index: domIndex, count: list.length }
-                    : { held: false, editing, pressing, index, count: list.length },
+                {compact ? (
+                  <CompactRow>{compactLabelOf(item)}</CompactRow>
+                ) : (
+                  children(
+                    item,
+                    held
+                      ? { held: false, editing: false, pressing: false, index: domIndex, count: list.length }
+                      : { held: false, editing, pressing, index, count: list.length },
+                  )
                 )}
               </div>
 
@@ -1324,13 +1526,17 @@ export function HoldEditable<T>({
                 : 'drop-shadow(0 0 0 rgb(0 0 0 / 0))',
             }}
           >
-            {children(ghostItem, {
-              held: true,
-              editing,
-              pressing: false,
-              index: ghostKey ? slotIndex(ghostKey) : -1,
-              count: list.length,
-            })}
+            {compact ? (
+              <CompactRow>{compactLabelOf(ghostItem)}</CompactRow>
+            ) : (
+              children(ghostItem, {
+                held: true,
+                editing,
+                pressing: false,
+                index: ghostKey ? slotIndex(ghostKey) : -1,
+                count: list.length,
+              })
+            )}
           </div>,
           document.body,
         )}
