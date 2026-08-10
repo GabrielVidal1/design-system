@@ -24,6 +24,7 @@ Two audiences, one library:
      the section empty (this comment only) when nothing is in flight. -->
 
 - [design-system] `Breadcrumbs`, pagination — @2026-08-10T01:48Z
+- [design-system] `Menu` / context menu (long-press on touch) — @2026-08-10T01:49Z
 
 ## Principles
 
