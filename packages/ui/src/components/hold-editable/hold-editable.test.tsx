@@ -39,7 +39,7 @@ function layout(h: number) {
   };
 }
 
-function Harness({ tall, stash }: { tall: boolean; stash?: false }) {
+function Harness({ stash }: { tall: boolean; stash?: false }) {
   const [cards, setCards] = useState(CARDS);
   return (
     <HoldEditable

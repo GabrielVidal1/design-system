@@ -157,6 +157,7 @@ import {
   PopoverIcon,
   Nav2DIcon,
   PhonePreviewIcon,
+  PhoneKeyboardIcon,
   ProgressIcon,
   ProgressiveBashIcon,
   ProgressiveImageIcon,
@@ -200,6 +201,7 @@ import { SandpackProvider, SandpackCodeEditor, type SandpackTheme } from '@codes
 import { RichInputPage } from './pages/RichInputPage';
 import { ElementPickerPage } from './pages/ElementPickerPage';
 import { PalettePickerPage } from './pages/PalettePickerPage';
+import { PhoneKeyboardPage } from './pages/PhoneKeyboardPage';
 import { StartPage } from './pages/StartPage';
 import { ThemingPage } from './pages/ThemingPage';
 import { ChangelogDocPage } from './pages/ChangelogPage';
@@ -285,6 +287,7 @@ const GROUP_OF: Record<string, Group> = {
   tooltip: 'Feedback',
   popover: 'Feedback',
   'phone-preview': 'Layout',
+  'phone-keyboard': 'Inputs',
   'iframe-preview': 'Layout',
   'floating-panel': 'Layout',
   'resizable-layout': 'Layout',
@@ -337,6 +340,7 @@ const SOURCE_FILE: Record<string, string> = {
   'progressive-timeline': 'progressive-timeline.tsx',
   changelog: 'changelog.tsx',
   'phone-preview': 'phone-preview.tsx',
+  'phone-keyboard': 'phone-keyboard.tsx',
   'iframe-preview': 'iframe-preview.tsx',
   'floating-panel': 'floating-panel.tsx',
   'resizable-layout': 'resizable-layout.tsx',
@@ -913,7 +917,28 @@ const { entries, newVersion, dismissNewVersion } =
 </PhonePreview>
 
 // …or embed a live app, scaled to device width
-<PhonePreview src="https://note.dev.gabvdl.xyz" />`,
+<PhonePreview src="https://note.dev.gabvdl.xyz" />
+
+// …or dock a real on-screen keyboard in the screen and drive it
+<PhonePreview ref={phone} statusBar keyboard>
+  <Screen />                        {/* holds a <PhoneTextField /> */}
+</PhonePreview>
+phone.current.keyboard.type('typed character by character')`,
+  },
+  {
+    id: 'phone-keyboard',
+    name: 'PhoneKeyboard',
+    sig: 'ref.type · ref.replace · hold delete · PhoneTextField',
+    tag: 'inputs',
+    Icon: PhoneKeyboardIcon,
+    Page: PhoneKeyboardPage,
+    code: `<PhoneKeyboardProvider>
+  <PhoneTextField placeholder="Message" />
+  <PhoneKeyboard ref={kb} layout="azerty" theme="dark" />
+</PhoneKeyboardProvider>
+
+await kb.current.type('one character at a time')  // keys light up
+await kb.current.replace('held delete, then this') // hold-to-replace`,
   },
   {
     id: 'iframe-preview',

@@ -55,6 +55,7 @@
     "./editor.css": "./dist/editor.css",
     "./progress.css": "./dist/progress.css",
     "./tooltip.css": "./dist/tooltip.css",
+    "./keyboard.css": "./dist/keyboard.css",
     "./package.json": "./package.json"
   },
   "scripts": {

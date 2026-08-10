@@ -1,5 +1,8 @@
-import type { CSSProperties, ReactNode } from 'react';
+import { forwardRef, useImperativeHandle, useRef, type CSSProperties, type ReactNode } from 'react';
 import { BatteryFull, Signal, Wifi } from 'lucide-react';
+
+import { PhoneKeyboard, type PhoneKeyboardHandle, type PhoneKeyboardProps } from '../phone-keyboard/phone-keyboard';
+import { PhoneKeyboardProvider } from '../phone-keyboard/text-buffer';
 
 /**
  * Faux iOS status bar for the top of a {@link PhonePreview} screen: time on the
@@ -59,32 +62,73 @@ export interface PhonePreviewProps {
   island?: boolean;
   /** Prepend an {@link IOSStatusBar} (only meaningful with `children`). */
   statusBar?: boolean;
+  /**
+   * Dock a {@link PhoneKeyboard} at the bottom of the screen and wrap the screen
+   * in a {@link PhoneKeyboardProvider}, so a {@link PhoneTextField} anywhere in
+   * `children` shows what it types. Pass an object to configure the keyboard
+   * (layout, theme, `onValueChange`…). Ignored when `src` is set — a live iframe
+   * has its own keyboard.
+   */
+  keyboard?: boolean | Omit<PhoneKeyboardProps, 'width'>;
+  /** Initial text of the keyboard's buffer. */
+  defaultText?: string;
   className?: string;
   style?: CSSProperties;
+}
+
+/** The `ref` of a {@link PhonePreview}: the frame, plus its keyboard's controls. */
+export interface PhonePreviewHandle {
+  /** The outermost element of the mockup. */
+  readonly element: HTMLDivElement | null;
+  /** Imperative control of the docked keyboard — `null` unless `keyboard` is set. */
+  readonly keyboard: PhoneKeyboardHandle | null;
 }
 
 /**
  * A dependency-free iPhone mockup. Drop any React tree in as `children` to frame
  * a screen, or pass `src` to embed a live app as a scaled iframe (the technique
- * the note-vite and insta-pics landing pages use). Pure inline styles — no
- * Tailwind required.
+ * the note-vite and insta-pics landing pages use). Add `keyboard` and the screen
+ * gets a real on-screen keyboard docked at the bottom — tap it, or drive it
+ * through the ref (`ref.current.keyboard.type('…')`) to have text appear
+ * character by character. Pure inline styles — no Tailwind required.
  *
  * @summary iPhone-style device frame around children or a `src` URL, with dynamic
- * island and status bar.
+ * island, status bar and an optional on-screen keyboard.
  */
-export function PhonePreview({
-  children,
-  src,
-  title = 'Phone preview',
-  screenWidth = 300,
-  deviceWidth = 390,
-  deviceHeight = 844,
-  frameColor = '#1f2933',
-  island = true,
-  statusBar = false,
-  className,
-  style,
-}: PhonePreviewProps) {
+export const PhonePreview = forwardRef<PhonePreviewHandle, PhonePreviewProps>(function PhonePreview(
+  {
+    children,
+    src,
+    title = 'Phone preview',
+    screenWidth = 300,
+    deviceWidth = 390,
+    deviceHeight = 844,
+    frameColor = '#1f2933',
+    island = true,
+    statusBar = false,
+    keyboard = false,
+    defaultText = '',
+    className,
+    style,
+  },
+  ref,
+) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const keyboardRef = useRef<PhoneKeyboardHandle | null>(null);
+  useImperativeHandle(
+    ref,
+    () => ({
+      get element() {
+        return rootRef.current;
+      },
+      get keyboard() {
+        return keyboardRef.current;
+      },
+    }),
+    [],
+  );
+
+  const keyboardProps = keyboard === true ? {} : keyboard === false ? null : keyboard;
   const screenHeight = Math.round((screenWidth * deviceHeight) / deviceWidth);
   const unit = screenWidth / 300; // scale every fixed dimension off a 300px baseline
   const bezel = Math.round(12 * unit);
@@ -110,7 +154,7 @@ export function PhonePreview({
   );
 
   return (
-    <div className={className} style={{ width: screenWidth + bezel * 2, ...style }}>
+    <div ref={rootRef} className={className} style={{ width: screenWidth + bezel * 2, ...style }}>
       <div
         style={{
           padding: bezel,
@@ -147,6 +191,17 @@ export function PhonePreview({
                 background: 'var(--background, #fff)',
               }}
             />
+          ) : keyboardProps ? (
+            // With a keyboard the screen becomes a column: the content scrolls in
+            // what is left above the keys, exactly as a phone reflows when the
+            // keyboard comes up.
+            <PhoneKeyboardProvider defaultValue={defaultText}>
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' }}>
+                {statusBar && <IOSStatusBar />}
+                <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>{children}</div>
+                <PhoneKeyboard ref={keyboardRef} width={screenWidth} {...keyboardProps} />
+              </div>
+            </PhoneKeyboardProvider>
           ) : (
             <div style={{ position: 'absolute', inset: 0, overflow: 'auto' }}>
               {statusBar && <IOSStatusBar />}
@@ -157,4 +212,4 @@ export function PhonePreview({
       </div>
     </div>
   );
-}
+});

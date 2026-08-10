@@ -57,6 +57,7 @@ import '@gabvdl/ui/styles.css'; // or theme.css for tokens only
 
 | Component | Exports | What it is for |
 | --- | --- | --- |
+| **[PhoneKeyboard](https://ui.gabvdl.xyz/#/c/phone-keyboard)** | `PhoneKeyboard` · `PhoneKeyboardProvider` · `PhoneTextField` · `usePhoneText` · `phoneKeyboardHeight` · `PHONE_KEYBOARD_DARK` · `PHONE_KEYBOARD_LIGHT` · `AZERTY` · `QWERTY` · `PHONE_KEYBOARD_LAYOUTS` | Gboard-accurate on-screen phone keyboard that types, deletes and replaces text character by character through an imperative ref. |
 | **[Button](https://ui.gabvdl.xyz/#/c/button)** | `Button` | The base button — variants, sizes, icon slot, loading state, and a `tooltip` prop wired to `Tooltip`. |
 | **[Input](https://ui.gabvdl.xyz/#/c/input)** | `Input` | The base text input, styled to the theme tokens. |
 | **[Textarea](https://ui.gabvdl.xyz/#/c/textarea)** | `Textarea` | Multi-line text input, styled to the theme tokens, that auto-grows with content. |
@@ -111,7 +112,7 @@ import '@gabvdl/ui/styles.css'; // or theme.css for tokens only
 
 | Component | Exports | What it is for |
 | --- | --- | --- |
-| **[PhonePreview](https://ui.gabvdl.xyz/#/c/phone-preview)** | `PhonePreview` · `IOSStatusBar` | iPhone-style device frame around children or a `src` URL, with dynamic island and status bar. |
+| **[PhonePreview](https://ui.gabvdl.xyz/#/c/phone-preview)** | `PhonePreview` · `IOSStatusBar` | iPhone-style device frame around children or a `src` URL, with dynamic island, status bar and an optional on-screen keyboard. |
 | **[IframePreview](https://ui.gabvdl.xyz/#/c/iframe-preview)** | `IframePreview` · `IframePreviewOverlay` | Preview an arbitrary URL in an iframe with a URL field, action buttons and a full-screen mode. |
 | **[FloatingPanel](https://ui.gabvdl.xyz/#/c/floating-panel)** | `FloatingPanel` · `Dock` · `DockProvider` · `useDockContext` · `useDock` | Draggable, resizable floating panels with a dock — tabbing, close/reopen, placement memory. For tool windows and inspectors. |
 | **[ResizableLayout](https://ui.gabvdl.xyz/#/c/resizable-layout)** | `ResizableLayout` | App scaffold with resizable left/right/top/bottom panels on desktop that become panels or drawers on mobile. |
@@ -167,4 +168,4 @@ import '@gabvdl/ui/styles.css'; // or theme.css for tokens only
 
 ---
 
-63 catalogue entries · 15 hooks · conventions and contribution rules in [CLAUDE.md](../CLAUDE.md), direction in [GOAL.md](../GOAL.md).
+64 catalogue entries · 15 hooks · conventions and contribution rules in [CLAUDE.md](../CLAUDE.md), direction in [GOAL.md](../GOAL.md).

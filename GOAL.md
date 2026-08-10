@@ -43,7 +43,8 @@ Two audiences, one library:
 What ships today vs. the known gaps, per docs category. Unchecked = to build.
 
 ### Layout
-Has `ResizableLayout` (+ `Dock`), `FloatingPanel`, `PhonePreview`.
+Has `ResizableLayout` (+ `Dock`), `FloatingPanel`, `PhonePreview`
+(+ `PhoneKeyboard`).
 - [ ] `AppShell` — header / collapsible sidebar / content scaffold, bottom nav
       on phones (the shape every service frontend rebuilds)
 - [ ] Standalone `Drawer` / bottom sheet — still no exported primitive; the
@@ -70,6 +71,9 @@ Has `Input`, `RichInput`, `SearchInput`, `DropZone`, `ElementPicker`,
 - [x] `Switch` · `Slider` (was hand-rolled in 5+ projects each)
 - [x] `Checkbox` · `Radio` · `Textarea`
 - [x] `Field` wrapper — label + hint + error, so forms look uniform
+- [x] `PhoneKeyboard` — pixel-traced Gboard (AZERTY/QWERTY, dark/light) that
+      types, holds-delete and replaces text character by character through an
+      imperative ref, with `PhoneTextField` as the composer it types into
 
 ### Navigation
 Has `Tabs`, `Nav2D`, `GlobalSearch`, `FuzzyList`.
