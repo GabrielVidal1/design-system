@@ -13,3 +13,5 @@ export type {
 } from './types';
 export { useSavedDrafts } from './use-saved-drafts';
 export type { SavedDrafts } from './use-saved-drafts';
+export { findAutoTagMatches } from './use-auto-tag';
+export type { AutoTagConfig, AutoTagMatch } from './use-auto-tag';

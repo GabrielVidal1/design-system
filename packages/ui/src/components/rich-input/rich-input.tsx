@@ -20,6 +20,8 @@ import { useFileUpload } from './use-file-upload';
 import { useTags } from './use-tags';
 import { useInputHistory } from './use-input-history';
 import { useMention } from './use-mention';
+import { useAutoTag, type AutoTagConfig } from './use-auto-tag';
+import { AutoTagOverlay } from './auto-tag-overlay';
 import { useSavedDrafts } from './use-saved-drafts';
 import { ReorderableToolbar, type ToolbarEntry } from './toolbar-reorder';
 import {
@@ -147,6 +149,20 @@ export interface RichInputProps {
   /** Mention trigger symbol. Default `#`. */
   mentionPrefix?: string;
 
+  /**
+   * **Auto-tag**: once the typing pauses, scan the text for the words and
+   * phrases tags declare in {@link RichTag.triggers} and offer each hit in
+   * place — the word circled by a travelling dashed ring in the tag's
+   * {@link RichTag.color}, with a ✓/✕ pair beside it. ✓ selects the tag (the
+   * word then keeps a coloured mark for as long as it stays selected); ✕
+   * dismisses it and that word won't offer that tag again this session.
+   *
+   * Off by default, and inert until some tag actually declares triggers. Pass
+   * `true` for the defaults or an {@link AutoTagConfig} to tune the pause,
+   * the cap, and the minimum text length.
+   */
+  autoTag?: boolean | AutoTagConfig;
+
   /** Enable Up-arrow / Ctrl+R history + the mobile history sheet. Default true. */
   history?: boolean;
 
@@ -256,6 +272,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     collapseWhenIdle = false,
     showMax,
     mentionPrefix = '#',
+    autoTag = false,
     history: historyEnabled = true,
     drafts: draftsEnabled = true,
     draftExtra,
@@ -478,9 +495,31 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
 
   useEffect(() => () => clearTimers(), [clearTimers]);
 
+  // Auto-tag. Accepting is an ordinary selection — it persists with the draft
+  // like any chip the user clicked, which is what lets an accepted word keep
+  // its mark after a reload.
+  const acceptAutoTag = useCallback(
+    (tag: RichTag) => {
+      touchTags();
+      sel.setOn(tag.id, true);
+    },
+    [touchTags, sel],
+  );
+  const auto = useAutoTag({
+    enabled: autoTag !== false,
+    tags,
+    value,
+    selected: sel.selected,
+    config: typeof autoTag === 'object' ? autoTag : {},
+    mentionPrefix,
+    onAccept: acceptAutoTag,
+  });
+
   const resetInput = useCallback(() => {
     draft.clear();
     files.reset();
+    // A refusal is scoped to the message it was refused in.
+    auto.reset();
     // Back to the default selection — and stop persisting until touched again,
     // so the post-clear default state doesn't get written as a draft.
     tagsDirty.current = false;
@@ -488,7 +527,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     sel.clear();
     setExpanded(false);
     hist.resetCursor();
-  }, [draft, files, sel, hist]);
+  }, [draft, files, sel, hist, auto]);
 
   // Every user-driven toggle marks the selection dirty so it persists with the draft.
   const toggleTag = useCallback(
@@ -498,6 +537,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     },
     [touchTags, sel],
   );
+
 
   // Wrapping chip row (default group) vs. the scrollable list (`group: 'list'`).
   const chipToggles = sel.toggles.filter((t) => (t.group ?? 'chip') !== 'list');
@@ -791,6 +831,11 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
 
           <AttachmentChips files={files.files} onRemove={files.remove} />
 
+          {/* The textarea and its auto-tag layers share one positioning box:
+              a mirror behind it (marks + measurement) and the ring layer on
+              top. Present whether or not auto-tag is on, so the box the
+              textarea sizes itself in never differs between the two modes. */}
+          <div className={cn('relative', fill && 'flex min-h-0 flex-1 flex-col')}>
           <textarea
             ref={taRef}
             value={value}
@@ -813,10 +858,22 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
             }}
             style={fill ? undefined : { maxHeight: maxRows * LINE_HEIGHT }}
             className={cn(
-              'w-full resize-none bg-transparent px-2 py-1 text-sm leading-[22px] text-foreground outline-none placeholder:text-muted-foreground',
+              // `relative` keeps the glyphs above the mirror's tints.
+              'relative w-full resize-none bg-transparent px-2 py-1 text-sm leading-[22px] text-foreground outline-none placeholder:text-muted-foreground',
               fill && 'min-h-0 flex-1',
             )}
           />
+            {autoTag !== false && (
+              <AutoTagOverlay
+                taRef={taRef}
+                value={value}
+                marks={auto.marks}
+                suggestions={auto.suggestions}
+                onAccept={auto.accept}
+                onRefuse={auto.refuse}
+              />
+            )}
+          </div>
 
           {!idle && (masterSwitch !== false || chipToggles.length > 0) && (
             <div className="px-1 pt-1.5">

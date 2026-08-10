@@ -118,6 +118,19 @@ last release → grouped bullets under Unreleased), then curate the prose.
   so deriving `tags` from it can't loop.
 
 ### Added
+- `RichInput` — **auto-tag: the composer reads what you typed and offers the
+  tags it recognises.** A tag opts in by carrying `triggers` (words *and*
+  phrases — `['nanobanana', 'generate an image']`); a second after the typing
+  stops the text is scanned, and every hit is asked about **where it sits in the
+  sentence** — the word circled by a dashed ring travelling around it in the
+  tag's new `color`, with a tiny ✓/✕ beside it. ✓ selects the tag, and the word
+  then keeps a coloured mark for as long as it stays selected; ✕ dismisses it,
+  and that word won't offer that tag again until you send. Multi-word triggers
+  outrank single words for the same span, so "take a screenshot" wins over
+  "screenshot". Turn it on with `autoTag` (or `{ debounceMs, max, minChars }`);
+  it is off by default, and a tag with no `triggers` is never suggested —
+  nothing is inferred from labels. The matcher is exported on its own as
+  `findAutoTagMatches(text, tags)` so a caller can unit-test its trigger lists.
 - `PhoneKeyboard` — **Gboard, traced off a real Pixel screenshot**: ten columns
   of 107px, 1.54-wide shift and delete keys, a four-column space bar, the hint
   glyph above each letter, the GIF/clipboard tool strip and the Android nav row,

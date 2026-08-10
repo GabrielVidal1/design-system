@@ -59,6 +59,25 @@ export interface RichTag {
   slug?: string;
   /** One-line blurb shown in the mention menu. */
   description?: string;
+  /**
+   * Words and phrases that make {@link RichInputProps.autoTag} suggest this tag
+   * when they turn up in the typed text — `['nanobanana', 'generate an image']`.
+   * Matching is case-insensitive and whole-word; a multi-word trigger tolerates
+   * any run of whitespace between its words, and outranks a single-word one
+   * when two tags claim overlapping text.
+   *
+   * Nothing is inferred: a tag with no `triggers` is never auto-suggested, so a
+   * caller opts in tag by tag rather than discovering that every chip in its
+   * list now interrupts the typing.
+   */
+  triggers?: string[];
+  /**
+   * CSS colour for this tag's auto-tag ring and accepted mark — any colour
+   * value (`#0ea5e9`, `var(--color-sky-500)`, `oklch(…)`). Defaults to the
+   * theme's primary. Deliberately a raw colour and not a class: the ring is an
+   * SVG stroke measured at runtime, which no utility class can reach.
+   */
+  color?: string;
 }
 
 /**
