@@ -8,6 +8,7 @@ import {
   FlaskConical,
   Server,
   Sparkles,
+  Wrench,
   Tag as TagIcon,
 } from 'lucide-react';
 import {
@@ -134,6 +135,61 @@ const MENTION_TAGS: RichTag[] = [
   { id: 'p-authelia', slug: 'authelia', kind: 'mention', label: 'authelia', description: 'forward-auth' },
 ];
 
+// Auto-tag tags carry the words that should surface them, and the colour their
+// ring and accepted mark are drawn in. Everything else about them is ordinary.
+const AUTO_TAGS: RichTag[] = [
+  {
+    id: 'skill:screenshot',
+    slug: 'screenshot',
+    group: 'list',
+    label: 'screenshot',
+    icon: <Wrench className="size-3 text-sky-500" />,
+    color: 'var(--color-sky-500)',
+    description: 'capture a live URL',
+    triggers: ['screenshot', 'take a screenshot', 'capture'],
+  },
+  {
+    id: 'skill:nanobanana',
+    slug: 'nanobanana',
+    group: 'list',
+    label: 'nanobanana',
+    icon: <Wrench className="size-3 text-amber-500" />,
+    color: 'var(--color-amber-500)',
+    description: 'generate or edit an image',
+    triggers: ['nanobanana', 'generate an image', 'image of'],
+  },
+  {
+    id: 'skill:image-to-3d',
+    slug: 'image-to-3d',
+    group: 'list',
+    label: 'image-to-3d',
+    icon: <Wrench className="size-3 text-violet-500" />,
+    color: 'var(--color-violet-500)',
+    description: 'image → textured .glb',
+    triggers: ['image-to-3d', '3d model', '3d mesh', 'glb'],
+  },
+  {
+    id: 'skill:open-pr',
+    slug: 'open-pr',
+    group: 'list',
+    label: 'open-pr',
+    icon: <Wrench className="size-3 text-emerald-500" />,
+    color: 'var(--color-emerald-500)',
+    description: 'open a documented PR',
+    triggers: ['open-pr', 'open a pr', 'pull request'],
+  },
+  {
+    id: 'prj-design-system-auto',
+    slug: 'design-system',
+    group: 'list',
+    label: 'design-system',
+    icon: <TagIcon className="size-3 text-primary" />,
+    color: 'var(--color-primary)',
+    description: '@gabvdl/ui library',
+    triggers: ['design-system', 'design system'],
+  },
+];
+
 /* ── page ────────────────────────────────────────────────────────────────── */
 export function RichInputPage() {
   return (
@@ -158,6 +214,7 @@ export function RichInputPage() {
       <TagListDemo />
       <NestedTagsDemo />
       <MentionDemo />
+      <AutoTagDemo />
       <HistoryDemo />
       <ImperativeDemo />
       <ToolbarReorderDemo />
@@ -553,6 +610,70 @@ function MentionDemo() {
   );
 }
 
+/* 07b — auto-tag */
+function AutoTagDemo() {
+  const [picked, setPicked] = useState<RichTag[]>([]);
+  return (
+    <Section
+      n={9}
+      title="Auto-tag"
+      code={`const tags = [{
+  id: 'skill:screenshot',
+  label: 'screenshot',
+  color: 'var(--color-sky-500)',
+  triggers: ['screenshot', 'take a screenshot'],
+}, …]
+
+<RichInput
+  tags={tags}
+  autoTag                 // or { debounceMs, max, minChars }
+  onTagsChange={setPicked}
+/>`}
+      aside={
+        <Readout label="selected tags">
+          {picked.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              try <span className="mono text-foreground">take a screenshot of the deploy</span> or{' '}
+              <span className="mono text-foreground">generate an image of a cat</span>
+            </p>
+          ) : (
+            <ul className="space-y-1 text-xs text-foreground">
+              {picked.map((t) => (
+                <li key={t.id} className="mono truncate">
+                  {t.id}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Readout>
+      }
+    >
+      <Lede>
+        The other half of <span className="mono text-foreground">#mention</span>: instead of you
+        remembering a tag exists, the composer notices you already named it. A second after the
+        typing stops, the text is scanned for the words each tag declares in{' '}
+        <span className="mono text-foreground">triggers</span>, and every hit is asked about{' '}
+        <strong className="text-foreground">where it sits in the sentence</strong> — circled by a
+        travelling dashed ring in the tag's colour, with a ✓/✕ beside it. ✓ turns the tag on and the
+        word keeps a coloured mark for as long as it stays on; ✕ dismisses it, and that word won't
+        ask for that tag again until you send. Multi-word triggers outrank single words, so{' '}
+        <span className="mono text-foreground">take a screenshot</span> beats{' '}
+        <span className="mono text-foreground">screenshot</span> for the same span. A tag with no{' '}
+        <span className="mono text-foreground">triggers</span> is never suggested — nothing is
+        inferred from labels.
+      </Lede>
+      <RichInput
+        tags={AUTO_TAGS}
+        autoTag={{ debounceMs: 700 }}
+        undoWindowMs={0}
+        tagListRows={2}
+        placeholder="Ask for a screenshot, a 3D model, an image…"
+        onTagsChange={setPicked}
+      />
+    </Section>
+  );
+}
+
 /* 08 — history */
 function HistoryDemo() {
   // Seed a few entries synchronously (before the child mounts) so the demo is
@@ -579,7 +700,7 @@ function HistoryDemo() {
   });
   return (
     <Section
-      n={9}
+      n={10}
       title="Command history"
       code={`<RichInput
   cacheKey="demo"   // namespaces history
@@ -614,7 +735,7 @@ function ImperativeDemo() {
   const onSubmit = (p: RichSendPayload) => note(`onSubmit → "${p.text}"`);
   return (
     <Section
-      n={10}
+      n={11}
       title="Imperative handle (forwardRef)"
       code={`const ref = useRef<RichInputHandle>(null)
 
@@ -681,7 +802,7 @@ ref.current.clear()`}
 function ToolbarReorderDemo() {
   return (
     <Section
-      n={11}
+      n={12}
       title="Reorderable toolbar"
       code={`<RichInput
   toolbarReorder="demo"    // persisted arrangement key

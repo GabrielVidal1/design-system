@@ -1,0 +1,40 @@
+/*
+ * Motion and tint for RichInput's auto-tag layer.
+ *
+ * Plain CSS — no Tailwind directives — so it works whether or not the consumer
+ * scans this package. Two pieces:
+ *
+ *  - `ds-auto-tag-ants`: the rounded dashed outline travelling around a
+ *    suggested word. It is an SVG stroke, so the "rotation" is the dash pattern
+ *    sliding along the path (`stroke-dashoffset`), which follows the rounded
+ *    corners exactly — a CSS dashed border cannot be animated this way.
+ *  - `ds-auto-tag-mark`: what an accepted word keeps wearing — a wash of the
+ *    tag's colour (passed in as `--ds-at`) under the glyphs, with a solid
+ *    underline. It sits behind the textarea, so the tint must stay light
+ *    enough to read through.
+ *
+ * Under `prefers-reduced-motion` the dashes stop travelling and simply hold —
+ * the ring still reads as a ring, it just doesn't move.
+ */
+
+@keyframes ds-auto-tag-ants {
+  to {
+    stroke-dashoffset: -18;
+  }
+}
+
+.ds-auto-tag-ants {
+  stroke-dashoffset: 0;
+  animation: ds-auto-tag-ants 0.8s linear infinite;
+}
+
+.ds-auto-tag-mark {
+  background-color: color-mix(in oklab, var(--ds-at, currentColor) 20%, transparent);
+  box-shadow: inset 0 -1.5px 0 0 var(--ds-at, currentColor);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-auto-tag-ants {
+    animation: none;
+  }
+}
