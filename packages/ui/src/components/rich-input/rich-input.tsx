@@ -66,6 +66,14 @@ export interface RichInputProps {
   fill?: boolean;
 
   /**
+   * Fired on every text change, with the live value. The composer is
+   * submit-oriented by default; this is what lets it stand in for a plain
+   * multi-line field — a form's free-text answer that must be readable (and
+   * validatable) before anything is sent.
+   */
+  onChange?: (text: string) => void;
+
+  /**
    * Fired once the un-send window elapses (or immediately when it is 0). May
    * return a promise: while it is pending the composer counts as busy (send
    * disabled, `sending` exposed to {@link renderSendButton}); a rejection
@@ -227,6 +235,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     minRows = 2,
     maxRows = 12,
     fill = false,
+    onChange,
     onSubmit,
     undoWindowMs = 3000,
     submitKey = 'enter',
@@ -369,6 +378,20 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     if (defaultValue && !value) setValueRaw(defaultValue);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seeded]);
+
+  // Report the live text to the caller. A composer normally only speaks on
+  // submit, but a caller using it as a *field* (a form's free-text answer)
+  // needs the value as it is typed. Watching `value` rather than calling back
+  // from each setter is deliberate: typing, history recall, a restored draft
+  // and the imperative handle all land here, and none of them can be missed.
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const reported = useRef(value);
+  useEffect(() => {
+    if (reported.current === value) return;
+    reported.current = value;
+    onChangeRef.current?.(value);
+  }, [value]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return;

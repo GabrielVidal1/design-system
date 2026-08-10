@@ -56,18 +56,52 @@ function Harness({ stash }: { tall: boolean; stash?: false }) {
   );
 }
 
+/**
+ * A group whose items hold one of each tier: plain chrome (`normal`), a link
+ * (`first`), a button (`last`) and an opted-out box (`never`).
+ */
+function TierHarness({ onEditStart }: { onEditStart: () => void }) {
+  const [cards, setCards] = useState(CARDS);
+  return (
+    <HoldEditable
+      items={cards}
+      getKey={(c) => c.id}
+      onReorder={setCards}
+      onEditStart={onEditStart}
+      holdDelay={1000}
+    >
+      {(c) => (
+        <div>
+          <span>chrome:{c.label}</span>
+          <a href="#go">link:{c.label}</a>
+          <button type="button">btn:{c.label}</button>
+          <div data-hold-editable-ignore="">ignore:{c.label}</div>
+        </div>
+      )}
+    </HoldEditable>
+  );
+}
+
+async function pressOn(el: Element) {
+  await act(async () => {
+    el.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0, clientX: 10, clientY: 10 }),
+    );
+  });
+}
+
+async function advance(ms: number) {
+  await act(async () => {
+    vi.advanceTimersByTime(ms);
+  });
+}
+
 /** Press an item and hold past the pickup delay. */
 async function holdFirstCard() {
   const body = screen.getByText('body:Cost');
   const slot = body.closest('[data-hold-editable-item]')!;
-  await act(async () => {
-    slot.dispatchEvent(
-      new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0, clientX: 10, clientY: 10 }),
-    );
-  });
-  await act(async () => {
-    vi.advanceTimersByTime(200);
-  });
+  await pressOn(slot);
+  await advance(200);
 }
 
 const realRect = HTMLElement.prototype.getBoundingClientRect;
@@ -114,5 +148,154 @@ describe('HoldEditable', () => {
     render(<Harness tall={false} />);
     await holdFirstCard();
     expect(screen.getByText('body:Commits')).toBeTruthy();
+  });
+
+  it('leaves edit mode on a plain tap inside the group, without activating it', async () => {
+    layout(40);
+    const onEditEnd = vi.fn();
+    const onClick = vi.fn();
+    render(
+      <HoldEditable
+        items={CARDS}
+        getKey={(c) => c.id}
+        onReorder={() => {}}
+        onEditEnd={onEditEnd}
+        stashLabel={(c) => c.label}
+        holdDelay={100}
+      >
+        {(c) => (
+          <button type="button" onClick={onClick}>
+            body:{c.label}
+          </button>
+        )}
+      </HoldEditable>,
+    );
+
+    await holdFirstCard();
+    // Release the pickup, then let the click-suppression window lapse so the
+    // next tap is a *plain* tap and not the drop's trailing click.
+    await act(async () => {
+      window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+    });
+    await advance(800);
+    expect(document.querySelector('[data-hold-editable-stash]')).not.toBeNull();
+
+    await act(async () => {
+      screen
+        .getByText('body:Commits')
+        .dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    });
+
+    expect(onEditEnd).toHaveBeenCalled();
+    expect(onClick).not.toHaveBeenCalled();
+    expect(document.querySelector('[data-hold-editable-stash]')).toBeNull();
+  });
+});
+
+describe('HoldEditable hold tiers', () => {
+  it('picks a link up before the OS callout would fire', async () => {
+    layout(40);
+    const onEditStart = vi.fn();
+    render(<TierHarness onEditStart={onEditStart} />);
+
+    await pressOn(screen.getByText('link:Cost'));
+    await advance(250); // still short of linkHoldDelay (min(holdDelay, 320))
+    expect(onEditStart).not.toHaveBeenCalled();
+    await advance(120); // 370ms — picked up, and well before the ~500ms callout
+    expect(onEditStart).toHaveBeenCalledTimes(1);
+  });
+
+  it('makes a button wait out holdDelay + interactiveHoldOffset', async () => {
+    layout(40);
+    const onEditStart = vi.fn();
+    render(<TierHarness onEditStart={onEditStart} />);
+
+    await pressOn(screen.getByText('btn:Cost'));
+    await advance(1100); // past the normal hold — the button still owns the press
+    expect(onEditStart).not.toHaveBeenCalled();
+    await advance(600); // 1700ms > 1000 + 600
+    expect(onEditStart).toHaveBeenCalledTimes(1);
+  });
+
+  it('never arms inside an opted-out sub-tree', async () => {
+    layout(40);
+    const onEditStart = vi.fn();
+    render(<TierHarness onEditStart={onEditStart} />);
+
+    await pressOn(screen.getByText('ignore:Cost'));
+    await advance(5000);
+    expect(onEditStart).not.toHaveBeenCalled();
+  });
+
+  it('drops a pending pickup when something scrolls under it', async () => {
+    layout(40);
+    const onEditStart = vi.fn();
+    render(<TierHarness onEditStart={onEditStart} />);
+
+    // The gesture this protects: a finger panning a horizontally scrollable
+    // child of an item. The page never moves, the pointer barely does — only
+    // the scroll event tells us this was a pan and not a hold.
+    await pressOn(screen.getByText('chrome:Cost'));
+    await advance(400);
+    await act(async () => {
+      window.dispatchEvent(new Event('scroll'));
+    });
+    await advance(5000);
+    expect(onEditStart).not.toHaveBeenCalled();
+  });
+
+  it('drops a pending pickup when the pointer travels', async () => {
+    layout(40);
+    const onEditStart = vi.fn();
+    render(<TierHarness onEditStart={onEditStart} />);
+
+    await pressOn(screen.getByText('chrome:Cost'));
+    await act(async () => {
+      window.dispatchEvent(
+        new PointerEvent('pointermove', {
+          bubbles: true,
+          pointerType: 'touch',
+          clientX: 10 + 40, // well past MOVE_CANCEL_PX
+          clientY: 10,
+        }),
+      );
+    });
+    await advance(5000);
+    expect(onEditStart).not.toHaveBeenCalled();
+  });
+
+  it('lets a resting mouse drift a few pixels without losing the hold', async () => {
+    layout(40);
+    const onEditStart = vi.fn();
+    render(<TierHarness onEditStart={onEditStart} />);
+
+    await pressOn(screen.getByText('chrome:Cost'));
+    await act(async () => {
+      window.dispatchEvent(
+        new PointerEvent('pointermove', {
+          bubbles: true,
+          pointerType: 'mouse',
+          clientX: 10 + 12, // drift, not a drag — under MOUSE_MOVE_CANCEL_PX
+          clientY: 10 + 6,
+        }),
+      );
+    });
+    await advance(1200);
+    expect(onEditStart).toHaveBeenCalledTimes(1);
+  });
+
+  it('suppresses the context menu while a link press is armed', async () => {
+    layout(40);
+    render(<TierHarness onEditStart={() => {}} />);
+
+    const link = screen.getByText('link:Cost');
+    await pressOn(link);
+    await advance(100); // armed, not yet picked up — exactly when iOS pops the callout
+
+    const menu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+    await act(async () => {
+      link.dispatchEvent(menu);
+    });
+    expect(menu.defaultPrevented).toBe(true);
   });
 });

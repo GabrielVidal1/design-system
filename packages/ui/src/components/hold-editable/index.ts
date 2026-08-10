@@ -3,4 +3,5 @@ export type {
   HoldEditableProps,
   HoldEditableItemState,
   HoldEditableStashPlacement,
+  HoldEditableHoldTier,
 } from './hold-editable';

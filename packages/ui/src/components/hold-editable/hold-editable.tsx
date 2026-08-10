@@ -17,10 +17,21 @@ const SHUFFLE_MS = 220;
 /** How long the picked-up item takes to land in its slot on release, in ms. */
 const DROP_MS = 220;
 /**
- * Finger travel (px) that cancels a pending hold — that's a scroll, not a hold.
- * Touch and pen only: a mouse can't scroll with the button down (see `onMove`).
+ * Finger travel (px) that cancels a pending hold. **The hold is a static
+ * gesture**: the press has to stay put. A finger sliding across an item is
+ * scrolling — very often along a horizontally scrollable child, a chart or a
+ * wide table, where the page underneath never moves at all — and lifting an
+ * item out from under that gesture is wrong every time. Tight on purpose.
  */
-const MOVE_CANCEL_PX = 12;
+const MOVE_CANCEL_PX = 8;
+/**
+ * The same threshold for a mouse, wider. A mouse can't scroll with the button
+ * down, and a hand resting on one drifts several pixels over the deliberate
+ * 1.4s hold — a finger-tight threshold made hold-to-drag impossible on
+ * desktop. Wide enough to absorb that drift, tight enough that an actual drag
+ * still reads as one.
+ */
+const MOUSE_MOVE_CANCEL_PX = 32;
 /** How far into a slot the pointer must reach to claim it (fraction of its extent). */
 const CROSS_FRACTION = 0.45;
 /** Clicks fired within this window after a drop are swallowed (see below). */
@@ -41,13 +52,63 @@ const STASH_GAP = 10;
 const COMPACT_TRIGGER_PX = 96;
 /** What every item is clipped to in compact edit mode (main axis, px). */
 const COMPACT_PX = 52;
+/** Native text entry — the one place a hold has always meant "select text". */
+const TEXT_ENTRY_SELECTOR =
+  "input, textarea, select, [contenteditable=''], [contenteditable='true']";
 /**
- * Sub-trees a press must not turn into a pickup: native text entry (a hold
- * there means "select text"), plus an explicit `data-hold-editable-ignore`
- * escape hatch for anything else the caller wants to keep pressable.
+ * Sub-trees a press must not arm at all. `data-hold-editable-ignore` is the
+ * caller's escape hatch; the rest are the panels of an open overlay, which
+ * portal-less components (Popover, Tooltip, a menu) render *inside* the item
+ * they belong to. Content that only exists because the user already opened it
+ * is content they want to use, not a surface to pick the item up by.
  */
-const NO_HOLD_SELECTOR =
-  "input, textarea, select, [contenteditable=''], [contenteditable='true'], [data-hold-editable-ignore]";
+const NEVER_HOLD_SELECTOR =
+  "[data-hold-editable-ignore], .ds-popover-panel, [role='dialog'], [role='menu'], [role='listbox'], [role='tooltip']";
+/**
+ * Sub-trees the pickup must beat to the punch (tier `first`). A long press on
+ * a link pops the OS "open in new tab" callout at ~500ms on a phone, and that
+ * callout cancels the touch — so either the pickup happens before it, or it
+ * never happens at all.
+ */
+const FIRST_HOLD_SELECTOR = "a[href], [data-hold-editable-first]";
+/**
+ * Sub-trees that own the *early* part of a press (tier `last`): text selection
+ * in a field, a control's own long-press menu, {@link HoldEditableProps.onItemHold}.
+ * The pickup queues up behind all of it.
+ */
+const LAST_HOLD_SELECTOR = `button, [role='button'], [data-hold-editable-last], ${TEXT_ENTRY_SELECTOR}`;
+/**
+ * Clicks that survive edit mode. Everything else inside the group is swallowed
+ * while editing (taps rearrange, they don't activate — iOS's jiggle-mode rule),
+ * but a text field the user is placing a caret in, and anything explicitly
+ * opted out, have to keep working.
+ */
+const CLICK_THROUGH_SELECTOR = `${NEVER_HOLD_SELECTOR}, ${TEXT_ENTRY_SELECTOR}`;
+
+/**
+ * How urgently a press turns into a pickup, resolved per target — see the
+ * "Hold tiers" paragraph on {@link HoldEditable}.
+ */
+export type HoldEditableHoldTier = 'first' | 'normal' | 'last' | 'never';
+
+/**
+ * Which tier the element a press landed on belongs to. Resolved on
+ * `pointerdown` from the event target, so one item can hold several: a card's
+ * chrome is `normal`, the link in it is `first`, its footer buttons `last`,
+ * and the popover it opened is `never`.
+ */
+function holdTierOf(target: Element | null | undefined): HoldEditableHoldTier {
+  if (!target || typeof target.closest !== 'function') return 'normal';
+  if (target.closest(NEVER_HOLD_SELECTOR)) return 'never';
+  if (target.closest(FIRST_HOLD_SELECTOR)) return 'first';
+  if (target.closest(LAST_HOLD_SELECTOR)) return 'last';
+  return 'normal';
+}
+
+const isTextEntry = (target: EventTarget | null): boolean =>
+  target instanceof Element &&
+  typeof target.closest === 'function' &&
+  target.closest(TEXT_ENTRY_SELECTOR) !== null;
 
 export type HoldEditableStashPlacement = 'top' | 'bottom' | 'left' | 'right';
 
@@ -84,8 +145,26 @@ export interface HoldEditableProps<T> {
    * `flex-1` spacer among fixed-size buttons).
    */
   itemClassName?: string | ((item: T) => string | undefined);
-  /** Hold duration before an item is picked up, in ms. */
+  /** Hold duration before an item is picked up, in ms. The `normal` tier. */
   holdDelay?: number;
+  /**
+   * Hold duration for the **`first` tier** — a press on an `<a href>` or on
+   * anything marked `data-hold-editable-first`, in ms. Deliberately *shorter*
+   * than {@link holdDelay}: a phone pops the OS link callout at around 500ms
+   * and that cancels the touch, so the pickup has to land before it or not at
+   * all. Keep it under ~400ms.
+   * @default Math.min(holdDelay, 320)
+   */
+  linkHoldDelay?: number;
+  /**
+   * Extra hold, on top of {@link holdDelay}, for the **`last` tier** — buttons,
+   * `[role=button]`, native text fields, `[contenteditable]` and anything
+   * marked `data-hold-editable-last`, in ms. Those own the early part of the
+   * press (selecting text, their own long-press menu,
+   * {@link onItemHold}), so the pickup queues up behind them.
+   * @default 600
+   */
+  interactiveHoldOffset?: number;
   /**
    * First-stage hold action. Fired once when a press has been held for
    * {@link holdActionDelay} ms — well before the {@link holdDelay} pickup — so
@@ -118,7 +197,8 @@ export interface HoldEditableProps<T> {
   /**
    * The benched items — everything that could fill a slot but currently
    * doesn't. The **stash system is on by default**: edit mode is persistent
-   * (it survives a drop, until a tap outside or Escape dismisses it) and,
+   * (it survives a drop, until a plain tap — inside the group or out — or
+   * Escape dismisses it) and,
    * while editing, a popover of tags opens beside the group. Slotted items
    * dragged onto the popover are benched; a tag dragged onto a slot swaps in
    * and benches the item it displaces; a tag dropped on the group's empty
@@ -158,6 +238,47 @@ export interface HoldEditableProps<T> {
    * the item's key — so a group with either one already reads well collapsed.
    */
   compactLabel?: (item: T) => ReactNode;
+  /**
+   * **Freeform mode.** While editing, every item becomes an inline-editable
+   * text row and a free-text "add" row appears under them, so the same gesture
+   * that reorders the list also renames and grows it. That is what makes a
+   * *plan-like* structure — a form's questions and their answer options, a
+   * checklist, a menu — editable in place instead of behind a modal.
+   *
+   * It implies the compact-row treatment for the whole group (the grip on the
+   * left is the drag handle, the rest of the row is a text input), whatever
+   * {@link compactEdit} says: the row *is* the compact row.
+   *
+   * **Keep the stash on.** With `stash={false}` edit mode ends at the drop, so
+   * every reorder closes the very fields the user came to type in. Freeform
+   * needs the persistent edit mode the stash brings; the two are not
+   * independent switches.
+   * @default false
+   */
+  freeform?: boolean;
+  /**
+   * Seed text for an item's inline editor. Falls back to
+   * {@link compactLabel} → {@link stashLabel} → the item's key, the same chain
+   * the compact row uses (a non-string label falls through to the key, since
+   * an `<input>` needs a string).
+   */
+  getText?: (item: T) => string;
+  /** Commit of an inline edit — fired on Enter and on blur, only when the text changed. */
+  onTextChange?: (item: T, text: string) => void;
+  /**
+   * Submit of the freeform add row. Omit it and no add row is rendered — a
+   * group that only renames is a legitimate configuration.
+   */
+  onAdd?: (text: string) => void;
+  /**
+   * Renders a small × on each freeform row. What a removal *means* is the
+   * caller's business: the stash is still the undoable-removal story, so a
+   * group that wants "take this out, maybe put it back" should bench it there
+   * rather than wire this.
+   */
+  onRemove?: (item: T) => void;
+  /** Placeholder for the freeform add row. @default 'Add…' */
+  addPlaceholder?: string;
 }
 
 interface Rect {
@@ -257,6 +378,18 @@ const CSS = `
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+}
+/* …except where the user is meant to be writing. A 'last'-tier press on a
+   field has to keep selecting text and placing a caret; inheriting the group's
+   user-select:none would make the field look editable and behave like a rock. */
+[data-hold-editable-item] input,
+[data-hold-editable-item] textarea,
+[data-hold-editable-item] select,
+[data-hold-editable-item] [contenteditable=''],
+[data-hold-editable-item] [contenteditable='true'] {
+  -webkit-touch-callout: default;
+  -webkit-user-select: auto;
+  user-select: auto;
 }
 [data-hold-editable-dragging] {
   cursor: grabbing;
@@ -435,24 +568,154 @@ function stashPositionStyle(
 const TAG_CLASS =
   'mono inline-flex max-w-full cursor-grab items-center rounded-full border border-border bg-background px-2.5 py-1 text-[11px] leading-4 text-foreground shadow-sm';
 
+/** Chrome shared by the compact row and its freeform variant. */
+const ROW_CLASS =
+  'flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 text-xs text-foreground shadow-sm';
+
+/** The dotted handle on the left of a row — the part you pick the item up by. */
+function Grip() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 10 16"
+      className="h-3.5 w-2.5 shrink-0 text-muted-foreground"
+      fill="currentColor"
+    >
+      {[3, 8, 13].map((cy) =>
+        [2.5, 7.5].map((cx) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="1.2" />),
+      )}
+    </svg>
+  );
+}
+
 /** The collapsed stand-in an item is dragged as in compact edit mode. */
 function CompactRow({ children }: { children: ReactNode }) {
   return (
+    <div className={ROW_CLASS} style={{ height: COMPACT_PX - 8 }}>
+      <Grip />
+      <span className="min-w-0 flex-1 truncate">{children}</span>
+    </div>
+  );
+}
+
+/**
+ * A compact row whose label is an `<input>` — freeform mode's item row.
+ *
+ * The input carries `data-hold-editable-ignore` (tier `never`), so a press in
+ * it places a caret instead of arming a pickup; the grip and the row's padding
+ * are what is left as the pickup surface, which is exactly the iOS "handle on
+ * the left, text in the middle" split.
+ *
+ * The value is local and re-seeded whenever `text` changes: the caller may not
+ * be storing what we hand it (an uncontrolled list, a debounced save), and a
+ * row that snapped back to the old text on every keystroke would be unusable.
+ * `committed` remembers what was last sent up so Enter-then-blur doesn't fire
+ * the same edit twice.
+ */
+function FreeformRow({
+  text,
+  onCommit,
+  onRemove,
+}: {
+  text: string;
+  onCommit: (text: string) => void;
+  onRemove?: () => void;
+}) {
+  const [value, setValue] = useState(text);
+  const committed = useRef(text);
+  useEffect(() => {
+    setValue(text);
+    committed.current = text;
+  }, [text]);
+
+  const commit = () => {
+    if (value === committed.current) return;
+    committed.current = value;
+    onCommit(value);
+  };
+
+  return (
+    <div className={ROW_CLASS} style={{ height: COMPACT_PX - 8 }}>
+      <Grip />
+      <input
+        data-hold-editable-ignore=""
+        className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            commit();
+          } else if (e.key === 'Escape') {
+            // Escape belongs to the editor here: it reverts this row. Stopping
+            // it keeps the group's own Escape — which dismisses edit mode
+            // entirely — from firing over the top of a much smaller undo.
+            e.stopPropagation();
+            setValue(text);
+          }
+        }}
+      />
+      {onRemove && (
+        <button
+          type="button"
+          data-hold-editable-ignore=""
+          aria-label="Remove"
+          className="shrink-0 rounded-full px-1 text-muted-foreground transition-colors hover:text-foreground"
+          onClick={onRemove}
+        >
+          ×
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The freeform add row. It lives in the group's normal flow, after the last
+ * item, but it is **not** a slot: it carries no `data-hold-editable-item`, so
+ * nothing measures it and the frozen arrangement never sees it. It is mounted
+ * with the compact rows — one commit *before* the pickup measures them — so it
+ * cannot shift the geometry a drag was frozen against either.
+ *
+ * Submitting keeps focus: adding several rows in a row is the normal way to
+ * fill an empty list, and re-tapping the field between each would be absurd.
+ */
+function FreeformAddRow({
+  placeholder,
+  onSubmit,
+}: {
+  placeholder: string;
+  onSubmit: (text: string) => void;
+}) {
+  const [value, setValue] = useState('');
+  return (
     <div
-      className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 text-xs text-foreground shadow-sm"
+      data-hold-editable-add=""
+      data-hold-editable-ignore=""
+      className={cn(ROW_CLASS, 'border-dashed bg-transparent')}
       style={{ height: COMPACT_PX - 8 }}
     >
-      <svg
-        aria-hidden
-        viewBox="0 0 10 16"
-        className="h-3.5 w-2.5 shrink-0 text-muted-foreground"
-        fill="currentColor"
-      >
-        {[3, 8, 13].map((cy) =>
-          [2.5, 7.5].map((cx) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="1.2" />),
-        )}
-      </svg>
-      <span className="min-w-0 flex-1 truncate">{children}</span>
+      <span aria-hidden className="w-2.5 shrink-0 text-center text-muted-foreground">
+        +
+      </span>
+      <input
+        className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key !== 'Enter') {
+            if (e.key === 'Escape') e.stopPropagation();
+            return;
+          }
+          e.preventDefault();
+          const text = value.trim();
+          if (!text) return;
+          onSubmit(text);
+          setValue('');
+        }}
+      />
     </div>
   );
 }
@@ -492,8 +755,9 @@ const sameOver = (a: StashOver | null, b: StashOver | null) =>
  *
  * **The stash — on by default.** Every group has an overflow bench, so any
  * item can be taken out of the group and put back: a removal is never
- * destructive. Edit mode is persistent — a drop no longer ends it; a tap
- * outside or Escape does — and while editing a popover of tags (one per
+ * destructive. Edit mode is persistent — a drop no longer ends it; a plain
+ * tap (anywhere, in the group or outside it) or Escape does — and while
+ * editing a popover of tags (one per
  * benched item) opens beside the group ({@link HoldEditableProps.stashPlacement}
  * picks the side; that placement is the only customization). Drag a slotted
  * item onto the popover to bench it; drag a tag onto a slot to swap it in (the
@@ -514,6 +778,46 @@ const sameOver = (a: StashOver | null, b: StashOver | null) =>
  * release click after a fired action is swallowed, so releasing into the
  * popover never also activates the item.
  *
+ * **Hold tiers.** A group whose items are plain boxes can use one flat delay;
+ * a group of real UI can't, because the things inside an item already answer
+ * to a press. So the delay is resolved per target, on `pointerdown`:
+ *
+ * - `first` — an `<a href>`, or `[data-hold-editable-first]`. Picked up
+ *   *before* everything else ({@link HoldEditableProps.linkHoldDelay}, ~320ms),
+ *   because a phone pops the OS "open in new tab" callout at around 500ms and
+ *   that cancels the touch: a link is either picked up early or never. The
+ *   callout is suppressed for the duration of an armed press.
+ * - `last` — `button`, `[role=button]`, `input`, `textarea`, `select`,
+ *   `[contenteditable]`, `[data-hold-editable-last]`. These own the early part
+ *   of the press — selecting text, their own long-press menu,
+ *   {@link HoldEditableProps.onItemHold} — so the pickup waits for
+ *   `holdDelay + `{@link HoldEditableProps.interactiveHoldOffset}. A press
+ *   there is never `preventDefault`ed, and a selection change or a keystroke
+ *   cancels it outright: someone editing a field is not holding to reorder.
+ * - `normal` — everything else: `holdDelay`, as before.
+ * - `never` — `[data-hold-editable-ignore]` and the panels of an open overlay
+ *   inside the item (`.ds-popover-panel`, `[role=dialog|menu|listbox|tooltip]`).
+ *   A press there arms nothing at all. That is what makes a Popover or a
+ *   Tooltip *inside* a reorderable item usable.
+ *
+ * Once the group is in edit mode the short {@link EDIT_HOLD_MS} shortcut wins
+ * for every tier but `never` — picking the next item up stays immediate.
+ *
+ * **The hold is static.** Whatever the tier, the press has to stay put: travel
+ * past a few pixels cancels it, and so does *any* scroll under it. Both are
+ * needed. Travel alone misses the case that actually bites — a finger panning
+ * a horizontally scrollable child (a chart, a wide table) inside an item,
+ * where the scroller can claim the gesture and leave the pointer stream
+ * looking still enough to pass for a hold. Scrolling a graph sideways must
+ * never lift the card it lives in.
+ *
+ * **Freeform mode.** {@link HoldEditableProps.freeform} turns edit mode into an
+ * inline text editor: every item becomes a compact row whose label is an
+ * `<input>` (the grip stays the drag handle), and an add row appears under the
+ * list. One gesture then covers the three things a small list needs —
+ * reorder, rename, grow — which is what lets a plan-like structure (a form's
+ * questions and their options) be edited where it is shown.
+ *
  * ```tsx
  * <HoldEditable
  *   items={tiles}
@@ -530,8 +834,10 @@ const sameOver = (a: StashOver | null, b: StashOver | null) =>
  *
  * @summary iOS-springboard "hold to rearrange": press-and-hold picks an item
  * up, the rest jump in place, drag hands slots over, drop commits the new
- * order. Rows, columns and grids; an optional stash popover benches the
- * overflow items and swaps them in and out by drag.
+ * order. Rows, columns and grids; per-target hold tiers so links, buttons and
+ * popovers inside an item keep working; an optional stash popover benches the
+ * overflow items; an optional freeform mode makes edit mode rename and grow
+ * the list too.
  */
 export function HoldEditable<T>({
   items,
@@ -541,6 +847,10 @@ export function HoldEditable<T>({
   className,
   itemClassName,
   holdDelay = 1400,
+  // Evaluated after `holdDelay` above, so it tracks a caller's shorter hold
+  // instead of overshooting it — the link tier is never the slow one.
+  linkHoldDelay = Math.min(holdDelay, 320),
+  interactiveHoldOffset = 600,
   onItemHold,
   holdActionDelay = 500,
   jumpInterval = 800,
@@ -554,6 +864,12 @@ export function HoldEditable<T>({
   stashLabel,
   compactEdit = true,
   compactLabel,
+  freeform = false,
+  getText,
+  onTextChange,
+  onAdd,
+  onRemove,
+  addPlaceholder = 'Add…',
 }: HoldEditableProps<T>) {
   useHoldEditableStyles();
 
@@ -575,6 +891,12 @@ export function HoldEditable<T>({
   const [compact, setCompact] = useState(false);
   /** A pickup deferred by one commit, so it measures the *collapsed* slots. */
   const [pendingPickup, setPendingPickup] = useState<string | null>(null);
+  /**
+   * The armed press's hold duration — its tier's (see {@link holdTierOf}).
+   * State, not a ref, because the shrink-under-the-finger transition is timed
+   * to it and has to be right on the very frame the press starts.
+   */
+  const [pressDelay, setPressDelay] = useState(holdDelay);
 
   const stashEnabled = stash !== false;
   /** The caller owns the bench; otherwise it lives here, keyed, for this mount. */
@@ -607,6 +929,20 @@ export function HoldEditable<T>({
   const compactLabelOf = useCallback(
     (item: T): ReactNode => (compactLabel ? compactLabel(item) : stashLabelOf(item)),
     [compactLabel, stashLabelOf],
+  );
+  /**
+   * Seed for a freeform row's input. An `<input>` needs a string, so the usual
+   * label chain is only usable as far as it stays one — a `compactLabel` that
+   * returns markup falls through to the key rather than rendering as `[object
+   * Object]` inside the field.
+   */
+  const freeformTextOf = useCallback(
+    (item: T): string => {
+      if (getText) return getText(item);
+      const label = compactLabelOf(item);
+      return typeof label === 'string' || typeof label === 'number' ? String(label) : getKey(item);
+    },
+    [getText, compactLabelOf, getKey],
   );
 
   const byKey = useMemo(() => {
@@ -655,6 +991,15 @@ export function HoldEditable<T>({
   /** Mirror of `pressKey`, readable from the deferred-pickup layout effect. */
   const pressKeyRef = useRef<string | null>(null);
   pressKeyRef.current = pressKey;
+  /**
+   * Mirror of `pendingPickup`, readable from the window listeners. The
+   * scroll-cancel below has to leave a deferred pickup alone: collapsing a
+   * column of tall cards to label rows *shortens the page*, which the browser
+   * answers with a scroll event — and cancelling on our own collapse would
+   * make compact edit mode unreachable.
+   */
+  const pendingPickupRef = useRef<string | null>(null);
+  pendingPickupRef.current = pendingPickup;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   /** Wrapper element per key — the measurable "slot". */
@@ -672,6 +1017,8 @@ export function HoldEditable<T>({
   const actionTimer = useRef<number | null>(null);
   /** The first-stage action ran for the current press — swallow the release click. */
   const actionFired = useRef(false);
+  /** Tier of the press currently armed — the `last` one is the cancellable kind. */
+  const pressTier = useRef<HoldEditableHoldTier>('normal');
   const dropTimer = useRef<number | null>(null);
   const chipTimer = useRef<number | null>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -715,8 +1062,21 @@ export function HoldEditable<T>({
     }
   };
 
-  /** Once in edit mode, the next pickup shouldn't demand the full deliberate hold. */
-  const effectiveHoldDelay = activeEdit ? Math.min(EDIT_HOLD_MS, holdDelay) : holdDelay;
+  /**
+   * How long *this* press must be held. Once in edit mode the next pickup
+   * shouldn't demand the full deliberate hold, whatever the target is — the
+   * only thing the tiers guard is the way *into* the mode. (A `never` press
+   * never gets here: it is dropped before a timer is armed.)
+   */
+  const holdDelayFor = useCallback(
+    (tier: HoldEditableHoldTier): number => {
+      if (activeEdit) return Math.min(EDIT_HOLD_MS, holdDelay);
+      if (tier === 'first') return linkHoldDelay;
+      if (tier === 'last') return holdDelay + interactiveHoldOffset;
+      return holdDelay;
+    },
+    [activeEdit, holdDelay, linkHoldDelay, interactiveHoldOffset],
+  );
 
   /* -------------------------------------------------- compact edit mode */
 
@@ -724,9 +1084,11 @@ export function HoldEditable<T>({
    * Whether this group should collapse to label rows while editing: a
    * single-axis list (a grid already fits — its cells are small and 2D
    * slot-hopping needs the real geometry) holding at least one item too long
-   * to drag comfortably.
+   * to drag comfortably. Freeform mode short-circuits it: its editable rows
+   * *are* the compact rows, so it collapses whatever the geometry says.
    */
   const shouldCompact = useCallback((): boolean => {
+    if (freeform) return true;
     if (!compactEdit) return false;
     const rects: Rect[] = [];
     for (const k of keysRef.current) {
@@ -736,7 +1098,7 @@ export function HoldEditable<T>({
     if (rects.length < 2 || isGrid(rects)) return false;
     const horizontal = isHorizontal(rects);
     return rects.some((r) => (horizontal ? r.width : r.height) > COMPACT_TRIGGER_PX);
-  }, [compactEdit]);
+  }, [compactEdit, freeform]);
 
   /* ---------------------------------------------------------------- pickup */
 
@@ -847,10 +1209,11 @@ export function HoldEditable<T>({
   const onPointerDown = (e: React.PointerEvent, key: string) => {
     if (disabled || dragRef.current || stashDragRef.current || drop) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    // Text fields (and anything explicitly opted out) keep their own press
-    // semantics: holding inside a textarea must select text, not lift the card.
-    const target = e.target as Element | null;
-    if (target?.closest?.(NO_HOLD_SELECTOR)) return;
+    // What the press landed on decides how long it has to last — and whether
+    // it counts at all. An opted-out sub-tree or an open overlay's panel arms
+    // nothing: no timer, no pressKey, no swallowed click.
+    const tier = holdTierOf(e.target as Element | null);
+    if (tier === 'never') return;
     // Groups nest — a hold-editable grid of stats inside a hold-editable stack
     // of cards. The press belongs to the innermost group that takes it, or a
     // single hold would arm both and pick up two items at once.
@@ -858,6 +1221,9 @@ export function HoldEditable<T>({
     pressPos.current = { x: e.clientX, y: e.clientY };
     lastPointer.current = { x: e.clientX, y: e.clientY };
     pointerId.current = e.pointerId;
+    pressTier.current = tier;
+    const delay = holdDelayFor(tier);
+    setPressDelay(delay);
     setPressKey(key);
     clearHoldTimer();
     actionFired.current = false;
@@ -867,10 +1233,10 @@ export function HoldEditable<T>({
       // 1.4s a mouse drifts, and starting the drag at a stale point would make
       // the item jump out from under the cursor.
       requestPickup(key);
-    }, effectiveHoldDelay);
+    }, delay);
     // First-stage action: only on the deliberate (non-edit-mode) hold, and only
     // when it actually lands before the pickup would.
-    if (onItemHold && !editModeRef.current && holdActionDelay < effectiveHoldDelay) {
+    if (onItemHold && !editModeRef.current && holdActionDelay < delay) {
       actionTimer.current = window.setTimeout(() => {
         actionTimer.current = null;
         const item = byKey.get(key);
@@ -1189,16 +1555,15 @@ export function HoldEditable<T>({
       }
       const d = dragRef.current;
       if (!d) {
-        // Still waiting out the hold. Travel only cancels it for a *finger*,
-        // where it means "I'm scrolling, not holding". A mouse can't scroll
-        // with the button down, and a hand resting on one drifts well past any
-        // sane threshold over 1.4s — cancelling on that made hold-to-drag
-        // essentially impossible on desktop. So the mouse keeps holding, and
-        // the pickup simply happens wherever the cursor ended up.
-        if (e.pointerType === 'mouse') return;
+        // Still waiting out the hold, and the hold is static: travel past the
+        // threshold means the user is scrolling or dragging something else,
+        // never holding. Every pointer type is held to it — a mouse just gets
+        // a wider one, for the resting-hand drift the tight finger threshold
+        // could not tell apart from a deliberate move.
+        const limit = e.pointerType === 'mouse' ? MOUSE_MOVE_CANCEL_PX : MOVE_CANCEL_PX;
         const dx = e.clientX - pressPos.current.x;
         const dy = e.clientY - pressPos.current.y;
-        if (Math.hypot(dx, dy) > MOVE_CANCEL_PX) {
+        if (Math.hypot(dx, dy) > limit) {
           clearHoldTimer();
           setPressKey(null);
         }
@@ -1224,10 +1589,42 @@ export function HoldEditable<T>({
       else if (dragRef.current) endDrag(true);
       else setPressKey(null);
     };
+    /**
+     * A `last`-tier press usually sits on a text field, where the very same
+     * gesture means "select this". The caret moving, or a key going down, is
+     * proof of what the user is actually doing — so the pickup is dropped
+     * rather than fired out from under a selection.
+     */
+    const cancelTextPress = () => {
+      if (dragRef.current || stashDragRef.current) return;
+      if (pressTier.current !== 'last') return;
+      clearHoldTimer();
+      setPressKey(null);
+    };
     const onKey = (e: KeyboardEvent) => {
+      cancelTextPress();
       if (e.key !== 'Escape') return;
       if (stashDragRef.current) endStashDrag(true);
       else if (dragRef.current) endDrag(true);
+    };
+    /**
+     * Anything scrolling under a pending press kills it. Travel alone is not
+     * enough to catch this: once a scroll container claims the gesture it can
+     * swallow the pointer stream, and a finger panning a *horizontally*
+     * scrollable child — a wide chart, a code block, a table — then sits
+     * still enough, in the events we still see, to look exactly like a hold.
+     * That is the bug this closes: scrolling a graph sideways must never lift
+     * the card it lives in. A scroll anywhere in the tree is proof of a
+     * scroll, so this listens in the capture phase (scroll does not bubble).
+     *
+     * A pickup already deferred for the compact collapse is exempt — see
+     * `pendingPickupRef`; that scroll is our own doing.
+     */
+    const onScrollCancel = () => {
+      if (dragRef.current || stashDragRef.current) return;
+      if (pendingPickupRef.current !== null) return;
+      clearHoldTimer();
+      setPressKey(null);
     };
     // Once an item is picked up the finger owns it: stop the page scrolling
     // under it. Must be non-passive to be allowed to preventDefault.
@@ -1239,12 +1636,18 @@ export function HoldEditable<T>({
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onCancel);
     window.addEventListener('keydown', onKey);
+    document.addEventListener('selectionchange', cancelTextPress);
+    window.addEventListener('scroll', onScrollCancel, true);
+    window.addEventListener('wheel', onScrollCancel, { passive: true });
     window.addEventListener('touchmove', onTouchMove, { passive: false });
     return () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onCancel);
       window.removeEventListener('keydown', onKey);
+      document.removeEventListener('selectionchange', cancelTextPress);
+      window.removeEventListener('scroll', onScrollCancel, true);
+      window.removeEventListener('wheel', onScrollCancel);
       window.removeEventListener('touchmove', onTouchMove);
     };
   }, [pressKey, drag, stashDrag, endDrag, endStashDrag, considerMove, considerStashMove, stashEnabled, byKey, canStash]);
@@ -1258,9 +1661,13 @@ export function HoldEditable<T>({
     setCompact(false);
     onEditEnd?.();
   }, [onEditEnd]);
+  /** Readable from the click listener, which is mounted once and never re-armed. */
+  const exitEditModeRef = useRef(exitEditMode);
+  exitEditModeRef.current = exitEditMode;
 
-  // Persistent edit mode is dismissed like iOS's jiggle mode: a tap anywhere
-  // outside the group and its stash, or Escape when nothing is in flight.
+  // Dismissal by a tap *outside* the group and its stash, or by Escape when
+  // nothing is in flight. (A tap *inside* dismisses too — that path is the
+  // click listener further down, which also has to swallow the activation.)
   useEffect(() => {
     if (!activeEdit) return;
     const onDown = (e: PointerEvent) => {
@@ -1272,7 +1679,13 @@ export function HoldEditable<T>({
       exitEditMode();
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !dragRef.current && !stashDragRef.current) exitEditMode();
+      if (e.key !== 'Escape' || dragRef.current || stashDragRef.current) return;
+      // An inline editor owns Escape: it reverts its own row. Tearing the
+      // whole mode down from under it would undo far more than was asked.
+      // (Freeform's inputs also stop the event, so this is the belt to that
+      // brace — it covers a caller's own field inside an item.)
+      if (isTextEntry(e.target)) return;
+      exitEditMode();
     };
     window.addEventListener('pointerdown', onDown, true);
     window.addEventListener('keydown', onKey);
@@ -1302,23 +1715,36 @@ export function HoldEditable<T>({
     if (disabled && editMode) exitEditMode();
   }, [disabled, editMode, exitEditMode]);
 
-  // A hold-then-release still fires a click on whatever was under the pointer.
-  // These items are usually links or buttons, so swallow the click that closes
-  // a drag — reordering the navbar must not also navigate. In persistent edit
-  // mode every click inside the group is swallowed (taps rearrange, they don't
-  // activate — same rule as iOS's jiggle mode), except on opted-out sub-trees.
+  /**
+   * A hold-then-release still fires a click on whatever was under the pointer.
+   * These items are usually links or buttons, so swallow the click that closes
+   * a drag — reordering the navbar must not also navigate.
+   *
+   * In persistent edit mode a tap on an item is swallowed too (it must not
+   * activate what it hits) **and it leaves edit mode**. iOS's jiggle mode makes
+   * a tap do nothing at all, which reads as the UI having gone dead: the only
+   * ways out are a tap on empty space or Escape, and on a group that fills the
+   * screen there is no empty space to find. Treating the tap as "I'm done"
+   * gives the mode the obvious exit its own surface was missing.
+   *
+   * Two exceptions, both about staying in the mode you are working in: taps
+   * inside the stash popover (picking a benched item back up is edit-mode
+   * work), and taps on the opted-out sub-trees — a freeform row's text input
+   * or its × — which keep their clicks and must not tear the mode down.
+   */
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       const recent = Date.now() - droppedAt.current <= CLICK_SUPPRESS_MS;
       const t = e.target as Element | null;
-      const inGroup =
-        !!t &&
-        ((containerRef.current?.contains(t) ?? false) || (stashRef.current?.contains(t) ?? false));
-      const editingTap = editModeRef.current && inGroup && !t?.closest?.(NO_HOLD_SELECTOR);
+      const inContainer = !!t && (containerRef.current?.contains(t) ?? false);
+      const inStash = !!t && (stashRef.current?.contains(t) ?? false);
+      const clickThrough = !!t?.closest?.(CLICK_THROUGH_SELECTOR);
+      const editingTap = editModeRef.current && (inContainer || inStash) && !clickThrough;
       if (!recent && !editingTap) return;
       droppedAt.current = 0;
       e.preventDefault();
       e.stopPropagation();
+      if (editingTap && inContainer) exitEditModeRef.current?.();
     };
     window.addEventListener('click', onClick, true);
     return () => window.removeEventListener('click', onClick, true);
@@ -1410,7 +1836,12 @@ export function HoldEditable<T>({
               onDragStart={(e) => e.preventDefault()}
               onContextMenu={(e) => {
                 // A long press pops the OS context menu / selection callout on
-                // touch, which would fight the pickup.
+                // touch, which would fight the pickup — and on a link it pops
+                // early enough to cancel the touch outright, which is exactly
+                // why the link tier exists. An armed press counts (`pressing`),
+                // so the callout is already gone by the time it would appear.
+                // A `never` sub-tree keeps its menu: that is the escape hatch.
+                if (holdTierOf(e.target as Element | null) === 'never') return;
                 if (pressing || editing) e.preventDefault();
               }}
               onPointerDown={(e) => onPointerDown(e, key)}
@@ -1449,12 +1880,18 @@ export function HoldEditable<T>({
                       : pressing
                         ? {
                             transform: 'scale(0.94)',
-                            transition: `transform ${effectiveHoldDelay}ms cubic-bezier(0.4, 0, 0.6, 1)`,
+                            transition: `transform ${pressDelay}ms cubic-bezier(0.4, 0, 0.6, 1)`,
                           }
                         : { transition: 'transform 140ms ease-out' }
                 }
               >
-                {compact ? (
+                {compact && freeform ? (
+                  <FreeformRow
+                    text={freeformTextOf(item)}
+                    onCommit={(text) => onTextChange?.(item, text)}
+                    onRemove={onRemove ? () => onRemove(item) : undefined}
+                  />
+                ) : compact ? (
                   <CompactRow>{compactLabelOf(item)}</CompactRow>
                 ) : (
                   children(
@@ -1495,6 +1932,13 @@ export function HoldEditable<T>({
             </div>
           );
         })}
+
+        {/* The add row rides along with the compact rows — mounted on the same
+            commit, so it is already there when the pickup measures the slots
+            and can never move one mid-drag. */}
+        {compact && freeform && onAdd && (
+          <FreeformAddRow placeholder={addPlaceholder} onSubmit={onAdd} />
+        )}
       </div>
 
       {/* The picked-up item, lifted out of the flow into a body-level layer so
@@ -1526,8 +1970,13 @@ export function HoldEditable<T>({
                 : 'drop-shadow(0 0 0 rgb(0 0 0 / 0))',
             }}
           >
+            {/* The ghost carries the row's *text*: a second live input flying
+                around under the finger would steal focus and caret from the
+                one still sitting in the list. */}
             {compact ? (
-              <CompactRow>{compactLabelOf(ghostItem)}</CompactRow>
+              <CompactRow>
+                {freeform ? freeformTextOf(ghostItem) : compactLabelOf(ghostItem)}
+              </CompactRow>
             ) : (
               children(ghostItem, {
                 held: true,

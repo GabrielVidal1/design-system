@@ -71,6 +71,8 @@ export { Tooltip } from './components/tooltip';
 export type { TooltipProps, TooltipSide } from './components/tooltip';
 export { Popover } from './components/popover';
 export type { PopoverProps, PopoverSide, PopoverAlign } from './components/popover';
+export { PopConfirm } from './components/pop-confirm';
+export type { PopConfirmProps } from './components/pop-confirm';
 export { ThemeProvider, ThemeToggle, resolveTheme, setTheme, toggleTheme, useTheme } from './components/theme';
 export type { ThemeMode, ThemeToggleProps, UseThemeResult } from './components/theme';
 export { Spinner } from './components/spinner';
@@ -153,6 +155,7 @@ export type {
   HoldEditableProps,
   HoldEditableItemState,
   HoldEditableStashPlacement,
+  HoldEditableHoldTier,
 } from './components/hold-editable';
 export { Collection } from './components/collection';
 export type {

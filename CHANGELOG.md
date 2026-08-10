@@ -15,6 +15,80 @@ last release → grouped bullets under Unreleased), then curate the prose.
 
 ## [Unreleased]
 
+> Confirm without leaving the page — and a hold that knows what it landed on.
+
+### Added
+- `PopConfirm` — the one-question confirmation bubble: a warning mark, the
+  question, an optional line of consequence and a Cancel/OK pair, anchored to
+  whatever triggered it. It is the lightweight half of `useConfirm()`: reach
+  for the `Modal` when an action is big enough to deserve taking over the
+  screen, and for this when the answer belongs next to the thing being answered
+  about. Built on `Popover`, so side-flip, outside-click, Escape and the phone
+  bottom sheet come for free — and **every one of those dismissals counts as a
+  "no"** and fires `onCancel`, which is the distinction a bare Popover can't
+  make. An async `onConfirm` puts OK into its loading state and pins the bubble
+  open until the promise settles (dismissal is ignored mid-flight); a
+  *rejection* clears the spinner **without** closing, so the same button
+  retries after the caller has surfaced the error. `disabled` hands the trigger
+  back untouched — no wrapper element and no `aria-haspopup` lying about a
+  bubble that can never open.
+- `HoldEditable` — **freeform mode.** `freeform` turns edit mode into an
+  editor: every row becomes an inline text field and a free-text add row
+  appears under them, so the one gesture that reorders the list also renames
+  and grows it. That is what makes a plan-like structure — a form's questions,
+  a checklist, a menu — editable in place instead of behind a modal. `getText`
+  seeds each editor (falling back to `compactLabel` → `stashLabel` → the key),
+  `onTextChange` commits on Enter and on blur but only when the text actually
+  changed, `onAdd` receives the add row's submission (omit it and no add row
+  renders), `onRemove` puts a small × on each row, and `addPlaceholder` words
+  it. It implies the compact-row treatment for the whole group whatever
+  `compactEdit` says — the freeform row *is* the compact row. Keep the stash
+  on: with `stash={false}` edit mode ends at the drop, which would close the
+  very fields the user came to type in.
+- `RichInput` — `onChange`, fired on every text change with the live value. The
+  composer only ever spoke on submit, which is right for a chat box and useless
+  for a *field*: a form's free-text answer has to be readable, and validatable,
+  before anything is sent. Every path that mutates the text reports through it,
+  including history recall, a restored draft and the imperative handle.
+
+### Changed
+- `HoldEditable` — **hold tiers: how urgently a press becomes a pickup is now
+  resolved per target**, so one item can hold several kinds of thing at once. A
+  link has to be picked up *before* the phone pops its own ~500ms link callout
+  and cancels the touch, so `<a href>` and `[data-hold-editable-first]` fire at
+  the new `linkHoldDelay` (default `min(holdDelay, 320)`). A button, a text
+  field, a `[contenteditable]` or `[data-hold-editable-last]` owns the early
+  part of the press instead — selecting text, its own long-press menu,
+  `onItemHold` — so the pickup queues up behind it at `holdDelay +
+  interactiveHoldOffset` (default 600ms). Everything else keeps `holdDelay`,
+  and `[data-hold-editable-ignore]` still opts out of the gesture entirely —
+  and now keeps its context menu while the group is editing, which is the
+  whole point of the escape hatch. Text fields and opted-out sub-trees also
+  keep their **clicks** while editing; a plain button inside an item is still
+  swallowed, because taps rearrange rather than activate in edit mode.
+- `HoldEditable` — **the hold is a static gesture.** The press now has to stay
+  put: travel past 8px (32px for a mouse, which a resting hand drifts across
+  during a deliberate 1.4s hold) cancels it, and so does *any* scroll under it.
+  The scroll rule is the one that matters. Travel alone missed the case that
+  actually bit — panning a horizontally scrollable child of an item, a chart or
+  a wide table, where the scroller claims the gesture and the pointer stream we
+  still see looks still enough to pass for a hold. Scrolling a graph sideways
+  no longer lifts the card it lives in. A pickup already deferred for the
+  compact collapse is exempt, since that scroll is the component's own doing.
+- `HoldEditable` — **a plain tap now leaves edit mode.** It is still swallowed
+  (a tap in edit mode must not activate what it hits), but it ends the mode
+  instead of doing nothing. iOS's jiggle mode makes the tap a no-op, which
+  reads as the UI having gone dead — and on a group that fills the screen there
+  is no "outside" left to tap. Taps inside the stash popover, and on the
+  opted-out sub-trees (a freeform row's input and its ×), keep working as
+  before: those are edit-mode work, not an exit.
+- `HoldEditable` — nested groups are documented and demoed: the innermost group
+  that takes a press wins it, so a grid of chips inside a stack of cards can't
+  pick up two items from one hold.
+- `PopConfirm` — `ariaLabel`, and the question is used as the panel's
+  accessible name by default. Without one, `Popover` renders its phone bottom
+  sheet header-less: a confirmation with nothing to read above its two buttons.
+
 ### Changed
 - `HoldEditable` — **the stash is on by default.** Every group now has the
   overflow bench, so any item can be taken out and put back and a removal is

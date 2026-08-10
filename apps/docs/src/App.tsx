@@ -59,6 +59,7 @@ import {
   ModalProvider,
   Tooltip,
   Popover,
+  PopConfirm,
   Nav2DProvider,
   Nav2DItem,
   useNav2D,
@@ -155,6 +156,7 @@ import {
   ModalIcon,
   TooltipIcon,
   PopoverIcon,
+  PopConfirmIcon,
   Nav2DIcon,
   PhonePreviewIcon,
   PhoneKeyboardIcon,
@@ -286,6 +288,7 @@ const GROUP_OF: Record<string, Group> = {
   'empty-state': 'Feedback',
   tooltip: 'Feedback',
   popover: 'Feedback',
+  'pop-confirm': 'Feedback',
   'phone-preview': 'Layout',
   'phone-keyboard': 'Inputs',
   'iframe-preview': 'Layout',
@@ -364,6 +367,7 @@ const SOURCE_FILE: Record<string, string> = {
   modal: 'modal.tsx',
   tooltip: 'tooltip.tsx',
   popover: 'popover.tsx',
+  'pop-confirm': 'pop-confirm.tsx',
   spinner: 'spinner.tsx',
   skeleton: 'skeleton.tsx',
   'empty-state': 'empty-state.tsx',
@@ -724,10 +728,48 @@ open(media, { story: true })      // auto-advancing story + progress bar`,
   ...
 />
 
+// Hold tiers: how urgently a press becomes a pickup is resolved per
+// TARGET, so one item can hold several. A link has to be picked up
+// BEFORE the phone's own ~500ms link callout kills the touch; a
+// button or a text field owns the early press and the pickup queues
+// up behind it; an overlay's panel opts out entirely.
+//   <a href> · [data-hold-editable-first]   → linkHoldDelay (320ms)
+//   anything else                            → holdDelay
+//   button · input · [data-hold-editable-last]
+//                        → holdDelay + interactiveHoldOffset (600ms)
+//   [data-hold-editable-ignore]              → never picks up
+<HoldEditable
+  holdDelay={1400}
+  linkHoldDelay={300}            // keep under ~400ms
+  interactiveHoldOffset={600}    // extra hold on buttons/fields
+  ...
+/>
+
+// Freeform: while editing, every row becomes an inline text field
+// and an add row appears under them — the same gesture reorders,
+// RENAMES and grows the list. Implies the compact-row treatment
+// whatever compactEdit says: the row IS the compact row.
+<HoldEditable
+  items={steps}
+  getKey={(s) => s.id}
+  onReorder={setSteps}
+  freeform
+  getText={(s) => s.text}        // falls back to compactLabel → key
+  onTextChange={(s, text) => rename(s.id, text)}  // Enter + blur
+  onAdd={(text) => append(text)} // omit it ⇒ no add row
+  onRemove={(s) => drop(s.id)}   // omit it ⇒ no × (prefer the stash)
+  addPlaceholder="Add a step…"
+>
+  {(s) => <ChecklistRow step={s} />}
+</HoldEditable>
+
+// Groups nest — a grid of chips inside a stack of cards. The
+// innermost group that takes the press wins, so one hold can never
+// pick up two items.
+
 // The DOM order is frozen during the drag (reorder is transforms
 // only, committed on drop) — that is what keeps a touch drag alive
-// across slot hand-overs. Keep interactive sub-trees pressable with
-// data-hold-editable-ignore.`,
+// across slot hand-overs.`,
   },
   {
     id: 'progressive-text',
@@ -1346,6 +1388,45 @@ if (await confirm({ title: 'Delete note?', destructive: true })) remove()
 >
   <ShareLinks />
 </Popover>`,
+  },
+  {
+    id: 'pop-confirm',
+    name: 'PopConfirm',
+    sig: 'trigger · title · description · okVariant',
+    tag: 'overlay',
+    Icon: PopConfirmIcon,
+    Demo: PopConfirmDemo,
+    code: `// the lightweight confirm: the question opens next to the thing
+// being answered about, instead of a full-screen Modal. Reach for
+// useConfirm() when the action is big or irreversible enough to
+// deserve taking over the screen.
+<PopConfirm
+  trigger={<Button variant="destructive" size="sm">Delete</Button>}
+  title="Delete deployment?"
+  okText="Delete"
+  okVariant="destructive"
+  onConfirm={() => remove(id)}
+/>
+
+// a promise holds the bubble open with OK in its loading state,
+// and dismissal is ignored until it settles — a rejection clears
+// the spinner WITHOUT closing, so the same button retries.
+<PopConfirm
+  trigger={<Button size="sm">Restart</Button>}
+  title="Restart the container?"
+  description="In-flight requests are dropped."
+  onConfirm={() => api.restart(id)}   // async ⇒ spinner
+/>
+
+// built on Popover: side-flip, outside-click, Escape and the
+// phone bottom sheet come for free — and every one of those
+// dismissals counts as a "no" and fires onCancel.
+<PopConfirm side="top" align="end" onCancel={track} … />
+
+// disabled hands the trigger back UNTOUCHED (its own onClick
+// runs, no wrapper, no lying aria-haspopup) — for "this needs
+// no confirming right now".
+<PopConfirm disabled={draft} trigger={<Button onClick={save}>Save</Button>} … />`,
   },
   {
     id: 'spinner',
@@ -2907,6 +2988,14 @@ function HoldEditableDemo() {
       <div className="mt-6 border-t border-dashed border-border pt-5">
         <HoldEditableStashDemo />
       </div>
+
+      <div className="mt-6 border-t border-dashed border-border pt-5">
+        <HoldEditableFreeformDemo />
+      </div>
+
+      <div className="mt-6 border-t border-dashed border-border pt-5">
+        <HoldEditableNestedDemo />
+      </div>
     </div>
   );
 }
@@ -2987,6 +3076,133 @@ function HoldEditableStashDemo() {
         slots, the overflow lives in a <span className="text-foreground">stash</span>: hold a tile
         to start editing and the stash pops under the grid · drag a tile onto it to bench it · drag
         a tag onto a tile to swap it in · edit mode survives drops — tap outside or Esc to finish
+      </p>
+    </div>
+  );
+}
+
+/** Freeform: the reorder gesture also renames the rows and grows the list. */
+function HoldEditableFreeformDemo() {
+  const nextId = useRef(4);
+  const [steps, setSteps] = useState(() => [
+    { id: '0', text: 'Pull main, cut a worktree' },
+    { id: '1', text: 'Bump the version' },
+    { id: '2', text: 'Publish to verdaccio' },
+    { id: '3', text: 'Deploy the docs' },
+  ]);
+
+  return (
+    <div>
+      <HoldEditable
+        items={steps}
+        getKey={(s) => s.id}
+        onReorder={setSteps}
+        holdDelay={600}
+        freeform
+        getText={(s) => s.text}
+        onTextChange={(s, text) =>
+          setSteps((all) => all.map((x) => (x.id === s.id ? { ...x, text } : x)))
+        }
+        onAdd={(text) =>
+          setSteps((all) => [...all, { id: String(nextId.current++), text }])
+        }
+        onRemove={(s) => setSteps((all) => all.filter((x) => x.id !== s.id))}
+        addPlaceholder="Add a step…"
+        // The stash stays ON (the default) on purpose: it is what makes edit
+        // mode persistent, and freeform needs to survive a drop — otherwise
+        // every reorder would close the fields you came to type in.
+        stashLabel={(s) => s.text}
+        className="space-y-2"
+      >
+        {(s, { editing }) => (
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-[var(--tint)] px-3 py-2.5">
+            <span
+              className={cn(
+                'size-4 shrink-0 rounded-[5px] border border-border',
+                editing && 'opacity-40',
+              )}
+            />
+            <span className="min-w-0 flex-1 truncate text-sm text-foreground">{s.text}</span>
+          </div>
+        )}
+      </HoldEditable>
+      <p className="mt-3 mono text-[11px] text-muted-foreground">
+        one gesture does all three: <span className="text-foreground">hold a row</span> (0.6s here)
+        and the checklist turns into text fields · drag by the grip to reorder ·{' '}
+        <span className="text-foreground">tap the text to rename it</span> — Enter or blur commits ·
+        the last row <span className="text-foreground">adds</span> · × deletes outright, the stash
+        below benches undoably · Esc or a tap outside leaves edit mode
+      </p>
+      <p className="mt-1 mono text-[11px] text-muted-foreground">
+        edit mode has to <span className="text-foreground">survive the drop</span> for any of that
+        to be typeable, which is exactly what the (default) stash gives it
+      </p>
+    </div>
+  );
+}
+
+/** Nested groups: reorder the cards, or the chips inside one, with one gesture. */
+function HoldEditableNestedDemo() {
+  const [cards, setCards] = useState(() => [
+    { id: 'build', title: 'Build', chips: ['lint', 'typecheck', 'bundle'] },
+    { id: 'test', title: 'Test', chips: ['unit', 'a11y', 'visual'] },
+    { id: 'ship', title: 'Ship', chips: ['publish', 'deploy', 'notify'] },
+  ]);
+
+  const setChips = (id: string, chips: string[]) =>
+    setCards((all) => all.map((c) => (c.id === id ? { ...c, chips } : c)));
+
+  return (
+    <div>
+      <HoldEditable
+        items={cards}
+        getKey={(c) => c.id}
+        onReorder={setCards}
+        holdDelay={600}
+        // The outer column must NOT collapse: compact edit mode swaps the cards
+        // for label rows, which would unmount the inner groups this demo is about.
+        compactEdit={false}
+        stash={false}
+        className="space-y-3"
+      >
+        {(card, { held, editing }) => (
+          <div
+            className={cn(
+              'rounded-xl border border-border bg-[var(--tint)] p-3 transition-colors',
+              held && 'border-[color:var(--cyan-deep)]',
+              editing && !held && 'opacity-80',
+            )}
+          >
+            <div className="mono text-[10px] uppercase tracking-wide text-muted-foreground">
+              {card.title}
+            </div>
+            <HoldEditable
+              items={card.chips}
+              getKey={(c) => c}
+              onReorder={(next) => setChips(card.id, next)}
+              holdDelay={600}
+              stash={false}
+              className="mt-2 flex flex-wrap gap-2"
+            >
+              {(chip, { held: chipHeld }) => (
+                <span
+                  className={cn(
+                    'rounded-full border border-border bg-[var(--surface)] px-2.5 py-1 mono text-[11px] text-foreground transition-colors',
+                    chipHeld && 'border-[color:var(--cyan-deep)]',
+                  )}
+                >
+                  {chip}
+                </span>
+              )}
+            </HoldEditable>
+          </div>
+        )}
+      </HoldEditable>
+      <p className="mt-3 mono text-[11px] text-muted-foreground">
+        groups nest: hold a <span className="text-foreground">chip</span> and only its row
+        rearranges — <span className="text-foreground">the innermost group takes the press</span>,
+        so a single hold can never pick up two items at once · hold the card's chrome (its title,
+        the padding) to reorder the column instead
       </p>
     </div>
   );
@@ -4968,6 +5184,98 @@ function PopoverDemo() {
           </div>
         </Popover>
       </DemoRow>
+    </div>
+  );
+}
+
+function PopConfirmDemo() {
+  const toast = useToast();
+  // A fake deployment list, so confirming has something visible to do — a
+  // confirmation with no consequence teaches nothing about the gesture.
+  const [deploys, setDeploys] = useState(() => ['ai-agent', 'zipgo', 'brain']);
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        The answer stays next to the question. Escape, an outside click or a second click on the
+        trigger all count as "no"; on a phone the bubble becomes a bottom sheet.
+      </p>
+      <div className="space-y-2">
+        {deploys.map((name) => (
+          <div
+            key={name}
+            className="flex items-center gap-3 rounded-xl border border-border bg-[var(--tint)] px-3 py-2"
+          >
+            <span className="min-w-0 flex-1 truncate text-sm text-foreground">{name}</span>
+            <PopConfirm
+              trigger={
+                <Button size="icon-sm" variant="ghost" icon={<Trash2 />} aria-label={`Delete ${name}`} />
+              }
+              title="Delete deployment?"
+              description={`${name} stops serving immediately and its volumes are kept.`}
+              okText="Delete"
+              okVariant="destructive"
+              side="left"
+              align="center"
+              onConfirm={() => {
+                setDeploys((d) => d.filter((n) => n !== name));
+                toast.success(`${name} deleted`);
+              }}
+            />
+          </div>
+        ))}
+        {deploys.length === 0 && (
+          <Button variant="outline" size="sm" onClick={() => setDeploys(['ai-agent', 'zipgo', 'brain'])}>
+            Restore the list
+          </Button>
+        )}
+      </div>
+      <DemoRow>
+        {/* async: the promise pins the bubble open and puts OK in its loading
+            state — the case a plain window.confirm can't express at all */}
+        <PopConfirm
+          trigger={
+            <Button variant="outline" size="sm">
+              Restart Traefik
+            </Button>
+          }
+          title="Restart the reverse proxy?"
+          description="Every lab route is unreachable for a second or two."
+          okText="Restart"
+          onConfirm={() =>
+            new Promise<void>((resolve) =>
+              setTimeout(() => {
+                toast.success('Traefik restarted');
+                resolve();
+              }, 1600),
+            )
+          }
+        />
+        {/* no description: the title carries the whole question */}
+        <PopConfirm
+          trigger={
+            <Button variant="ghost" size="sm">
+              Discard draft
+            </Button>
+          }
+          title="Discard this draft?"
+          okText="Discard"
+          okVariant="destructive"
+          side="top"
+          onCancel={() => toast.info('Kept')}
+          // A block body, not an expression: `toast.success` returns the toast
+          // id, and `void | Promise<void>` — unlike a bare `void` — won't take
+          // a stray return value.
+          onConfirm={() => {
+            toast.success('Draft discarded');
+          }}
+        />
+      </DemoRow>
+      <p className="mono text-[11px] text-muted-foreground">
+        <span className="text-foreground">Restart Traefik</span> returns a promise — OK spins and
+        the bubble refuses to be dismissed until it settles · a rejection would clear the spinner
+        without closing, so the same button retries
+      </p>
     </div>
   );
 }

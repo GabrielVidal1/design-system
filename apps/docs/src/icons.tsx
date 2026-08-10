@@ -1002,6 +1002,34 @@ export function PopoverIcon() {
   );
 }
 
+/** PopConfirm — the question opens under the button that asked it; the answer
+ * pair waits below, and a tap ripples out of OK. */
+export function PopConfirmIcon() {
+  return (
+    <Svg>
+      {/* the trigger keeps its place above — the bubble is anchored to it, not
+          floated over the page like a Modal */}
+      <rect x="72" y="12" width="76" height="24" rx="7" stroke={DIM} strokeWidth="2" />
+      <rect x="86" y="21" width="48" height="6" rx="3" fill={DIM} opacity="0.5" />
+      <g className="a-panel" style={v({ '--dur': '4.2s' })}>
+        <path d="M104 44 l6 -8 l6 8 Z" fill={CY} />
+        <rect x="44" y="44" width="132" height="66" rx="10" fill={PAPER} stroke={CY} strokeWidth="2.5" />
+        {/* the warning mark the component always draws */}
+        <circle cx="62" cy="61" r="7.5" stroke={CY} strokeWidth="2" />
+        <path d="M62 56.5 v5" stroke={CY} strokeWidth="2" strokeLinecap="round" />
+        <circle cx="62" cy="65.8" r="1.3" fill={CY} />
+        <rect className="a-grow" style={v({ '--g0': '0.15', '--dur': '4.2s', animationDelay: '0.3s' })} x="78" y="55" width="62" height="5.5" rx="2.75" fill={CY} opacity="0.85" />
+        <rect className="a-grow" style={v({ '--g0': '0.1', '--dur': '4.2s', animationDelay: '0.5s' })} x="78" y="66" width="84" height="4" rx="2" fill={DIM} opacity="0.55" />
+        {/* Cancel stays an outline, OK carries the weight — the pair reads as
+            one answer with a default, which is the whole point of the bubble */}
+        <rect x="92" y="84" width="34" height="15" rx="7.5" stroke={DIM} strokeWidth="2" />
+        <rect x="130" y="84" width="34" height="15" rx="7.5" fill={CY} fillOpacity="0.3" stroke={CY} strokeWidth="2.5" />
+        <circle className="a-ping" style={v({ '--dur': '4.2s', animationDelay: '1.7s' })} cx="147" cy="91.5" r="9" fill={CY} fillOpacity="0.3" />
+      </g>
+    </Svg>
+  );
+}
+
 /** ThemeToggle — the knob crosses the track and the sun yields to the moon. */
 export function ThemeToggleIcon() {
   return (
