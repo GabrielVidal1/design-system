@@ -51,9 +51,50 @@ interface Measured {
 
 const DEFAULT_COLOR = 'var(--color-primary, currentColor)';
 
-/** Typography the mirror must copy from the textarea, verbatim. */
+/** Structure only — the typography is copied off the textarea at runtime. */
 const MIRROR_CLASS =
-  'pointer-events-none absolute inset-0 select-none overflow-hidden whitespace-pre-wrap break-words px-2 py-1 text-sm leading-[22px] text-transparent';
+  'pointer-events-none absolute inset-0 select-none overflow-hidden whitespace-pre-wrap break-words text-transparent';
+
+/**
+ * Every property that can change where a glyph lands. Copied from the
+ * textarea's *computed* style rather than restated as classes: a consumer is
+ * free to restyle the composer's text (this library's own host app sets
+ * `textarea { font-family: monospace }` globally), and a mirror that guessed
+ * the font would measure words narrower than they are — putting every ring and
+ * every button a few characters to the left of the word it belongs to.
+ */
+const MIRRORED_PROPS = [
+  'fontFamily',
+  'fontSize',
+  'fontWeight',
+  'fontStyle',
+  'fontVariant',
+  'letterSpacing',
+  'wordSpacing',
+  'lineHeight',
+  'textIndent',
+  'textTransform',
+  'tabSize',
+  'paddingTop',
+  'paddingRight',
+  'paddingBottom',
+  'paddingLeft',
+  'borderTopWidth',
+  'borderRightWidth',
+  'borderBottomWidth',
+  'borderLeftWidth',
+] as const;
+
+function readMirrorStyle(ta: HTMLTextAreaElement): CSSProperties {
+  const cs = getComputedStyle(ta);
+  const out: Record<string, string> = {};
+  for (const p of MIRRORED_PROPS) out[p] = cs[p];
+  // The mirror sits *on* the textarea's border box, so the border has to be
+  // reserved as space rather than drawn.
+  out.borderStyle = 'solid';
+  out.borderColor = 'transparent';
+  return out as CSSProperties;
+}
 
 export function AutoTagOverlay({
   taRef,
@@ -73,6 +114,7 @@ export function AutoTagOverlay({
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const mirrorRef = useRef<HTMLDivElement | null>(null);
   const [measured, setMeasured] = useState<Measured[]>([]);
+  const [mirrorStyle, setMirrorStyle] = useState<CSSProperties>();
 
   const active = [...marks, ...suggestions].sort((a, b) => a.start - b.start);
   // Cheap identity of what is drawn — remeasuring keys off this rather than off
@@ -108,9 +150,17 @@ export function AutoTagOverlay({
     const wrap = wrapRef.current;
     if (!ta || !wrap) return;
     const sync = () => {
+      setMirrorStyle((prev) => {
+        const next = readMirrorStyle(ta);
+        return sameStyle(prev, next) ? prev : next;
+      });
       if (mirrorRef.current) mirrorRef.current.scrollTop = ta.scrollTop;
       measure();
     };
+    sync();
+    // A webfont landing after mount re-flows every word: measure again once the
+    // fonts the page asked for are actually in.
+    document.fonts?.ready.then(sync).catch(() => {});
     ta.addEventListener('scroll', sync);
     // Guarded: the overlay must still mount where there is no ResizeObserver
     // (jsdom, older WebViews) — it simply stops re-measuring on resize.
@@ -128,7 +178,7 @@ export function AutoTagOverlay({
   return (
     <>
       <div ref={wrapRef} className="pointer-events-none absolute inset-0">
-        <div ref={mirrorRef} aria-hidden className={MIRROR_CLASS}>
+        <div ref={mirrorRef} aria-hidden className={MIRROR_CLASS} style={mirrorStyle}>
           {segments(value, active).map((seg, i) =>
             seg.match ? (
               <span
@@ -260,6 +310,12 @@ function segments(text: string, matches: AutoTagMatch[]): { text: string; match?
   }
   if (at < text.length) out.push({ text: text.slice(at) });
   return out;
+}
+
+function sameStyle(a: CSSProperties | undefined, b: CSSProperties): boolean {
+  if (!a) return false;
+  const ka = Object.keys(a) as (keyof CSSProperties)[];
+  return ka.length === Object.keys(b).length && ka.every((k) => a[k] === b[k]);
 }
 
 function sameBoxes(a: Measured[], b: Measured[]): boolean {
