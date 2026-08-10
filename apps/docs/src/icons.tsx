@@ -846,6 +846,24 @@ export function ToastIcon() {
   );
 }
 
+/** Banner — a full-width bar drops from the top edge, holds, lifts away. */
+export function BannerIcon() {
+  return (
+    <Svg>
+      <rect x="30" y="16" width="160" height="98" rx="8" stroke={DIM} strokeWidth="2" opacity="0.4" />
+      <g className="a-banner">
+        <rect x="42" y="34" width="136" height="34" rx="8" fill={CY} fillOpacity="0.14" stroke={CY} strokeWidth="2.5" />
+        <circle cx="60" cy="51" r="7" fill={CY} fillOpacity="0.22" stroke={CY} strokeWidth="2" />
+        <path d="M60 47 v6 M60 56.5 v0.5" stroke={CY} strokeWidth="2" strokeLinecap="round" />
+        <rect className="a-grow" style={v({ '--g0': '0.15', '--dur': '4.4s', animationDelay: '0.4s' })} x="78" y="43" width="76" height="5" rx="2.5" fill={CY} opacity="0.75" />
+        <rect className="a-grow" style={v({ '--g0': '0.12', '--dur': '4.4s', animationDelay: '0.65s' })} x="78" y="53" width="48" height="4" rx="2" fill={DIM} opacity="0.6" />
+      </g>
+      <rect className="a-grow" style={v({ '--g0': '0.1', '--dur': '4.4s', animationDelay: '0.2s' })} x="42" y="82" width="60" height="6" rx="3" fill={DIM} opacity="0.4" />
+      <rect className="a-grow" style={v({ '--g0': '0.08', '--dur': '4.4s', animationDelay: '0.5s' })} x="42" y="94" width="90" height="5" rx="2.5" fill={DIM} opacity="0.3" />
+    </Svg>
+  );
+}
+
 /** Modal — the scrim settles over the page as the panel scales in. */
 export function ModalIcon() {
   return (

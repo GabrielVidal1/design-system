@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import {
   Badge,
+  Banner,
   Button,
   Changelog,
   type ChangelogEntry,
@@ -131,6 +132,7 @@ import {
   CnIcon,
   ButtonIcon,
   ChangelogIcon,
+  BannerIcon,
   CharRollIcon,
   CheckboxIcon,
   CollectionIcon,
@@ -270,6 +272,7 @@ const GROUP_OF: Record<string, Group> = {
   'progressive-timeline': 'Animation',
   changelog: 'Feedback',
   toast: 'Feedback',
+  banner: 'Feedback',
   spinner: 'Feedback',
   skeleton: 'Feedback',
   'empty-state': 'Feedback',
@@ -296,7 +299,7 @@ const GROUP_BLURB: Record<Group, string> = {
     'Getting around — tabbed panels, a Cmd-K palette over a generated index, and joystick-driven selection over a 2-D field.',
   Inputs: 'Form primitives, the batteries-included composer, and the file/search/copy controls around them.',
   Animation: 'Typewriter text and staggered reveals that share one timeline.',
-  Feedback: 'What the app says back — toasts, spinners, skeletons, empty states, release notes.',
+  Feedback: 'What the app says back — toasts, banners, spinners, skeletons, empty states, release notes.',
   Layout: 'Device frames, scaffolding, and the modal every project re-implements.',
   Editor: 'The primitives online editors share — toolbars, inspector panels, a real colour picker.',
   Hooks: 'The headless half: gestures, storage, media queries, clipboard, intersection.',
@@ -345,6 +348,7 @@ const SOURCE_FILE: Record<string, string> = {
   'rich-input': 'rich-input.tsx',
   cn: 'utils.ts',
   toast: 'toast.tsx',
+  banner: 'banner.tsx',
   modal: 'modal.tsx',
   tooltip: 'tooltip.tsx',
   popover: 'popover.tsx',
@@ -1192,6 +1196,26 @@ toast.error('Build failed', {
 // a pending toast, settled in place when the work lands
 const id = toast.loading('Uploading…')
 toast.update(id, 'Uploaded', { type: 'success' })`,
+  },
+  {
+    id: 'banner',
+    name: 'Banner',
+    sig: 'type · title · action · onDismiss — the persistent counterpart to Toast',
+    tag: 'display',
+    Icon: BannerIcon,
+    Demo: BannerDemo,
+    code: `<Banner type="warning" title="Registry unreachable" action={{ label: 'Retry', onClick: retry }}>
+  Verdaccio at 127.0.0.1:4873 didn't respond in 2s.
+</Banner>
+
+// page-level status that sticks around — a form-wide error, a
+// "you're on the free tier" callout — as opposed to Toast's
+// transient, floating notification. Same type vocabulary
+// (info/success/warning/error), so a caller can promote a toast
+// straight to a banner.
+<Banner type="error" onDismiss={() => setDismissed(true)}>
+  Deploy failed — check the logs.
+</Banner>`,
   },
   {
     id: 'modal',
@@ -4600,6 +4624,43 @@ function ToastDemo() {
           Clear
         </Button>
       </DemoRow>
+    </div>
+  );
+}
+
+function BannerDemo() {
+  const [dismissed, setDismissed] = useState(false);
+
+  return (
+    <div className="max-w-lg space-y-3">
+      <Banner type="info" title="New version available">
+        v{VERSION} ships a reworked demo index —{' '}
+        <button className="underline underline-offset-2" onClick={() => location.reload()}>
+          reload
+        </button>{' '}
+        to pick it up.
+      </Banner>
+      <Banner type="success">Deployed to raspy2 — build 214 is live.</Banner>
+      <Banner
+        type="warning"
+        title="Registry unreachable"
+        action={{ label: 'Retry', onClick: () => {} }}
+      >
+        Verdaccio at 127.0.0.1:4873 didn't respond in 2s.
+      </Banner>
+      {!dismissed && (
+        <Banner type="error" onDismiss={() => setDismissed(true)}>
+          Deploy failed — vite exited 1.
+        </Banner>
+      )}
+      {dismissed && (
+        <button
+          className="text-xs text-muted-foreground underline underline-offset-2"
+          onClick={() => setDismissed(false)}
+        >
+          bring the error banner back
+        </button>
+      )}
     </div>
   );
 }

@@ -177,6 +177,11 @@ last release → grouped bullets under Unreleased), then curate the prose.
   and a single control as its child: it generates the control's `id` (or uses
   a caller-supplied `htmlFor`), wires `aria-describedby` to the hint or error
   text and sets `aria-invalid` on error — no hand-rolled ids across a form.
+- `Banner` — a persistent inline status/callout (info/success/warning/error),
+  the counterpart to `Toast`'s transient floating notification: same type
+  vocabulary, plus an optional `title`, an inline `action` (button or link)
+  and a dismiss button via `onDismiss`. `icon={false}` drops the leading icon
+  for a bare pill; `compact` tightens it for a card or drawer.
 
 ### Changed
 - `RichInput` — the `disabled` treatment dims the composer's contents instead
