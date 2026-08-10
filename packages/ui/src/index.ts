@@ -202,6 +202,10 @@ export type {
   TabsTriggerProps,
   TabsVariant,
 } from './components/tabs';
+export { Breadcrumbs } from './components/breadcrumbs';
+export type { BreadcrumbItem, BreadcrumbsProps } from './components/breadcrumbs';
+export { Pagination } from './components/pagination';
+export type { PaginationProps } from './components/pagination';
 export { Button } from './components/button';
 export type { ButtonProps, ButtonVariant, ButtonSize } from './components/button';
 export { Input } from './components/input';
