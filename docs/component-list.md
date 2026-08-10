@@ -90,12 +90,13 @@ import '@gabvdl/ui/styles.css'; // or theme.css for tokens only
 
 ## Feedback
 
-*What the app says back — toasts, spinners, skeletons, empty states, release notes.*
+*What the app says back — toasts, banners, spinners, skeletons, empty states, release notes.*
 
 | Component | Exports | What it is for |
 | --- | --- | --- |
 | **[Changelog](https://ui.gabvdl.xyz/#/c/changelog)** | `Changelog` · `ChangelogEntryView` · `ChangelogPage` · `NewVersionToast` · `compareSemver` · `fetchChangelog` · `isSemver` · `latestEntry` · `parseChangelog` · `useChangelog` · `watchChangelog` | Renders a parsed `CHANGELOG.md` — trigger button, full page, `useChangelog` fetching/parsing, and a toast when a new version ships. |
 | **[Toast](https://ui.gabvdl.xyz/#/c/toast)** | `ToastProvider` · `Toaster` · `useToast` | Toast system — `ToastProvider` + `useToast`, with types, actions and in-place updates. |
+| **[Banner](https://ui.gabvdl.xyz/#/c/banner)** | `Banner` | Inline status/callout banner (info/success/warning/error), optionally dismissible with an action link — the persistent counterpart to `Toast`. |
 | **[Tooltip](https://ui.gabvdl.xyz/#/c/tooltip)** | `Tooltip` | Hover/focus hint; long-press reveals it on touch instead of firing the trigger, and a linger timeout auto-dismisses it there. |
 | **[Popover](https://ui.gabvdl.xyz/#/c/popover)** | `Popover` | Click-triggered floating panel for interactive content; anchored on desktop with side-flip, a bottom sheet on phones. |
 | **[Spinner](https://ui.gabvdl.xyz/#/c/spinner)** | `Spinner` | Loading spinner with size, label and centering. |
@@ -164,4 +165,4 @@ import '@gabvdl/ui/styles.css'; // or theme.css for tokens only
 
 ---
 
-60 catalogue entries · 15 hooks · conventions and contribution rules in [CLAUDE.md](../CLAUDE.md), direction in [GOAL.md](../GOAL.md).
+61 catalogue entries · 15 hooks · conventions and contribution rules in [CLAUDE.md](../CLAUDE.md), direction in [GOAL.md](../GOAL.md).

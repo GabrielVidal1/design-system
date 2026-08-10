@@ -63,6 +63,8 @@ export type {
 
 export { ToastProvider, Toaster, useToast } from './components/toast';
 export type { Toast, ToastAction, ToastFn, ToastOptions, ToastPosition, ToastType } from './components/toast';
+export { Banner } from './components/banner';
+export type { BannerAction, BannerProps, BannerType } from './components/banner';
 export { Modal, ModalProvider, useConfirm, useModal } from './components/modal';
 export type { ConfirmSpec, ModalProps, ModalSize, ModalSpec } from './components/modal';
 export { Tooltip } from './components/tooltip';

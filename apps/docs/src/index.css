@@ -361,6 +361,14 @@ body::before {
 }
 .a-toast { animation: a-toast 4.2s var(--ease-io) infinite; }
 
+/* banner — drops in from the top edge, holds, lifts away */
+@keyframes a-banner {
+  0%, 8%    { opacity: 0; transform: translateY(-14px); }
+  20%, 82%  { opacity: 1; transform: translateY(0); }
+  94%, 100% { opacity: 0; transform: translateY(-14px); }
+}
+.a-banner { animation: a-banner 4.4s var(--ease-io) infinite; }
+
 /* modal — the scrim settles, the panel scales in */
 @keyframes a-scrim {
   0%, 8%    { opacity: 0; }
