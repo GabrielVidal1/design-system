@@ -313,6 +313,40 @@ export function ButtonIcon() {
   );
 }
 
+/** Breadcrumbs — the trail steps forward, the current crumb pulses in as the highlight drifts to the end. */
+export function BreadcrumbsIcon() {
+  return (
+    <Svg>
+      <g className="a-fade" style={v({ '--o0': '0.4', '--o1': '1', '--dur': '4s' })}>
+        <rect x="42" y="58" width="30" height="10" rx="5" fill={DIM} opacity="0.5" />
+      </g>
+      <path d="M78 58 l7 5 l-7 5" stroke={DIM} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <g className="a-fade" style={v({ '--o0': '0.4', '--o1': '1', '--dur': '4s' })}>
+        <rect x="92" y="58" width="42" height="10" rx="5" fill={DIM} opacity="0.5" />
+      </g>
+      <path d="M140 58 l7 5 l-7 5" stroke={DIM} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <g className="a-grow" style={v({ '--g0': '0.55', '--dur': '4s' })}>
+        <rect x="154" y="56" width="46" height="14" rx="7" fill={CY} />
+      </g>
+    </Svg>
+  );
+}
+
+/** Pagination — the active page dot drifts along the row while prev/next nudge. */
+export function PaginationIcon() {
+  const dot = (cx: number) => <circle key={cx} cx={cx} cy="65" r="10" fill="none" stroke={DIM} strokeWidth="2" opacity="0.5" />;
+  return (
+    <Svg>
+      <path d="M52 55 l-9 10 l9 10" stroke={DIM} strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      {[80, 106, 132, 158].map(dot)}
+      <path d="M168 55 l9 10 l-9 10" stroke={DIM} strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <g className="a-drift" style={v({ '--dx': '78px', '--dy': '0px', '--dur': '4.4s' })}>
+        <circle cx="80" cy="65" r="10" fill={CY} />
+      </g>
+    </Svg>
+  );
+}
+
 /** Tabs — the indicator slides under the strip and the panel swaps with it. */
 export function TabsIcon() {
   return (

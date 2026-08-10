@@ -100,6 +100,8 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  Breadcrumbs,
+  Pagination,
   Textarea,
   ThemeToggle,
   ToastProvider,
@@ -186,6 +188,8 @@ import {
   AnimatedListIcon,
   ElementPickerIcon,
   TabsIcon,
+  BreadcrumbsIcon,
+  PaginationIcon,
   FileEditorIcon,
   ColorPickerIcon,
   ToolbarIcon,
@@ -245,6 +249,8 @@ const GROUP_OF: Record<string, Group> = {
   'relative-time': 'Data display',
   'nav-2d': 'Navigation',
   tabs: 'Navigation',
+  breadcrumbs: 'Navigation',
+  pagination: 'Navigation',
   button: 'Inputs',
   input: 'Inputs',
   textarea: 'Inputs',
@@ -296,7 +302,7 @@ const GROUP_BLURB: Record<Group, string> = {
   Media: 'Images — a full-screen viewer, click-to-open thumbnails, and lazy blur-up loading.',
   'Data display': 'Windowed, searchable and reveal-animated lists and tables for large datasets.',
   Navigation:
-    'Getting around — tabbed panels, a Cmd-K palette over a generated index, and joystick-driven selection over a 2-D field.',
+    'Getting around — tabbed panels, a Cmd-K palette over a generated index, joystick-driven selection over a 2-D field, ancestor trails and page-number navigation.',
   Inputs: 'Form primitives, the batteries-included composer, and the file/search/copy controls around them.',
   Animation: 'Typewriter text and staggered reveals that share one timeline.',
   Feedback: 'What the app says back — toasts, banners, spinners, skeletons, empty states, release notes.',
@@ -336,6 +342,8 @@ const SOURCE_FILE: Record<string, string> = {
   'resizable-layout': 'resizable-layout.tsx',
   'nav-2d': 'nav-2d.tsx',
   tabs: 'tabs.tsx',
+  breadcrumbs: 'breadcrumbs.tsx',
+  pagination: 'pagination.tsx',
   button: 'button.tsx',
   input: 'input.tsx',
   textarea: 'textarea.tsx',
@@ -523,6 +531,38 @@ open(media, { story: true })      // auto-advancing story + progress bar`,
 //          hijacks a vertical scroll or a horizontally scrollable child
 // the strip scrolls instead of wrapping · ← → Home End · roving tabindex
 // activation="manual" moves focus without selecting (panels that fetch)`,
+  },
+  {
+    id: 'breadcrumbs',
+    name: 'Breadcrumbs',
+    sig: '(items, maxItems?, separator?)',
+    tag: 'navigation',
+    Icon: BreadcrumbsIcon,
+    Demo: BreadcrumbsDemo,
+    code: `<Breadcrumbs
+  items={[
+    { label: 'Home', href: '/' },
+    { label: 'Projects', href: '/projects' },
+    { label: 'design-system', href: '/projects/design-system' },
+    { label: 'Breadcrumbs' },   // last item = current page, plain text
+  ]}
+/>
+
+// more crumbs than maxItems (default 4 desktop / 3 phone)? the middle
+// collapses behind a tappable "…" — first and last crumbs always stay put`,
+  },
+  {
+    id: 'pagination',
+    name: 'Pagination',
+    sig: '(page, pageCount, onPageChange, siblingCount?)',
+    tag: 'navigation',
+    Icon: PaginationIcon,
+    Demo: PaginationDemo,
+    code: `<Pagination page={page} pageCount={24} onPageChange={setPage} />
+
+// desktop: prev/next + numbers, collapsing "…" gaps around the current page
+// phone:   numbers are too small to hit reliably — drops to a big-tap-target
+//          "Prev · Page 7 of 24 · Next" strip instead`,
   },
   {
     id: 'virtual-list',
@@ -3755,6 +3795,57 @@ function TabsDemo() {
         {isMobile
           ? 'Swipe the panel sideways to change tab — the strip scrolls, it never wraps.'
           : '← → move between tabs (Home / End jump to the ends). On a phone the panel is swipeable and the strip scrolls.'}
+      </p>
+    </div>
+  );
+}
+
+const BREADCRUMB_TRAILS = [
+  [
+    { label: 'Home', href: '/' },
+    { label: 'Projects', href: '/projects' },
+    { label: 'design-system' },
+  ],
+  [
+    { label: 'Home', href: '/' },
+    { label: '3d-gen', href: '/3d-gen' },
+    { label: 'jobs', href: '/3d-gen/jobs' },
+    { label: '#4821', href: '/3d-gen/jobs/4821' },
+    { label: 'mesh.glb', href: '/3d-gen/jobs/4821/mesh.glb' },
+    { label: 'metadata' },
+  ],
+];
+
+function BreadcrumbsDemo() {
+  const [trail, setTrail] = useState(0);
+  return (
+    <div className="space-y-5">
+      <div className="rounded-xl border border-border bg-card px-4 py-3">
+        <Breadcrumbs items={BREADCRUMB_TRAILS[trail]} />
+      </div>
+      <Button size="sm" variant="outline" onClick={() => setTrail((v) => (v + 1) % BREADCRUMB_TRAILS.length)}>
+        {trail === 0 ? 'Try a longer trail →' : '← Back to the short trail'}
+      </Button>
+      <p className="text-xs text-muted-foreground">
+        Six crumbs collapse to first · "…" · last three — tap "…" to see the rest. The current
+        page is plain text, not a link, and gets <span className="mono">aria-current="page"</span>.
+      </p>
+    </div>
+  );
+}
+
+function PaginationDemo() {
+  const [page, setPage] = useState(7);
+  const isMobile = useIsMobile();
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-border bg-card p-3">
+        <Pagination page={page} pageCount={24} onPageChange={setPage} />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {isMobile
+          ? 'On a phone the number grid gives way to a big-tap Prev / Page X of Y / Next strip.'
+          : '24 pages — the middle collapses to "…" around the current page, first/last always stay put. Shrink the window below 768px to see the phone layout.'}
       </p>
     </div>
   );

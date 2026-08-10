@@ -44,6 +44,14 @@ last release → grouped bullets under Unreleased), then curate the prose.
   so deriving `tags` from it can't loop.
 
 ### Added
+- `Breadcrumbs` — an ancestor trail (`items` with `label`/`href`/`onClick`),
+  last item rendered as plain text with `aria-current="page"`. Once there are
+  more crumbs than `maxItems` (default 4 desktop / 3 phone) the middle
+  collapses behind a tappable "…" that expands to the full trail.
+- `Pagination` — prev/next + numbered pages (`page`, `pageCount`,
+  `onPageChange`, `siblingCount`), collapsing "…" gaps around the current page
+  on desktop. On phones the number grid — too small to hit reliably by touch —
+  gives way to a big-tap-target "Prev · Page X of Y · Next" strip.
 - `HoldEditable` — **compact edit mode.** A column of tall cards was
   unreorderable in practice: two of them fill the screen, so every move was a
   blind drag against an auto-scrolling edge. When the group is a single-axis
