@@ -44,6 +44,30 @@ last release → grouped bullets under Unreleased), then curate the prose.
   so deriving `tags` from it can't loop.
 
 ### Added
+- `PhoneKeyboard` — **Gboard, traced off a real Pixel screenshot**: ten columns
+  of 107px, 1.54-wide shift and delete keys, a four-column space bar, the hint
+  glyph above each letter, the GIF/clipboard tool strip and the Android nav row,
+  in AZERTY and QWERTY (each with a `?123` symbols page and a `=\<` second
+  page), dark and light. The keys work — but the point is the ref:
+  `type(text)` lands the text **character by character** with the real key
+  lighting up under each one, tapping shift for capitals and flipping to `?123`
+  for symbols on the way; `backspace()` **holds the delete key** with a real
+  accelerating key-repeat that starts eating whole words once it gets going; and
+  `replace(text)` is the two in one gesture. `press()`, `setValue()` and
+  `stop()` round it out — a running animation is always cancellable, and a real
+  tap on a key wins over one. `PhoneTextField` is the composer field that shows
+  it: each new character pops in, each deleted one is eaten backwards at the
+  caret. `PhoneKeyboardProvider` shares one buffer between the field and the
+  keys (`usePhoneText` to read it anywhere between them), `captureKeys` routes
+  the visitor's physical keyboard through the on-screen keys, and
+  `phoneKeyboardHeight()` sizes the space it will take. Motion lives in the new
+  `@gabvdl/ui/keyboard.css` (also in `styles.css`).
+- `PhonePreview` — a `keyboard` prop docks a `PhoneKeyboard` in the screen and
+  wraps the content in a provider, so a mockup can type into itself: the frame's
+  ref is now a `PhonePreviewHandle` (`{ element, keyboard }`) and
+  `phone.current.keyboard.type('…')` drives it. `defaultText` seeds the buffer.
+  With a keyboard the screen becomes a column — content scrolls in what is left
+  above the keys, as a phone reflows when the keyboard comes up.
 - `Breadcrumbs` — an ancestor trail (`items` with `label`/`href`/`onClick`),
   last item rendered as plain text with `aria-current="page"`. Once there are
   more crumbs than `maxItems` (default 4 desktop / 3 phone) the middle

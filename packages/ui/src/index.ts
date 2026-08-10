@@ -184,7 +184,36 @@ export type {
   WatchOptions,
 } from './components/changelog';
 export { PhonePreview, IOSStatusBar } from './components/phone-preview';
-export type { PhonePreviewProps } from './components/phone-preview';
+export type { PhonePreviewProps, PhonePreviewHandle } from './components/phone-preview';
+export {
+  PhoneKeyboard,
+  PhoneKeyboardProvider,
+  PhoneTextField,
+  usePhoneText,
+  phoneKeyboardHeight,
+  PHONE_KEYBOARD_DARK,
+  PHONE_KEYBOARD_LIGHT,
+  AZERTY,
+  QWERTY,
+  LAYOUTS as PHONE_KEYBOARD_LAYOUTS,
+} from './components/phone-keyboard';
+export type {
+  PhoneKeyboardProps,
+  PhoneKeyboardHandle,
+  PhoneKeyboardTheme,
+  PhoneKeyboardTypeOptions,
+  PhoneKeyboardDeleteOptions,
+  PhoneKeyboardReplaceOptions,
+  PhoneKeyboardProviderProps,
+  PhoneTextFieldProps,
+  PhoneTextState,
+  PhoneKey,
+  PhoneKeyAction,
+  PhoneKeyRow,
+  PhoneKeyboardLayout,
+  PhoneKeyboardLayoutName,
+  PhoneKeyboardPage,
+} from './components/phone-keyboard';
 export { IframePreview, IframePreviewOverlay } from './components/iframe-preview';
 export type {
   IframePreviewProps,

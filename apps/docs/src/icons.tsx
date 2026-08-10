@@ -297,6 +297,62 @@ export function PhonePreviewIcon() {
   );
 }
 
+/** PhoneKeyboard — keys light up in sequence while the caret line grows, then
+ * the delete key holds and eats it back. */
+export function PhoneKeyboardIcon() {
+  const cols = 8;
+  const s = 15; // key side
+  const g = 3;
+  const x0 = 110 - (cols * (s + g) - g) / 2;
+  const y0 = 62;
+  const keys: React.ReactNode[] = [];
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < cols; c++) {
+      const i = r * cols + c;
+      keys.push(
+        <rect
+          key={i}
+          className="a-fade"
+          style={v({ '--o0': '0.14', '--o1': '0.75', '--dur': '4s', animationDelay: `${(i % 11) * 0.22}s` })}
+          x={x0 + c * (s + g) + (r === 1 ? s / 2 : 0)}
+          y={y0 + r * (s + g)}
+          width={s}
+          height={s}
+          rx="3"
+          fill={r === 2 && c === cols - 1 ? CY : DIM}
+        />,
+      );
+    }
+  }
+  return (
+    <Svg>
+      {/* the field being typed into */}
+      <rect x={x0} y="26" width={cols * (s + g) - g} height="24" rx="7" stroke={DIM} strokeWidth="2" />
+      <rect
+        className="a-grow"
+        style={v({ '--g0': '0.05', '--dur': '4s' })}
+        x={x0 + 8}
+        y="35"
+        width="78"
+        height="6"
+        rx="3"
+        fill={CY}
+        opacity="0.75"
+      />
+      <rect
+        className="a-blink"
+        x={x0 + 90}
+        y="32"
+        width="2.5"
+        height="12"
+        rx="1.25"
+        fill={CY}
+      />
+      {keys}
+    </Svg>
+  );
+}
+
 /** Button — a press: the control swells as a ring rolls outward. */
 export function ButtonIcon() {
   return (
