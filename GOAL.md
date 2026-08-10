@@ -23,7 +23,6 @@ Two audiences, one library:
      removes its own line in the same commit that ticks the checkbox. Leave
      the section empty (this comment only) when nothing is in flight. -->
 
-- [design-system] `Breadcrumbs`, pagination — @2026-08-10T01:48Z
 - [design-system] `Menu` / context menu (long-press on touch) — @2026-08-10T01:49Z
 
 ## Principles
@@ -76,7 +75,8 @@ Has `Input`, `RichInput`, `SearchInput`, `DropZone`, `ElementPicker`,
 Has `Tabs`, `Nav2D`, `GlobalSearch`, `FuzzyList`.
 - [x] `Tabs` — scrolling strip, swipeable panels, underline/pill/segmented
 - [ ] `Menu` / context menu (long-press on touch)
-- [ ] `Breadcrumbs`, pagination
+- [x] `Breadcrumbs`, pagination — collapsing "…" trail; desktop numbered
+      pages, big-tap Prev/Next strip on phones
 
 ### Feedback
 Has `Toast`, `Modal` / `useConfirm`, `Spinner`, `StatusBadge`.
