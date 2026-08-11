@@ -73,11 +73,16 @@
   animation: ds-panel-in 140ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.ds-menu-panel {
+  animation: ds-panel-in 120ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ds-modal-scrim,
   .ds-modal-panel,
   .ds-toast,
-  .ds-popover-panel {
+  .ds-popover-panel,
+  .ds-menu-panel {
     animation: ds-fade-in 1ms linear;
   }
 }

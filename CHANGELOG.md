@@ -44,6 +44,15 @@ last release → grouped bullets under Unreleased), then curate the prose.
   so deriving `tags` from it can't loop.
 
 ### Added
+- **`Menu` / `ContextMenu`** — the action-list overlay the docs catalogue was
+  still missing. `Menu` hangs a keyboard-navigable list off a click trigger
+  (built on `Popover`, so it inherits the viewport side-flip and the phone
+  bottom sheet); `ContextMenu` opens the same list at the pointer — right-click
+  on desktop, long-press on touch via `useLongPress` — clamped to the viewport,
+  and a bottom sheet on phones since a point-anchored panel would fight a
+  finger's own reach. Both share one list: arrow keys / Home / End / Enter,
+  separators, `disabled` and a destructive `danger` tone, `icon` and
+  `shortcut` slots per item.
 - **`BottomNav`** — the app's bottom bar, the shape the homelab's PWAs already
   run on, now a component: three to five destinations, the middle slot raised
   into a bubble, an underline on the selected one. It stays out of routing —

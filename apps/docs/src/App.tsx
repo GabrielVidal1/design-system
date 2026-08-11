@@ -12,14 +12,17 @@ import {
   Hand,
   Inbox,
   Layers,
+  MoreVertical,
   MousePointer2,
   PenTool,
+  Pencil,
   Play,
   Plus,
   Redo2,
   Save,
   Settings2,
   Square,
+  Star,
   Terminal,
   Trash2,
   Type,
@@ -59,6 +62,9 @@ import {
   ModalProvider,
   Tooltip,
   Popover,
+  Menu,
+  ContextMenu,
+  type MenuEntry,
   Nav2DProvider,
   Nav2DItem,
   useNav2D,
@@ -193,6 +199,7 @@ import {
   BottomNavIcon,
   BreadcrumbsIcon,
   PaginationIcon,
+  MenuIcon,
   FileEditorIcon,
   ColorPickerIcon,
   ToolbarIcon,
@@ -256,6 +263,7 @@ const GROUP_OF: Record<string, Group> = {
   'bottom-nav': 'Navigation',
   breadcrumbs: 'Navigation',
   pagination: 'Navigation',
+  menu: 'Navigation',
   button: 'Inputs',
   input: 'Inputs',
   textarea: 'Inputs',
@@ -352,6 +360,7 @@ const SOURCE_FILE: Record<string, string> = {
   'bottom-nav': 'bottom-nav.tsx',
   breadcrumbs: 'breadcrumbs.tsx',
   pagination: 'pagination.tsx',
+  menu: 'menu.tsx',
   button: 'button.tsx',
   input: 'input.tsx',
   textarea: 'textarea.tsx',
@@ -571,6 +580,34 @@ open(media, { story: true })      // auto-advancing story + progress bar`,
 // desktop: prev/next + numbers, collapsing "…" gaps around the current page
 // phone:   numbers are too small to hit reliably — drops to a big-tap-target
 //          "Prev · Page 7 of 24 · Next" strip instead`,
+  },
+  {
+    id: 'menu',
+    name: 'Menu',
+    sig: '(trigger, items, side?, align?, sheet?) · ContextMenu(children, items, delay?)',
+    tag: 'navigation',
+    Icon: MenuIcon,
+    Demo: MenuDemo,
+    code: `<Menu
+  trigger={<Button variant="outline" icon={<MoreVertical />} />}
+  items={[
+    { id: 'rename', label: 'Rename', icon: <Pencil /> },
+    { id: 'star', label: 'Star', icon: <Star /> },
+    { id: 'sep', type: 'separator' },
+    { id: 'delete', label: 'Delete', icon: <Trash2 />, danger: true },
+  ]}
+/>
+
+// arrow-key nav, separators, disabled/danger items — anchored panel on
+// desktop, a bottom sheet on phones (same split as Select)
+
+<ContextMenu items={items} label="Row actions">
+  <TableRow />
+</ContextMenu>
+
+// right-click on desktop, long-press on touch — anchored at the pointer,
+// clamped to the viewport, a bottom sheet on phones (a point anchor would
+// fight a finger's own reach)`,
   },
   {
     id: 'bottom-nav',
@@ -3927,6 +3964,41 @@ function PaginationDemo() {
           ? 'On a phone the number grid gives way to a big-tap Prev / Page X of Y / Next strip.'
           : '24 pages — the middle collapses to "…" around the current page, first/last always stay put. Shrink the window below 768px to see the phone layout.'}
       </p>
+    </div>
+  );
+}
+
+function MenuDemo() {
+  const toast = useToast();
+  const act = (label: string) => toast.success(`${label} clicked`);
+
+  const rowItems = (row: string): MenuEntry[] => [
+    { id: 'rename', label: 'Rename', icon: <Pencil />, onSelect: () => act(`Rename “${row}”`) },
+    { id: 'star', label: 'Star', icon: <Star />, onSelect: () => act(`Star “${row}”`) },
+    { id: 'copy', label: 'Duplicate', icon: <Copy />, disabled: true },
+    { id: 'sep', type: 'separator' },
+    { id: 'delete', label: 'Delete', icon: <Trash2 />, danger: true, onSelect: () => act(`Delete “${row}”`) },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        <span className="font-medium text-foreground">Menu</span> hangs off a trigger you click;{' '}
+        <span className="font-medium text-foreground">ContextMenu</span> opens at the pointer — right-click on
+        desktop, long-press on touch. Arrow keys move through both; a disabled row is skipped.
+      </p>
+      <DemoRow>
+        <Menu
+          trigger={<Button variant="outline" size="sm" icon={<MoreVertical />} />}
+          items={rowItems('menu.tsx')}
+          label="File actions"
+        />
+      </DemoRow>
+      <ContextMenu items={rowItems('Q3 report.pdf')} label="Row actions">
+        <div className="cursor-default select-none rounded-xl border border-dashed border-border bg-card px-4 py-6 text-center text-sm text-muted-foreground">
+          Right-click (or long-press) this row
+        </div>
+      </ContextMenu>
     </div>
   );
 }

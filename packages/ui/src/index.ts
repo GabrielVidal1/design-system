@@ -71,6 +71,8 @@ export { Tooltip } from './components/tooltip';
 export type { TooltipProps, TooltipSide } from './components/tooltip';
 export { Popover } from './components/popover';
 export type { PopoverProps, PopoverSide, PopoverAlign } from './components/popover';
+export { Menu, ContextMenu } from './components/menu';
+export type { MenuProps, ContextMenuProps, MenuEntry, MenuItem, MenuSeparatorEntry } from './components/menu';
 export { ThemeProvider, ThemeToggle, resolveTheme, setTheme, toggleTheme, useTheme } from './components/theme';
 export type { ThemeMode, ThemeToggleProps, UseThemeResult } from './components/theme';
 export { Spinner } from './components/spinner';

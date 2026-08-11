@@ -403,6 +403,28 @@ export function PaginationIcon() {
   );
 }
 
+/** Menu — a trigger dot pops a short list, the active row sweeping down it. */
+export function MenuIcon() {
+  return (
+    <Svg>
+      <circle cx="52" cy="65" r="9" fill="none" stroke={DIM} strokeWidth="2" />
+      <circle cx="52" cy="60" r="1.6" fill={DIM} />
+      <circle cx="52" cy="65" r="1.6" fill={DIM} />
+      <circle cx="52" cy="70" r="1.6" fill={DIM} />
+      <g className="a-panel" style={v({ '--dur': '4.2s' })}>
+        <path d="M70 60 l8 5 l-8 5 Z" fill={CY} />
+        <rect x="78" y="42" width="100" height="60" rx="8" fill={PAPER} stroke={CY} strokeWidth="2.5" />
+        <g className="a-drift" style={v({ '--dx': '0px', '--dy': '18px', '--dur': '4.2s' })}>
+          <rect x="88" y="50" width="80" height="12" rx="4" fill={CY} fillOpacity="0.22" />
+        </g>
+        <rect x="92" y="53" width="34" height="6" rx="3" fill={DIM} opacity="0.6" />
+        <rect x="92" y="71" width="46" height="6" rx="3" fill={DIM} opacity="0.5" />
+        <rect x="92" y="89" width="28" height="6" rx="3" fill={DIM} opacity="0.5" />
+      </g>
+    </Svg>
+  );
+}
+
 /** Tabs — the indicator slides under the strip and the panel swaps with it. */
 export function TabsIcon() {
   return (
