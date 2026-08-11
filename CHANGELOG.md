@@ -44,6 +44,22 @@ last release → grouped bullets under Unreleased), then curate the prose.
   so deriving `tags` from it can't loop.
 
 ### Added
+- **`BottomNav`** — the app's bottom bar, the shape the homelab's PWAs already
+  run on, now a component: three to five destinations, the middle slot raised
+  into a bubble, an underline on the selected one. It stays out of routing —
+  a link is an `<a href>` unless `renderLink` returns a router `<Link>` — and
+  `onSelect` can `preventDefault()` to own a tap. A link with `children` gets a
+  **second level**: the first tap goes to the section, tapping it again once you
+  are there raises a one-row drawer of sub-links from behind the bar (five slots,
+  the overflow waiting in the stash). `editable` puts the bar under
+  `HoldEditable` — hold a link to pick it up and drag it elsewhere, order back
+  through `onReorder`; the bar itself has no stash, because benching a link would
+  hide a whole section of the app behind a gesture. `swipeNavigation` walks the
+  bar when the page is swiped left/right, dragging the `swipeTarget` with the
+  finger (and rubber-banding at the ends); while a section is expanded the swipe
+  walks its sub-links and steps out past either end. `center` takes a key *or* a
+  slot index (default: the middle slot), and `floating` lifts the bar off the
+  bottom edge into a centred button group — the desktop shape.
 - `RichInput` — **auto-tag: the composer reads what you typed and offers the
   tags it recognises.** A tag opts in by carrying `triggers` (words *and*
   phrases — `['nanobanana', 'generate an image']`); a second after the typing
