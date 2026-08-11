@@ -506,7 +506,8 @@ export function BottomNav({
       return renderOne(link, {
         sub: false,
         className: cn(
-          'relative flex w-16 flex-col items-center justify-start pt-1.5',
+          // basis, not a fixed width: five items must still fit a 320px phone.
+          'relative flex w-16 min-w-0 flex-1 flex-col items-center justify-start pt-1.5',
           link.disabled && 'pointer-events-none opacity-40',
         ),
         content: (
@@ -533,7 +534,7 @@ export function BottomNav({
     return renderOne(link, {
       sub: false,
       className: cn(
-        'group relative flex w-16 flex-col items-center gap-1 pb-1.5 pt-2',
+        'group relative flex w-16 min-w-0 flex-1 flex-col items-center gap-1 pb-1.5 pt-2',
         held && 'rounded-xl bg-accent',
         link.disabled && 'pointer-events-none opacity-40',
       ),
@@ -679,7 +680,7 @@ export function BottomNav({
           getKey={(l) => l.key}
           onReorder={(next) => onReorder?.(next)}
           className={rowClass}
-          itemClassName="flex"
+          itemClassName="flex min-w-0 flex-1"
         >
           {(link, { index, held }) => item(link, index, held)}
         </HoldEditable>
