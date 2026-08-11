@@ -115,6 +115,7 @@ import {
   Toolbar,
   ToolbarButton,
   ToolbarGroup,
+  EditorStage,
   ViewableImage,
   VirtualList,
   AnimatedList,
@@ -136,6 +137,7 @@ import {
   useTheme,
   useToast,
 } from '@gabvdl/ui';
+import type { EditorStageHandle, StageViewport } from '@gabvdl/ui';
 
 import {
   CnIcon,
@@ -204,6 +206,7 @@ import {
   ColorPickerIcon,
   ToolbarIcon,
   InspectorPanelIcon,
+  EditorStageIcon,
 } from './icons';
 import pkg from '@gabvdl/ui/package.json';
 import { SandpackProvider, SandpackCodeEditor, type SandpackTheme } from '@codesandbox/sandpack-react';
@@ -305,6 +308,7 @@ const GROUP_OF: Record<string, Group> = {
   modal: 'Layout',
   toolbar: 'Editor',
   'inspector-panel': 'Editor',
+  'editor-stage': 'Editor',
   'color-picker': 'Editor',
   hooks: 'Hooks',
   cn: 'Utilities',
@@ -321,7 +325,8 @@ const GROUP_BLURB: Record<Group, string> = {
   Animation: 'Typewriter text and staggered reveals that share one timeline.',
   Feedback: 'What the app says back — toasts, banners, spinners, skeletons, empty states, release notes.',
   Layout: 'Device frames, scaffolding, and the modal every project re-implements.',
-  Editor: 'The primitives online editors share — toolbars, inspector panels, a real colour picker.',
+  Editor:
+    'The primitives online editors share — a zoom/pan stage, toolbars, inspector panels, a real colour picker.',
   Hooks: 'The headless half: gestures, storage, media queries, clipboard, intersection.',
   Utilities: 'Class names, theming and the formatters shared across the lab.',
 };
@@ -395,6 +400,7 @@ const SOURCE_FILE: Record<string, string> = {
   'color-picker': 'color-picker.tsx',
   toolbar: 'toolbar.tsx',
   'inspector-panel': 'inspector-panel.tsx',
+  'editor-stage': 'editor-stage.tsx',
   'relative-time': 'relative-time.tsx',
   theme: 'theme.tsx',
   format: 'format.ts',
@@ -1659,6 +1665,29 @@ if (await confirm({ title: 'Delete note?', destructive: true })) remove()
   </ToolbarGroup>
 </Toolbar>
 // too narrow? trailing tools collapse into a ⋯ menu`,
+  },
+  {
+    id: 'editor-stage',
+    name: 'EditorStage',
+    sig: 'wheel/pinch zoom · space-drag pan · fit · content coordinates',
+    tag: 'editor',
+    Icon: EditorStageIcon,
+    Demo: EditorStageDemo,
+    code: `const stage = useRef<EditorStageHandle>(null)
+
+<EditorStage
+  ref={stage}
+  contentWidth={32} contentHeight={24}   // in YOUR units — tiles, mm, px
+  cursor="crosshair"
+  onStagePointerDown={(e) => paint(Math.floor(e.x), Math.floor(e.y))}
+  onStagePointerMove={(e) => e.buttons && paint(Math.floor(e.x), Math.floor(e.y))}
+  overlay={(vp) => <Hairlines viewport={vp} />}   // screen space
+>
+  <canvas width={32} height={24} style={{ imageRendering: 'pixelated' }} />
+</EditorStage>
+
+stage.current?.fit()          // zoom the content to the box
+stage.current?.centerOn(x, y) // keep the zoom, move the eye`,
   },
   {
     id: 'inspector-panel',
@@ -3512,6 +3541,126 @@ function demoTools(tool: string, setTool: (t: string) => void) {
       </ToolbarButton>
     </ToolbarGroup>,
   ];
+}
+
+/** A 32×24 tile painter — the smallest thing that exercises what the stage is
+ *  for: content in its own units, a screen-space overlay, and fit/centre. */
+function EditorStageDemo() {
+  const W = 32;
+  const H = 24;
+  const stage = useRef<EditorStageHandle>(null);
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const grid = useRef<HTMLCanvasElement>(null);
+  const [tiles, setTiles] = useState(() => new Uint8Array(W * H));
+  const [vp, setVp] = useState<StageViewport>({ scale: 1, x: 0, y: 0 });
+  const [box, setBox] = useState({ width: 0, height: 0 });
+  const [colour, setColour] = useState(1);
+
+  const PALETTE = ['#0b0f14', '#22d3ee', '#f59e0b', '#f43f5e'];
+
+  useEffect(() => {
+    const ctx = canvas.current?.getContext('2d');
+    if (!ctx) return;
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++) {
+        ctx.fillStyle = PALETTE[tiles[y * W + x]];
+        ctx.fillRect(x, y, 1, 1);
+      }
+  }, [tiles]);
+
+  // hairlines live in screen space so they stay 1px at any zoom
+  useEffect(() => {
+    const cv = grid.current;
+    if (!cv || !box.width) return;
+    cv.width = box.width;
+    cv.height = box.height;
+    const ctx = cv.getContext('2d')!;
+    ctx.clearRect(0, 0, box.width, box.height);
+    if (vp.scale < 6) return;
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    for (let x = 0; x <= W; x++) {
+      ctx.beginPath();
+      ctx.moveTo(Math.round(x * vp.scale + vp.x) + 0.5, vp.y);
+      ctx.lineTo(Math.round(x * vp.scale + vp.x) + 0.5, H * vp.scale + vp.y);
+      ctx.stroke();
+    }
+    for (let y = 0; y <= H; y++) {
+      ctx.beginPath();
+      ctx.moveTo(vp.x, Math.round(y * vp.scale + vp.y) + 0.5);
+      ctx.lineTo(W * vp.scale + vp.x, Math.round(y * vp.scale + vp.y) + 0.5);
+      ctx.stroke();
+    }
+  }, [vp, box]);
+
+  const paint = (cx: number, cy: number, erase: boolean) => {
+    const x = Math.floor(cx);
+    const y = Math.floor(cy);
+    if (x < 0 || y < 0 || x >= W || y >= H) return;
+    setTiles((prev) => {
+      const value = erase ? 0 : colour;
+      if (prev[y * W + x] === value) return prev;
+      const next = new Uint8Array(prev);
+      next[y * W + x] = value;
+      return next;
+    });
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        {PALETTE.slice(1).map((c, i) => (
+          <button
+            key={c}
+            type="button"
+            onClick={() => setColour(i + 1)}
+            aria-label={`colour ${i + 1}`}
+            className={`size-7 rounded-md border-2 ${colour === i + 1 ? 'border-foreground' : 'border-transparent'}`}
+            style={{ background: c }}
+          />
+        ))}
+        <Button size="sm" variant="outline" onClick={() => stage.current?.fit()}>
+          fit
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => stage.current?.zoomBy(1.4)}>
+          zoom in
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setTiles(new Uint8Array(W * H))}>
+          clear
+        </Button>
+        <span className="mono text-xs text-muted-foreground">{Math.round(vp.scale * 100)}%</span>
+      </div>
+
+      <EditorStage
+        ref={stage}
+        contentWidth={W}
+        contentHeight={H}
+        viewport={vp}
+        onViewportChange={setVp}
+        onResize={setBox}
+        cursor="crosshair"
+        className="h-72 rounded-xl border border-border bg-[--surface-2]"
+        onStagePointerDown={(e) => paint(e.x, e.y, e.button === 2)}
+        onStagePointerMove={(e) => e.buttons && paint(e.x, e.y, (e.buttons & 2) !== 0)}
+        overlay={() => (
+          <canvas ref={grid} className="pointer-events-none absolute inset-0 size-full" />
+        )}
+      >
+        <canvas
+          ref={canvas}
+          width={W}
+          height={H}
+          style={{ width: W, height: H, imageRendering: 'pixelated' }}
+        />
+      </EditorStage>
+
+      <p className="text-sm text-muted-foreground">
+        Drag to paint, right-drag to erase. Wheel or pinch zooms about the cursor, hold{' '}
+        <kbd className="mono text-xs">Space</kbd> (or the middle button, or two fingers) to pan.
+        The tile canvas is 32×24 <em>content</em> pixels — the stage scales it, so a cell stays a
+        hard square, while the grid hairlines on the overlay stay one pixel wide.
+      </p>
+    </div>
+  );
 }
 
 function ToolbarDemo() {

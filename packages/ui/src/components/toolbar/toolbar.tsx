@@ -170,15 +170,22 @@ export function Toolbar({
         </div>
       )}
 
-      {/* Hidden twin used only for measuring — every unit plus the "⋯". */}
+      {/* Hidden twin used only for measuring — every unit plus the "⋯".
+          The zero-sized clipping wrapper is load-bearing: the twin is as wide
+          as the *uncollapsed* strip, and an absolutely positioned box that
+          wide still counts as scrollable overflow, which propagates all the
+          way up and makes the whole page scroll sideways on a phone — the
+          opposite of what a collapsing toolbar is for. Clipped to a 0×0 box it
+          can't, and `w-max` keeps the twin at its natural width inside it. */}
       {collapse && (
         <div
-          ref={measureRef}
           aria-hidden
-          className="pointer-events-none invisible absolute left-0 top-0 flex items-center gap-2 p-1"
+          className="pointer-events-none invisible absolute left-0 top-0 size-0 overflow-clip"
         >
-          {units}
-          <MoreButton open={false} onToggle={() => {}} />
+          <div ref={measureRef} className="flex w-max items-center gap-2 p-1">
+            {units}
+            <MoreButton open={false} onToggle={() => {}} />
+          </div>
         </div>
       )}
       </OrientationContext.Provider>

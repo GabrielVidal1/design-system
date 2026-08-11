@@ -122,12 +122,13 @@ import '@gabvdl/ui/styles.css'; // or theme.css for tokens only
 
 ## Editor
 
-*The primitives online editors share — toolbars, inspector panels, a real colour picker.*
+*The primitives online editors share — a zoom/pan stage, toolbars, inspector panels, a real colour picker.*
 
 | Component | Exports | What it is for |
 | --- | --- | --- |
 | **[ColorPicker](https://ui.gabvdl.xyz/#/c/color-picker)** | `ColorPicker` | Full HSV colour picker (saturation square, hue + optional alpha sliders, hex field, eyedropper, swatches) — dropdown on desktop, bottom sheet on mobile, or inline. |
 | **[Toolbar](https://ui.gabvdl.xyz/#/c/toolbar)** | `Toolbar` · `ToolbarButton` · `ToolbarGroup` · `ToolbarSeparator` | Editor toolbar — grouped icon buttons with an active-tool state that collapse into a "⋯" menu when they don't fit. |
+| **[EditorStage](https://ui.gabvdl.xyz/#/c/editor-stage)** | `EditorStage` | Zoom/pan canvas surface for editors — wheel/pinch zoom about the cursor, space- and two-finger pan, fit-to-view, and pointer events converted into content coordinates. |
 | **[InspectorPanel](https://ui.gabvdl.xyz/#/c/inspector-panel)** | `InspectorPanel` · `InspectorRow` · `InspectorSection` | Editor property panel — titled sections of aligned label/control rows; a sidebar column on desktop, a bottom sheet on phones. |
 
 ## Hooks
@@ -170,4 +171,4 @@ import '@gabvdl/ui/styles.css'; // or theme.css for tokens only
 
 ---
 
-66 catalogue entries · 15 hooks · conventions and contribution rules in [CLAUDE.md](../CLAUDE.md), direction in [GOAL.md](../GOAL.md).
+67 catalogue entries · 15 hooks · conventions and contribution rules in [CLAUDE.md](../CLAUDE.md), direction in [GOAL.md](../GOAL.md).
