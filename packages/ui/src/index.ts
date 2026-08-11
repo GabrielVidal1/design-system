@@ -330,6 +330,13 @@ export type {
   InspectorRowProps,
   InspectorSectionProps,
 } from './components/inspector-panel';
+export { EditorStage } from './components/editor-stage';
+export type {
+  EditorStageProps,
+  EditorStageHandle,
+  StageViewport,
+  StagePointerEvent,
+} from './components/editor-stage';
 export { FloatingPanel, Dock, DockProvider, useDockContext, useDock } from './components/floating-panel';
 export type {
   FloatingPanelProps,

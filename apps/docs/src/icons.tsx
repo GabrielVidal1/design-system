@@ -1900,3 +1900,61 @@ export function BottomNavIcon() {
     </Svg>
   );
 }
+
+/** EditorStage — a tile grid pans and zooms behind a fixed viewport frame,
+ * with the cursor the zoom is anchored on holding still. */
+export function EditorStageIcon() {
+  const s = 16; // tile side, in content units
+  const cols = 8;
+  const rows = 6;
+  const x0 = 46;
+  const y0 = 22;
+  return (
+    <Svg>
+      <defs>
+        <clipPath id="stage-clip">
+          <rect x="46" y="22" width="128" height="86" rx="8" />
+        </clipPath>
+      </defs>
+      {/* the content: one transform for the whole scene, exactly as the stage
+          does it — drift is the pan, breathe is the zoom about the cursor */}
+      <g clipPath="url(#stage-clip)">
+        <g
+          className="a-drift"
+          style={v({ '--dx': '-14px', '--dy': '-8px', '--dur': '6s' })}
+        >
+          <g
+            className="a-breathe"
+            style={v({ '--s': '1.22', '--dur': '6s', transformOrigin: '128px 74px' })}
+          >
+            {Array.from({ length: rows }, (_, r) =>
+              Array.from({ length: cols }, (_, c) => {
+                const solid = (c * 3 + r * 5) % 7 < 2;
+                return (
+                  <rect
+                    key={`${c}-${r}`}
+                    x={x0 + c * s}
+                    y={y0 + r * s}
+                    width={s}
+                    height={s}
+                    fill={solid ? CY : 'none'}
+                    fillOpacity={solid ? 0.55 : 0}
+                    stroke={DIM}
+                    strokeWidth="1.5"
+                  />
+                );
+              }),
+            )}
+          </g>
+        </g>
+      </g>
+      {/* the viewport — screen space, so it never scales with the content */}
+      <rect x="46" y="22" width="128" height="86" rx="8" stroke={DIM} strokeWidth="2" />
+      {/* the anchor the zoom is pinned to */}
+      <g>
+        <circle cx="128" cy="74" r="4" fill={INK} fillOpacity="0.5" stroke={CY} strokeWidth="2" />
+        <path d="M 128 62 v 6 M 128 80 v 6 M 116 74 h 6 M 134 74 h 6" stroke={CY} strokeWidth="2" strokeLinecap="round" />
+      </g>
+    </Svg>
+  );
+}
