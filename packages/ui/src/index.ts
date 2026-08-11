@@ -231,6 +231,14 @@ export type {
   TabsTriggerProps,
   TabsVariant,
 } from './components/tabs';
+export { BottomNav } from './components/bottom-nav';
+export type {
+  BottomNavIcon,
+  BottomNavLink,
+  BottomNavLinkRender,
+  BottomNavProps,
+  BottomNavSource,
+} from './components/bottom-nav';
 export { Breadcrumbs } from './components/breadcrumbs';
 export type { BreadcrumbItem, BreadcrumbsProps } from './components/breadcrumbs';
 export { Pagination } from './components/pagination';

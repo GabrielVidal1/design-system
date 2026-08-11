@@ -100,6 +100,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  BottomNav,
   Breadcrumbs,
   Pagination,
   Textarea,
@@ -189,6 +190,7 @@ import {
   AnimatedListIcon,
   ElementPickerIcon,
   TabsIcon,
+  BottomNavIcon,
   BreadcrumbsIcon,
   PaginationIcon,
   FileEditorIcon,
@@ -251,6 +253,7 @@ const GROUP_OF: Record<string, Group> = {
   'relative-time': 'Data display',
   'nav-2d': 'Navigation',
   tabs: 'Navigation',
+  'bottom-nav': 'Navigation',
   breadcrumbs: 'Navigation',
   pagination: 'Navigation',
   button: 'Inputs',
@@ -346,6 +349,7 @@ const SOURCE_FILE: Record<string, string> = {
   'resizable-layout': 'resizable-layout.tsx',
   'nav-2d': 'nav-2d.tsx',
   tabs: 'tabs.tsx',
+  'bottom-nav': 'bottom-nav.tsx',
   breadcrumbs: 'breadcrumbs.tsx',
   pagination: 'pagination.tsx',
   button: 'button.tsx',
@@ -567,6 +571,57 @@ open(media, { story: true })      // auto-advancing story + progress bar`,
 // desktop: prev/next + numbers, collapsing "…" gaps around the current page
 // phone:   numbers are too small to hit reliably — drops to a big-tap-target
 //          "Prev · Page 7 of 24 · Next" strip instead`,
+  },
+  {
+    id: 'bottom-nav',
+    name: 'BottomNav',
+    sig: '(links, selectedLink, center?, editable?, swipeNavigation?, floating?)',
+    tag: 'navigation',
+    Icon: BottomNavIcon,
+    Demo: BottomNavDemo,
+    code: `// the app's bottom bar: 3-5 destinations, the middle one raised
+// into a bubble, an underline on the selected one. Routing-agnostic
+// — an <a href> by default, or whatever renderLink returns.
+<BottomNav
+  links={[
+    { key: 'dashboards', label: 'Dashboards', icon: LayoutDashboard, href: '/dashboards' },
+    { key: 'files', label: 'Files', icon: FolderTree, href: '/files',
+      children: [                        // a second level, in a drawer
+        { key: 'memories', label: 'Memories', icon: Brain, href: '/memories' },
+        { key: 'skills', label: 'Skills', icon: Wrench, href: '/skills', badge: 3 },
+      ] },
+    { key: 'home', label: 'Conversation', icon: MessagesSquare, href: '/' },
+    { key: 'projects', label: 'Projects', icon: FolderGit2, href: '/projects' },
+    { key: 'settings', label: 'Settings', icon: Settings, href: '/settings' },
+  ]}
+  selectedLink={section}         // a link's key — or a sub-link's
+  center="home"                  // key OR slot index; default: middle slot
+/>
+
+// a parent link navigates on the first tap; tapped again, once you
+// are in that section, it raises its sub-links from behind the bar.
+// Five slots per drawer — the overflow waits in the stash.
+
+// router links instead of anchors — props is the whole DOM payload
+// (classes, content, ARIA, onClick); nothing else belongs on the node.
+<BottomNav
+  renderLink={({ props: { href, ...rest } }) => <Link to={href} {...rest} />}
+  onSelect={(link, e) => { /* e.preventDefault() to own the tap */ }}
+/>
+
+// hold to rearrange (order comes back to you, persist it), and
+// swipe the page left/right to walk the bar — the page follows
+// the finger. While a section is expanded the swipe walks its
+// sub-links, stepping out past either end.
+<BottomNav
+  editable
+  onReorder={saveOrder}          // sub-link drags: parent.children, slots first
+  swipeNavigation
+  swipeTarget={contentRef}       // the element that listens AND peeks
+  onNavigate={(link, { source }) =>                         // 'tap' | 'swipe'
+    source === 'swipe' && navigate(link.href)}             // a tap is the link's own job
+  floating={isDesktop}           // centred button group instead of a full-width bar
+/>`,
   },
   {
     id: 'virtual-list',
@@ -3871,6 +3926,120 @@ function PaginationDemo() {
         {isMobile
           ? 'On a phone the number grid gives way to a big-tap Prev / Page X of Y / Next strip.'
           : '24 pages — the middle collapses to "…" around the current page, first/last always stay put. Shrink the window below 768px to see the phone layout.'}
+      </p>
+    </div>
+  );
+}
+
+/* ─── BottomNav ───────────────────────────────────────────────────────────── */
+
+type NavLink = React.ComponentProps<typeof BottomNav>['links'][number];
+
+const NAV_LINKS: NavLink[] = [
+  {
+    key: 'dashboards',
+    label: 'Dashboards',
+    href: '#',
+    icon: Grid3x3,
+    children: [
+      { key: 'activity', label: 'Activity', href: '#', icon: Play },
+      { key: 'cost', label: 'Cost', href: '#', icon: Cpu },
+      { key: 'graph', label: 'Graph', href: '#', icon: Circle },
+    ],
+  },
+  {
+    key: 'files',
+    label: 'Files',
+    href: '#',
+    icon: FileText,
+    children: [
+      { key: 'memories', label: 'Memories', href: '#', icon: Save },
+      { key: 'skills', label: 'Skills', href: '#', icon: Terminal },
+      { key: 'agents', label: 'Agents', href: '#', icon: Cpu },
+      { key: 'plans', label: 'Plans', href: '#', icon: Type },
+      { key: 'goals', label: 'Goals', href: '#', icon: Square },
+      { key: 'notifications', label: 'Notifs', href: '#', icon: Inbox, badge: 3 },
+    ],
+  },
+  { key: 'conversation', label: 'Conversation', href: '#', icon: Inbox },
+  { key: 'projects', label: 'Projects', href: '#', icon: Layers },
+  { key: 'settings', label: 'Settings', href: '#', icon: Settings2 },
+];
+
+/** Flat list of everything the bar routes to, for the demo's fake page. */
+function navTitle(links: NavLink[], key: string): string {
+  for (const l of links) {
+    if (l.key === key) return l.label;
+    const hit = l.children?.find((c) => c.key === key);
+    if (hit) return `${l.label} › ${hit.label}`;
+  }
+  return key;
+}
+
+function BottomNavDemo() {
+  const [links, setLinks] = useState(NAV_LINKS);
+  const [selected, setSelected] = useState('files');
+  const [floating, setFloating] = useState(false);
+  const page = useRef<HTMLDivElement>(null);
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start gap-6">
+        {/* The phone: swipe the screen sideways to walk the bar. */}
+        <div>
+          <PhonePreview screenWidth={252} statusBar={false}>
+            <div className="flex h-full flex-col overflow-hidden bg-[var(--surface)]">
+              <div ref={page} className="flex flex-1 flex-col items-center justify-center gap-1 px-4 text-center">
+                <span className="mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                  swipe me sideways
+                </span>
+                <span className="text-lg font-semibold text-foreground">{navTitle(links, selected)}</span>
+              </div>
+              <BottomNav
+                links={links}
+                selectedLink={selected}
+                editable
+                onReorder={setLinks}
+                swipeNavigation
+                swipeTarget={page}
+                onNavigate={(l) => setSelected(l.key)}
+              />
+            </div>
+          </PhonePreview>
+        </div>
+
+        {/* The desktop shape: same bar, floating over the content. */}
+        <div className="min-w-[16rem] flex-1 space-y-3">
+          <div
+            className="relative h-64 overflow-hidden rounded-xl border border-border bg-[var(--surface)]"
+            /* a transform makes this box the containing block, so `floating`
+               (position: fixed) stays inside the demo instead of the viewport */
+            style={{ transform: 'translate3d(0,0,0)' }}
+          >
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              {navTitle(links, selected)}
+            </div>
+            <BottomNav
+              links={links}
+              selectedLink={selected}
+              floating={floating}
+              editable
+              onReorder={setLinks}
+              onNavigate={(l) => setSelected(l.key)}
+              className={floating ? undefined : 'absolute inset-x-0 bottom-0'}
+            />
+          </div>
+          <Button size="sm" variant="outline" onClick={() => setFloating((v) => !v)}>
+            {floating ? 'Dock it to the edge' : 'Float it (desktop shape)'}
+          </Button>
+        </div>
+      </div>
+
+      <p className="mono text-[11px] leading-relaxed text-muted-foreground">
+        tap a section to go there · tap it <span className="text-foreground">again</span> to raise its
+        sub-link drawer (Files has six — five slots, the rest wait in the stash) · hold any item to
+        rearrange the bar · on the phone, <span className="text-foreground">swipe the screen</span>:
+        the page follows the finger and the bar walks a section at a time, sub-links included
       </p>
     </div>
   );

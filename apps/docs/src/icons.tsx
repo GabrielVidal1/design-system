@@ -1842,3 +1842,39 @@ export function InspectorPanelIcon() {
     </Svg>
   );
 }
+
+/** BottomNav — the bar with its raised centre bubble; the sub-link drawer
+ * slides up from behind it and back down. */
+export function BottomNavIcon() {
+  const slot = (cx: number) => (
+    <g key={cx}>
+      <rect x={cx - 7} y="92" width="14" height="10" rx="3" stroke={DIM} strokeWidth="2" />
+      <rect x={cx - 9} y="107" width="18" height="4" rx="2" fill={DIM} opacity="0.55" />
+    </g>
+  );
+  return (
+    <Svg>
+      {/* the drawer, rising from behind the bar */}
+      <g className="a-drift" style={v({ '--dx': '0px', '--dy': '-26px', '--dur': '4.6s' })}>
+        <g className="a-fade" style={v({ '--o0': '0', '--o1': '1', '--dur': '4.6s' })}>
+          <rect x="34" y="86" width="152" height="30" rx="8" fill={PAPER} stroke={DIM} strokeWidth="2" />
+          {[62, 96, 130, 164].map((cx) => (
+            <g key={cx}>
+              <circle cx={cx} cy="97" r="5" stroke={CY} strokeWidth="2" opacity="0.9" />
+              <rect x={cx - 8} y="106" width="16" height="4" rx="2" fill={CY} opacity="0.6" />
+            </g>
+          ))}
+        </g>
+      </g>
+      {/* the bar itself */}
+      <rect x="26" y="82" width="168" height="38" rx="10" fill={INK} fillOpacity="0.25" stroke={DIM} strokeWidth="2" />
+      {[54, 82, 138, 166].map(slot)}
+      {/* the raised centre bubble */}
+      <g className="a-breathe" style={v({ '--s': '1.06', '--dur': '3.4s' })}>
+        <rect x="94" y="64" width="32" height="32" rx="10" fill={CY} />
+        <circle cx="110" cy="80" r="6" fill={INK} fillOpacity="0.55" />
+      </g>
+      <rect x="99" y="103" width="22" height="4" rx="2" fill={CY} opacity="0.85" />
+    </Svg>
+  );
+}
