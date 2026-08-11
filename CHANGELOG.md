@@ -43,7 +43,27 @@ last release → grouped bullets under Unreleased), then curate the prose.
   (muting is not un-picking) and fires only when the selection really changes,
   so deriving `tags` from it can't loop.
 
+### Fixed
+- `Toolbar` — a collapsing toolbar no longer makes the **page** scroll
+  sideways on a phone. The hidden twin it measures against is as wide as the
+  uncollapsed strip, and an absolutely positioned box that wide still counts as
+  scrollable overflow, which propagates to the document: a 390 px viewport
+  ended up with a 570 px body, and anything `fixed inset-0` (a bottom sheet,
+  a scrim) sized itself to *that*. The twin is now clipped inside a 0×0 box.
+
 ### Added
+- **`EditorStage`** — the zoom/pan surface every canvas editor was going to
+  hand-roll, and the piece the *Editor* category was built around missing.
+  Content lives in its own units — tiles, millimetres, whatever — and the stage
+  owns the single transform to the screen: wheel and pinch zoom **about the
+  cursor**, space-drag / middle-drag / two-finger pan, and a `fit` that re-runs
+  when the surface or the content is resized. `children` render inside the
+  transformed layer (so a 1-px-per-tile canvas scales up crisply with
+  `image-rendering: pixelated`), while `overlay` is called with the live
+  viewport for whatever must stay screen-sized — grid hairlines that shouldn't
+  thicken with the zoom, selection ants, a HUD. Pointer gestures that aren't a
+  pan arrive already converted into content coordinates, and the imperative
+  handle adds `fit` / `zoomBy` / `centerOn` / `viewport`.
 - **`Menu` / `ContextMenu`** — the action-list overlay the docs catalogue was
   still missing. `Menu` hangs a keyboard-navigable list off a click trigger
   (built on `Popover`, so it inherits the viewport side-flip and the phone
