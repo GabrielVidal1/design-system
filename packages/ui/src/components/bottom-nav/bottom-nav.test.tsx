@@ -172,10 +172,8 @@ describe('BottomNav', () => {
         <BottomNav
           links={LINKS}
           selectedLink="files"
-          renderLink={({ link: l, className, children, onClick, ...aria }) => (
-            <button type="button" className={className} onClick={onClick} {...aria} data-key={l.key}>
-              {children}
-            </button>
+          renderLink={({ link: l, props: { href: _href, ...rest } }) => (
+            <button type="button" {...rest} data-key={l.key} />
           )}
         />,
       );

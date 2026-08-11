@@ -602,9 +602,10 @@ open(media, { story: true })      // auto-advancing story + progress bar`,
 // are in that section, it raises its sub-links from behind the bar.
 // Five slots per drawer — the overflow waits in the stash.
 
-// router links instead of anchors
+// router links instead of anchors — props is the whole DOM payload
+// (classes, content, ARIA, onClick); nothing else belongs on the node.
 <BottomNav
-  renderLink={({ link, href, ...props }) => <Link to={href} {...props} />}
+  renderLink={({ props: { href, ...rest } }) => <Link to={href} {...rest} />}
   onSelect={(link, e) => { /* e.preventDefault() to own the tap */ }}
 />
 
@@ -617,7 +618,8 @@ open(media, { story: true })      // auto-advancing story + progress bar`,
   onReorder={saveOrder}          // sub-link drags: parent.children, slots first
   swipeNavigation
   swipeTarget={contentRef}       // the element that listens AND peeks
-  onNavigate={(link, { source }) => navigate(link.href)}   // 'tap' | 'swipe'
+  onNavigate={(link, { source }) =>                         // 'tap' | 'swipe'
+    source === 'swipe' && navigate(link.href)}             // a tap is the link's own job
   floating={isDesktop}           // centred button group instead of a full-width bar
 />`,
   },

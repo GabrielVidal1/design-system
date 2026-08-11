@@ -8,8 +8,14 @@ import { Tooltip } from '../tooltip/tooltip';
 
 /* ─── Model ───────────────────────────────────────────────────────────────── */
 
-/** An icon: a component (lucide-style) or a ready-made node. */
-export type BottomNavIcon = React.ComponentType<{ className?: string; strokeWidth?: number }> | React.ReactNode;
+/**
+ * An icon: a component (lucide-style — it is handed `className` and
+ * `strokeWidth`) or a ready-made node. The component form is deliberately
+ * loose: a lucide export carries its own `propTypes`, which a narrower
+ * `ComponentType` rejects under React 18's types.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type BottomNavIcon = React.ComponentType<any> | React.ReactNode;
 
 export interface BottomNavLink {
   /** Stable identity — matched against {@link BottomNavProps.selectedLink}, and the React key. */
@@ -38,19 +44,25 @@ export interface BottomNavLink {
 /** Everything {@link BottomNavProps.renderLink} needs to render one destination. */
 export interface BottomNavLinkRender {
   link: BottomNavLink;
-  href?: string;
-  className: string;
-  /** The icon + label (+ badge) — render it as the element's content. */
-  children: React.ReactNode;
   /** True while this link (or one of its children) is the selected one. */
   active: boolean;
   /** True for a sub-link inside the drawer. */
   sub: boolean;
-  onClick: (event: React.MouseEvent) => void;
-  'aria-label': string;
-  'aria-current': 'page' | undefined;
-  'aria-expanded': boolean | undefined;
-  'aria-haspopup': 'true' | undefined;
+  /**
+   * Spread these onto whatever element you render — they carry the layout
+   * classes, the content (icon + label + badge), the ARIA state and the click
+   * handler. Nothing else belongs on the DOM node.
+   */
+  props: {
+    href?: string;
+    className: string;
+    children: React.ReactNode;
+    onClick: (event: React.MouseEvent) => void;
+    'aria-label': string;
+    'aria-current': 'page' | undefined;
+    'aria-expanded': boolean | undefined;
+    'aria-haspopup': 'true' | undefined;
+  };
 }
 
 /** Why a navigation happened — see {@link BottomNavProps.onNavigate}. */
@@ -154,6 +166,7 @@ function Icon({ icon, className }: { icon: BottomNavIcon | undefined; className:
   if (!icon) return null;
   if (typeof icon === 'function' || (typeof icon === 'object' && icon !== null && 'render' in (icon as object))) {
     const C = icon as React.ComponentType<{ className?: string; strokeWidth?: number }>;
+    // (a forwardRef object — lucide's shape — is a component, not a node)
     return <C className={className} strokeWidth={2.1} />;
   }
   return <span className={cn('inline-flex items-center justify-center', className)}>{icon as React.ReactNode}</span>;
@@ -451,15 +464,12 @@ export function BottomNav({
       navigate(link, 'tap');
     };
 
-    const props: BottomNavLinkRender = {
-      link,
+    const props: BottomNavLinkRender['props'] = {
       // A disabled link keeps its href (so it stays a real, announced link) and
       // is stopped at the click instead.
       href: link.href,
       className: opts.className,
       children: opts.content,
-      active,
-      sub: opts.sub,
       onClick,
       'aria-label': link.label,
       'aria-current': active ? 'page' : undefined,
@@ -468,36 +478,12 @@ export function BottomNav({
     };
 
     const el = renderLink ? (
-      <React.Fragment key={link.key}>{renderLink(props)}</React.Fragment>
+      <React.Fragment key={link.key}>{renderLink({ link, active, sub: opts.sub, props })}</React.Fragment>
     ) : !link.href ? (
       // No destination of its own — a disclosure, so a button, not a link.
-      <button
-        key={link.key}
-        type="button"
-        className={props.className}
-        onClick={props.onClick}
-        aria-label={props['aria-label']}
-        aria-current={props['aria-current']}
-        aria-expanded={props['aria-expanded']}
-        aria-haspopup={props['aria-haspopup']}
-        disabled={link.disabled}
-      >
-        {opts.content}
-      </button>
+      <button key={link.key} type="button" {...{ ...props, href: undefined }} disabled={link.disabled} />
     ) : (
-      <a
-        key={link.key}
-        href={props.href}
-        className={props.className}
-        onClick={props.onClick}
-        aria-label={props['aria-label']}
-        aria-current={props['aria-current']}
-        aria-expanded={props['aria-expanded']}
-        aria-haspopup={props['aria-haspopup']}
-        aria-disabled={link.disabled || undefined}
-      >
-        {opts.content}
-      </a>
+      <a key={link.key} {...props} aria-disabled={link.disabled || undefined} />
     );
 
     // Touch never hovers, so a tooltip costs it nothing; the label is already
@@ -629,7 +615,10 @@ export function BottomNav({
       data-bottom-nav=""
       data-floating={floating ? '' : undefined}
       className={cn(
-        'relative z-30 shrink-0 border-border bg-card/80 backdrop-blur-md',
+        'relative shrink-0 border-border bg-card/80 backdrop-blur-md',
+        // The bar sits above the page; while its drawer is up the pair has to
+        // clear the app's own bottom furniture (a docked composer, a FAB) too.
+        drawerKey ? 'z-50' : 'z-30',
         floating
           ? 'fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 w-auto -translate-x-1/2 rounded-2xl border px-1 shadow-lg'
           : 'border-t',
@@ -646,7 +635,10 @@ export function BottomNav({
           data-bottom-nav-drawer=""
           data-open={shown ? '' : undefined}
           className={cn(
-            'absolute inset-x-0 -z-10 border-border bg-card/95 backdrop-blur-md',
+            // Opaque, unlike the bar: it slides over whatever the app keeps
+            // above the bar (a docked composer), and a translucent row there
+            // reads as a ghost of two UIs at once.
+            'absolute inset-x-0 -z-10 border-border bg-card',
             floating ? 'bottom-full mb-1 rounded-2xl border shadow-lg' : 'bottom-full border-t',
             !reduced && 'transition-[transform,opacity] duration-200 ease-out',
             shown ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0',
