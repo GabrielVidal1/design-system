@@ -12,14 +12,17 @@ import {
   Hand,
   Inbox,
   Layers,
+  MoreVertical,
   MousePointer2,
   PenTool,
+  Pencil,
   Play,
   Plus,
   Redo2,
   Save,
   Settings2,
   Square,
+  Star,
   Terminal,
   Trash2,
   Type,
@@ -60,6 +63,9 @@ import {
   Tooltip,
   Popover,
   PopConfirm,
+  Menu,
+  ContextMenu,
+  type MenuEntry,
   Nav2DProvider,
   Nav2DItem,
   useNav2D,
@@ -101,6 +107,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  BottomNav,
   Breadcrumbs,
   Pagination,
   Textarea,
@@ -109,6 +116,7 @@ import {
   Toolbar,
   ToolbarButton,
   ToolbarGroup,
+  EditorStage,
   ViewableImage,
   VirtualList,
   AnimatedList,
@@ -130,6 +138,7 @@ import {
   useTheme,
   useToast,
 } from '@gabvdl/ui';
+import type { EditorStageHandle, StageViewport } from '@gabvdl/ui';
 
 import {
   CnIcon,
@@ -191,12 +200,15 @@ import {
   AnimatedListIcon,
   ElementPickerIcon,
   TabsIcon,
+  BottomNavIcon,
   BreadcrumbsIcon,
   PaginationIcon,
+  MenuIcon,
   FileEditorIcon,
   ColorPickerIcon,
   ToolbarIcon,
   InspectorPanelIcon,
+  EditorStageIcon,
 } from './icons';
 import pkg from '@gabvdl/ui/package.json';
 import { SandpackProvider, SandpackCodeEditor, type SandpackTheme } from '@codesandbox/sandpack-react';
@@ -253,8 +265,10 @@ const GROUP_OF: Record<string, Group> = {
   'relative-time': 'Data display',
   'nav-2d': 'Navigation',
   tabs: 'Navigation',
+  'bottom-nav': 'Navigation',
   breadcrumbs: 'Navigation',
   pagination: 'Navigation',
+  menu: 'Navigation',
   button: 'Inputs',
   input: 'Inputs',
   textarea: 'Inputs',
@@ -297,6 +311,7 @@ const GROUP_OF: Record<string, Group> = {
   modal: 'Layout',
   toolbar: 'Editor',
   'inspector-panel': 'Editor',
+  'editor-stage': 'Editor',
   'color-picker': 'Editor',
   hooks: 'Hooks',
   cn: 'Utilities',
@@ -313,7 +328,8 @@ const GROUP_BLURB: Record<Group, string> = {
   Animation: 'Typewriter text and staggered reveals that share one timeline.',
   Feedback: 'What the app says back — toasts, banners, spinners, skeletons, empty states, release notes.',
   Layout: 'Device frames, scaffolding, and the modal every project re-implements.',
-  Editor: 'The primitives online editors share — toolbars, inspector panels, a real colour picker.',
+  Editor:
+    'The primitives online editors share — a zoom/pan stage, toolbars, inspector panels, a real colour picker.',
   Hooks: 'The headless half: gestures, storage, media queries, clipboard, intersection.',
   Utilities: 'Class names, theming and the formatters shared across the lab.',
 };
@@ -349,8 +365,10 @@ const SOURCE_FILE: Record<string, string> = {
   'resizable-layout': 'resizable-layout.tsx',
   'nav-2d': 'nav-2d.tsx',
   tabs: 'tabs.tsx',
+  'bottom-nav': 'bottom-nav.tsx',
   breadcrumbs: 'breadcrumbs.tsx',
   pagination: 'pagination.tsx',
+  menu: 'menu.tsx',
   button: 'button.tsx',
   input: 'input.tsx',
   textarea: 'textarea.tsx',
@@ -386,6 +404,7 @@ const SOURCE_FILE: Record<string, string> = {
   'color-picker': 'color-picker.tsx',
   toolbar: 'toolbar.tsx',
   'inspector-panel': 'inspector-panel.tsx',
+  'editor-stage': 'editor-stage.tsx',
   'relative-time': 'relative-time.tsx',
   theme: 'theme.tsx',
   format: 'format.ts',
@@ -571,6 +590,85 @@ open(media, { story: true })      // auto-advancing story + progress bar`,
 // desktop: prev/next + numbers, collapsing "…" gaps around the current page
 // phone:   numbers are too small to hit reliably — drops to a big-tap-target
 //          "Prev · Page 7 of 24 · Next" strip instead`,
+  },
+  {
+    id: 'menu',
+    name: 'Menu',
+    sig: '(trigger, items, side?, align?, sheet?) · ContextMenu(children, items, delay?)',
+    tag: 'navigation',
+    Icon: MenuIcon,
+    Demo: MenuDemo,
+    code: `<Menu
+  trigger={<Button variant="outline" icon={<MoreVertical />} />}
+  items={[
+    { id: 'rename', label: 'Rename', icon: <Pencil /> },
+    { id: 'star', label: 'Star', icon: <Star /> },
+    { id: 'sep', type: 'separator' },
+    { id: 'delete', label: 'Delete', icon: <Trash2 />, danger: true },
+  ]}
+/>
+
+// arrow-key nav, separators, disabled/danger items — anchored panel on
+// desktop, a bottom sheet on phones (same split as Select)
+
+<ContextMenu items={items} label="Row actions">
+  <TableRow />
+</ContextMenu>
+
+// right-click on desktop, long-press on touch — anchored at the pointer,
+// clamped to the viewport, a bottom sheet on phones (a point anchor would
+// fight a finger's own reach)`,
+  },
+  {
+    id: 'bottom-nav',
+    name: 'BottomNav',
+    sig: '(links, selectedLink, center?, editable?, swipeNavigation?, floating?)',
+    tag: 'navigation',
+    Icon: BottomNavIcon,
+    Demo: BottomNavDemo,
+    code: `// the app's bottom bar: 3-5 destinations, the middle one raised
+// into a bubble, an underline on the selected one. Routing-agnostic
+// — an <a href> by default, or whatever renderLink returns.
+<BottomNav
+  links={[
+    { key: 'dashboards', label: 'Dashboards', icon: LayoutDashboard, href: '/dashboards' },
+    { key: 'files', label: 'Files', icon: FolderTree, href: '/files',
+      children: [                        // a second level, in a drawer
+        { key: 'memories', label: 'Memories', icon: Brain, href: '/memories' },
+        { key: 'skills', label: 'Skills', icon: Wrench, href: '/skills', badge: 3 },
+      ] },
+    { key: 'home', label: 'Conversation', icon: MessagesSquare, href: '/' },
+    { key: 'projects', label: 'Projects', icon: FolderGit2, href: '/projects' },
+    { key: 'settings', label: 'Settings', icon: Settings, href: '/settings' },
+  ]}
+  selectedLink={section}         // a link's key — or a sub-link's
+  center="home"                  // key OR slot index; default: middle slot
+/>
+
+// a parent link navigates on the first tap; tapped again, once you
+// are in that section, it raises its sub-links from behind the bar.
+// Five slots per drawer — the overflow waits in the stash.
+
+// router links instead of anchors — props is the whole DOM payload
+// (classes, content, ARIA, onClick); nothing else belongs on the node.
+<BottomNav
+  renderLink={({ props: { href, ...rest } }) => <Link to={href} {...rest} />}
+  onSelect={(link, e) => { /* e.preventDefault() to own the tap */ }}
+/>
+
+// hold to rearrange (order comes back to you, persist it), and
+// swipe the page left/right to walk the bar — the page follows
+// the finger. While a section is expanded the swipe walks its
+// sub-links, stepping out past either end.
+<BottomNav
+  editable
+  onReorder={saveOrder}          // sub-link drags: parent.children, slots first
+  swipeNavigation
+  swipeTarget={contentRef}       // the element that listens AND peeks
+  onNavigate={(link, { source }) =>                         // 'tap' | 'swipe'
+    source === 'swipe' && navigate(link.href)}             // a tap is the link's own job
+  floating={isDesktop}           // centred button group instead of a full-width bar
+/>`,
   },
   {
     id: 'virtual-list',
@@ -1648,6 +1746,29 @@ if (await confirm({ title: 'Delete note?', destructive: true })) remove()
   </ToolbarGroup>
 </Toolbar>
 // too narrow? trailing tools collapse into a ⋯ menu`,
+  },
+  {
+    id: 'editor-stage',
+    name: 'EditorStage',
+    sig: 'wheel/pinch zoom · space-drag pan · fit · content coordinates',
+    tag: 'editor',
+    Icon: EditorStageIcon,
+    Demo: EditorStageDemo,
+    code: `const stage = useRef<EditorStageHandle>(null)
+
+<EditorStage
+  ref={stage}
+  contentWidth={32} contentHeight={24}   // in YOUR units — tiles, mm, px
+  cursor="crosshair"
+  onStagePointerDown={(e) => paint(Math.floor(e.x), Math.floor(e.y))}
+  onStagePointerMove={(e) => e.buttons && paint(Math.floor(e.x), Math.floor(e.y))}
+  overlay={(vp) => <Hairlines viewport={vp} />}   // screen space
+>
+  <canvas width={32} height={24} style={{ imageRendering: 'pixelated' }} />
+</EditorStage>
+
+stage.current?.fit()          // zoom the content to the box
+stage.current?.centerOn(x, y) // keep the zoom, move the eye`,
   },
   {
     id: 'inspector-panel',
@@ -3638,6 +3759,126 @@ function demoTools(tool: string, setTool: (t: string) => void) {
   ];
 }
 
+/** A 32×24 tile painter — the smallest thing that exercises what the stage is
+ *  for: content in its own units, a screen-space overlay, and fit/centre. */
+function EditorStageDemo() {
+  const W = 32;
+  const H = 24;
+  const stage = useRef<EditorStageHandle>(null);
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const grid = useRef<HTMLCanvasElement>(null);
+  const [tiles, setTiles] = useState(() => new Uint8Array(W * H));
+  const [vp, setVp] = useState<StageViewport>({ scale: 1, x: 0, y: 0 });
+  const [box, setBox] = useState({ width: 0, height: 0 });
+  const [colour, setColour] = useState(1);
+
+  const PALETTE = ['#0b0f14', '#22d3ee', '#f59e0b', '#f43f5e'];
+
+  useEffect(() => {
+    const ctx = canvas.current?.getContext('2d');
+    if (!ctx) return;
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++) {
+        ctx.fillStyle = PALETTE[tiles[y * W + x]];
+        ctx.fillRect(x, y, 1, 1);
+      }
+  }, [tiles]);
+
+  // hairlines live in screen space so they stay 1px at any zoom
+  useEffect(() => {
+    const cv = grid.current;
+    if (!cv || !box.width) return;
+    cv.width = box.width;
+    cv.height = box.height;
+    const ctx = cv.getContext('2d')!;
+    ctx.clearRect(0, 0, box.width, box.height);
+    if (vp.scale < 6) return;
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    for (let x = 0; x <= W; x++) {
+      ctx.beginPath();
+      ctx.moveTo(Math.round(x * vp.scale + vp.x) + 0.5, vp.y);
+      ctx.lineTo(Math.round(x * vp.scale + vp.x) + 0.5, H * vp.scale + vp.y);
+      ctx.stroke();
+    }
+    for (let y = 0; y <= H; y++) {
+      ctx.beginPath();
+      ctx.moveTo(vp.x, Math.round(y * vp.scale + vp.y) + 0.5);
+      ctx.lineTo(W * vp.scale + vp.x, Math.round(y * vp.scale + vp.y) + 0.5);
+      ctx.stroke();
+    }
+  }, [vp, box]);
+
+  const paint = (cx: number, cy: number, erase: boolean) => {
+    const x = Math.floor(cx);
+    const y = Math.floor(cy);
+    if (x < 0 || y < 0 || x >= W || y >= H) return;
+    setTiles((prev) => {
+      const value = erase ? 0 : colour;
+      if (prev[y * W + x] === value) return prev;
+      const next = new Uint8Array(prev);
+      next[y * W + x] = value;
+      return next;
+    });
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        {PALETTE.slice(1).map((c, i) => (
+          <button
+            key={c}
+            type="button"
+            onClick={() => setColour(i + 1)}
+            aria-label={`colour ${i + 1}`}
+            className={`size-7 rounded-md border-2 ${colour === i + 1 ? 'border-foreground' : 'border-transparent'}`}
+            style={{ background: c }}
+          />
+        ))}
+        <Button size="sm" variant="outline" onClick={() => stage.current?.fit()}>
+          fit
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => stage.current?.zoomBy(1.4)}>
+          zoom in
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setTiles(new Uint8Array(W * H))}>
+          clear
+        </Button>
+        <span className="mono text-xs text-muted-foreground">{Math.round(vp.scale * 100)}%</span>
+      </div>
+
+      <EditorStage
+        ref={stage}
+        contentWidth={W}
+        contentHeight={H}
+        viewport={vp}
+        onViewportChange={setVp}
+        onResize={setBox}
+        cursor="crosshair"
+        className="h-72 rounded-xl border border-border bg-[--surface-2]"
+        onStagePointerDown={(e) => paint(e.x, e.y, e.button === 2)}
+        onStagePointerMove={(e) => e.buttons && paint(e.x, e.y, (e.buttons & 2) !== 0)}
+        overlay={() => (
+          <canvas ref={grid} className="pointer-events-none absolute inset-0 size-full" />
+        )}
+      >
+        <canvas
+          ref={canvas}
+          width={W}
+          height={H}
+          style={{ width: W, height: H, imageRendering: 'pixelated' }}
+        />
+      </EditorStage>
+
+      <p className="text-sm text-muted-foreground">
+        Drag to paint, right-drag to erase. Wheel or pinch zooms about the cursor, hold{' '}
+        <kbd className="mono text-xs">Space</kbd> (or the middle button, or two fingers) to pan.
+        The tile canvas is 32×24 <em>content</em> pixels — the stage scales it, so a cell stays a
+        hard square, while the grid hairlines on the overlay stay one pixel wide.
+      </p>
+    </div>
+  );
+}
+
 function ToolbarDemo() {
   const [tool, setTool] = useState('select');
   return (
@@ -4087,6 +4328,155 @@ function PaginationDemo() {
         {isMobile
           ? 'On a phone the number grid gives way to a big-tap Prev / Page X of Y / Next strip.'
           : '24 pages — the middle collapses to "…" around the current page, first/last always stay put. Shrink the window below 768px to see the phone layout.'}
+      </p>
+    </div>
+  );
+}
+
+function MenuDemo() {
+  const toast = useToast();
+  const act = (label: string) => toast.success(`${label} clicked`);
+
+  const rowItems = (row: string): MenuEntry[] => [
+    { id: 'rename', label: 'Rename', icon: <Pencil />, onSelect: () => act(`Rename “${row}”`) },
+    { id: 'star', label: 'Star', icon: <Star />, onSelect: () => act(`Star “${row}”`) },
+    { id: 'copy', label: 'Duplicate', icon: <Copy />, disabled: true },
+    { id: 'sep', type: 'separator' },
+    { id: 'delete', label: 'Delete', icon: <Trash2 />, danger: true, onSelect: () => act(`Delete “${row}”`) },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        <span className="font-medium text-foreground">Menu</span> hangs off a trigger you click;{' '}
+        <span className="font-medium text-foreground">ContextMenu</span> opens at the pointer — right-click on
+        desktop, long-press on touch. Arrow keys move through both; a disabled row is skipped.
+      </p>
+      <DemoRow>
+        <Menu
+          trigger={<Button variant="outline" size="sm" icon={<MoreVertical />} />}
+          items={rowItems('menu.tsx')}
+          label="File actions"
+        />
+      </DemoRow>
+      <ContextMenu items={rowItems('Q3 report.pdf')} label="Row actions">
+        <div className="cursor-default select-none rounded-xl border border-dashed border-border bg-card px-4 py-6 text-center text-sm text-muted-foreground">
+          Right-click (or long-press) this row
+        </div>
+      </ContextMenu>
+    </div>
+  );
+}
+
+/* ─── BottomNav ───────────────────────────────────────────────────────────── */
+
+type NavLink = React.ComponentProps<typeof BottomNav>['links'][number];
+
+const NAV_LINKS: NavLink[] = [
+  {
+    key: 'dashboards',
+    label: 'Dashboards',
+    href: '#',
+    icon: Grid3x3,
+    children: [
+      { key: 'activity', label: 'Activity', href: '#', icon: Play },
+      { key: 'cost', label: 'Cost', href: '#', icon: Cpu },
+      { key: 'graph', label: 'Graph', href: '#', icon: Circle },
+    ],
+  },
+  {
+    key: 'files',
+    label: 'Files',
+    href: '#',
+    icon: FileText,
+    children: [
+      { key: 'memories', label: 'Memories', href: '#', icon: Save },
+      { key: 'skills', label: 'Skills', href: '#', icon: Terminal },
+      { key: 'agents', label: 'Agents', href: '#', icon: Cpu },
+      { key: 'plans', label: 'Plans', href: '#', icon: Type },
+      { key: 'goals', label: 'Goals', href: '#', icon: Square },
+      { key: 'notifications', label: 'Notifs', href: '#', icon: Inbox, badge: 3 },
+    ],
+  },
+  { key: 'conversation', label: 'Conversation', href: '#', icon: Inbox },
+  { key: 'projects', label: 'Projects', href: '#', icon: Layers },
+  { key: 'settings', label: 'Settings', href: '#', icon: Settings2 },
+];
+
+/** Flat list of everything the bar routes to, for the demo's fake page. */
+function navTitle(links: NavLink[], key: string): string {
+  for (const l of links) {
+    if (l.key === key) return l.label;
+    const hit = l.children?.find((c) => c.key === key);
+    if (hit) return `${l.label} › ${hit.label}`;
+  }
+  return key;
+}
+
+function BottomNavDemo() {
+  const [links, setLinks] = useState(NAV_LINKS);
+  const [selected, setSelected] = useState('files');
+  const [floating, setFloating] = useState(false);
+  const page = useRef<HTMLDivElement>(null);
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start gap-6">
+        {/* The phone: swipe the screen sideways to walk the bar. */}
+        <div>
+          <PhonePreview screenWidth={252} statusBar={false}>
+            <div className="flex h-full flex-col overflow-hidden bg-[var(--surface)]">
+              <div ref={page} className="flex flex-1 flex-col items-center justify-center gap-1 px-4 text-center">
+                <span className="mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                  swipe me sideways
+                </span>
+                <span className="text-lg font-semibold text-foreground">{navTitle(links, selected)}</span>
+              </div>
+              <BottomNav
+                links={links}
+                selectedLink={selected}
+                editable
+                onReorder={setLinks}
+                swipeNavigation
+                swipeTarget={page}
+                onNavigate={(l) => setSelected(l.key)}
+              />
+            </div>
+          </PhonePreview>
+        </div>
+
+        {/* The desktop shape: same bar, floating over the content. */}
+        <div className="min-w-[16rem] flex-1 space-y-3">
+          <div
+            className="relative h-64 overflow-hidden rounded-xl border border-border bg-[var(--surface)]"
+            /* a transform makes this box the containing block, so `floating`
+               (position: fixed) stays inside the demo instead of the viewport */
+            style={{ transform: 'translate3d(0,0,0)' }}
+          >
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              {navTitle(links, selected)}
+            </div>
+            <BottomNav
+              links={links}
+              selectedLink={selected}
+              floating={floating}
+              editable
+              onReorder={setLinks}
+              onNavigate={(l) => setSelected(l.key)}
+              className={floating ? undefined : 'absolute inset-x-0 bottom-0'}
+            />
+          </div>
+          <Button size="sm" variant="outline" onClick={() => setFloating((v) => !v)}>
+            {floating ? 'Dock it to the edge' : 'Float it (desktop shape)'}
+          </Button>
+        </div>
+      </div>
+
+      <p className="mono text-[11px] leading-relaxed text-muted-foreground">
+        tap a section to go there · tap it <span className="text-foreground">again</span> to raise its
+        sub-link drawer (Files has six — five slots, the rest wait in the stash) · hold any item to
+        rearrange the bar · on the phone, <span className="text-foreground">swipe the screen</span>:
+        the page follows the finger and the bar walks a section at a time, sub-links included
       </p>
     </div>
   );

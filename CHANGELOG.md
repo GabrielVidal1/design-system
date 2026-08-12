@@ -117,7 +117,52 @@ last release → grouped bullets under Unreleased), then curate the prose.
   (muting is not un-picking) and fires only when the selection really changes,
   so deriving `tags` from it can't loop.
 
+### Fixed
+- `Toolbar` — a collapsing toolbar no longer makes the **page** scroll
+  sideways on a phone. The hidden twin it measures against is as wide as the
+  uncollapsed strip, and an absolutely positioned box that wide still counts as
+  scrollable overflow, which propagates to the document: a 390 px viewport
+  ended up with a 570 px body, and anything `fixed inset-0` (a bottom sheet,
+  a scrim) sized itself to *that*. The twin is now clipped inside a 0×0 box.
+
 ### Added
+- **`EditorStage`** — the zoom/pan surface every canvas editor was going to
+  hand-roll, and the piece the *Editor* category was built around missing.
+  Content lives in its own units — tiles, millimetres, whatever — and the stage
+  owns the single transform to the screen: wheel and pinch zoom **about the
+  cursor**, space-drag / middle-drag / two-finger pan, and a `fit` that re-runs
+  when the surface or the content is resized. `children` render inside the
+  transformed layer (so a 1-px-per-tile canvas scales up crisply with
+  `image-rendering: pixelated`), while `overlay` is called with the live
+  viewport for whatever must stay screen-sized — grid hairlines that shouldn't
+  thicken with the zoom, selection ants, a HUD. Pointer gestures that aren't a
+  pan arrive already converted into content coordinates, and the imperative
+  handle adds `fit` / `zoomBy` / `centerOn` / `viewport`.
+- **`Menu` / `ContextMenu`** — the action-list overlay the docs catalogue was
+  still missing. `Menu` hangs a keyboard-navigable list off a click trigger
+  (built on `Popover`, so it inherits the viewport side-flip and the phone
+  bottom sheet); `ContextMenu` opens the same list at the pointer — right-click
+  on desktop, long-press on touch via `useLongPress` — clamped to the viewport,
+  and a bottom sheet on phones since a point-anchored panel would fight a
+  finger's own reach. Both share one list: arrow keys / Home / End / Enter,
+  separators, `disabled` and a destructive `danger` tone, `icon` and
+  `shortcut` slots per item.
+- **`BottomNav`** — the app's bottom bar, the shape the homelab's PWAs already
+  run on, now a component: three to five destinations, the middle slot raised
+  into a bubble, an underline on the selected one. It stays out of routing —
+  a link is an `<a href>` unless `renderLink` returns a router `<Link>` — and
+  `onSelect` can `preventDefault()` to own a tap. A link with `children` gets a
+  **second level**: the first tap goes to the section, tapping it again once you
+  are there raises a one-row drawer of sub-links from behind the bar (five slots,
+  the overflow waiting in the stash). `editable` puts the bar under
+  `HoldEditable` — hold a link to pick it up and drag it elsewhere, order back
+  through `onReorder`; the bar itself has no stash, because benching a link would
+  hide a whole section of the app behind a gesture. `swipeNavigation` walks the
+  bar when the page is swiped left/right, dragging the `swipeTarget` with the
+  finger (and rubber-banding at the ends); while a section is expanded the swipe
+  walks its sub-links and steps out past either end. `center` takes a key *or* a
+  slot index (default: the middle slot), and `floating` lifts the bar off the
+  bottom edge into a centred button group — the desktop shape.
 - `RichInput` — **auto-tag: the composer reads what you typed and offers the
   tags it recognises.** A tag opts in by carrying `triggers` (words *and*
   phrases — `['nanobanana', 'generate an image']`); a second after the typing

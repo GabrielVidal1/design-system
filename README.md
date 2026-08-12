@@ -16,9 +16,10 @@ A small monorepo:
 ```
 design-system/
 ├── packages/
-│   └── ui/        @gabvdl/ui — the tree-shakeable component library
+│   ├── ui/             @gabvdl/ui — the tree-shakeable component library
+│   └── eslint-config/  @gabvdl/eslint-config — shared ESLint flat config (TS+React bases + house rules)
 └── apps/
-    └── docs/      @gabvdl/docs — landing + docs + live demo (ui.gabvdl.xyz)
+    └── docs/           @gabvdl/docs — landing + docs + live demo (ui.gabvdl.xyz)
 ```
 
 ## `@gabvdl/ui`

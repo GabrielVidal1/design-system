@@ -73,6 +73,8 @@ export { Popover } from './components/popover';
 export type { PopoverProps, PopoverSide, PopoverAlign } from './components/popover';
 export { PopConfirm } from './components/pop-confirm';
 export type { PopConfirmProps } from './components/pop-confirm';
+export { Menu, ContextMenu } from './components/menu';
+export type { MenuProps, ContextMenuProps, MenuEntry, MenuItem, MenuSeparatorEntry } from './components/menu';
 export { ThemeProvider, ThemeToggle, resolveTheme, setTheme, toggleTheme, useTheme } from './components/theme';
 export type { ThemeMode, ThemeToggleProps, UseThemeResult } from './components/theme';
 export { Spinner } from './components/spinner';
@@ -234,6 +236,14 @@ export type {
   TabsTriggerProps,
   TabsVariant,
 } from './components/tabs';
+export { BottomNav } from './components/bottom-nav';
+export type {
+  BottomNavIcon,
+  BottomNavLink,
+  BottomNavLinkRender,
+  BottomNavProps,
+  BottomNavSource,
+} from './components/bottom-nav';
 export { Breadcrumbs } from './components/breadcrumbs';
 export type { BreadcrumbItem, BreadcrumbsProps } from './components/breadcrumbs';
 export { Pagination } from './components/pagination';
@@ -323,6 +333,13 @@ export type {
   InspectorRowProps,
   InspectorSectionProps,
 } from './components/inspector-panel';
+export { EditorStage } from './components/editor-stage';
+export type {
+  EditorStageProps,
+  EditorStageHandle,
+  StageViewport,
+  StagePointerEvent,
+} from './components/editor-stage';
 export { FloatingPanel, Dock, DockProvider, useDockContext, useDock } from './components/floating-panel';
 export type {
   FloatingPanelProps,

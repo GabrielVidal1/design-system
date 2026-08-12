@@ -23,8 +23,6 @@ Two audiences, one library:
      removes its own line in the same commit that ticks the checkbox. Leave
      the section empty (this comment only) when nothing is in flight. -->
 
-- [design-system] `Menu` / context menu (long-press on touch) — @2026-08-10T01:49Z
-
 ## Principles
 
 1. **Mobile-first, desktop-compatible.** Designed for touch first (gestures,
@@ -78,7 +76,12 @@ Has `Input`, `RichInput`, `SearchInput`, `DropZone`, `ElementPicker`,
 ### Navigation
 Has `Tabs`, `Nav2D`, `GlobalSearch`, `FuzzyList`.
 - [x] `Tabs` — scrolling strip, swipeable panels, underline/pill/segmented
-- [ ] `Menu` / context menu (long-press on touch)
+- [x] `Menu` / context menu (long-press on touch) — `Menu` (click-triggered
+      dropdown, anchored on desktop / bottom sheet on phones) + `ContextMenu`
+      (right-click desktop, long-press touch, clamped to the viewport),
+      sharing one keyboard-navigable list (arrows/Home/End/Enter, separators,
+      disabled, `danger` tone). Built on `Popover`/`Modal`/`useLongPress`, not
+      a new overlay primitive. Live demo + REGISTRY entry at `/c/menu`.
 - [x] `Breadcrumbs`, pagination — collapsing "…" trail; desktop numbered
       pages, big-tap Prev/Next strip on phones
 
@@ -91,19 +94,39 @@ Has `Toast`, `Modal` / `useConfirm`, `Spinner`, `StatusBadge`.
 Has `ImageViewer`, `ViewableImage`, `ProgressiveImage`, `IframePreview`.
 Considered covered for now.
 
-### Editor toolkit — new category, mostly to build
+### Data visualization — new category, nothing shipped yet
+No chart primitive exists in the library at all — `appe`'s
+`TokenBreakdownPopover` pulls in `recharts` directly for a pie chart because
+there's nothing to reuse, and any future stat dashboard (an ai-agent cost
+panel, a dashboard demo below) will do the same unless this lands first.
+Follow the homelab's own `dataviz` skill conventions (categorical/sequential
+token palette, legible in both themes) rather than inventing a second color
+system.
+- [ ] `Sparkline` — inline trend line/bars for a `StatTile`, no axes/legend,
+      tokened stroke/fill — the thing every dashboard hand-rolls in raw SVG
+- [ ] `TrendChart` — small line-or-bar chart with hover tooltip, sized for a
+      card, not a full analytics page
+- [ ] `DonutChart` — share/breakdown ring with a centered total, the exact
+      shape `appe`'s `TokenBreakdownPopover` reimplements with `recharts`
+
+### Editor toolkit
 The primitives online editors share, extracted so zine-maker, the marble
 machine and a card-game editor don't each reinvent them:
-- [ ] `EditorStage` — zoom/pan canvas surface (wheel, pinch, space-drag) with
-      a controlled viewport
+- [x] `EditorStage` — zoom/pan canvas surface (wheel, pinch, space-drag) with
+      a controlled viewport (shipped — `feat(ui): EditorStage`, merged; the
+      checkbox was just never ticked)
 - [x] `Toolbar` — tool groups, active state, overflow on small screens —
       + `ToolbarGroup` / `ToolbarButton` / `ToolbarSeparator`, ⋯ menu via
       ResizeObserver
 - [x] `InspectorPanel` — property editing panel (pairs with `FloatingPanel` /
       `ResizableLayout` on desktop, bottom sheet on phones) —
       + `InspectorSection` / `InspectorRow`
-- [ ] Layers list (reorder, visibility, selection)
-- [ ] Selection & transform handles (move/scale/rotate, touch-friendly)
+- [ ] Layers list (reorder, visibility, selection) — this is `HoldEditable`'s
+      drag-reorder + stash pattern reshaped into a flat list row (name, eye
+      toggle, selected state), not a new drag primitive
+- [ ] Selection & transform handles (move/scale/rotate, touch-friendly) —
+      `react-moveable` (draggable/resizable/rotatable/snappable) is worth
+      skimming for the gesture/handle-cursor API shape before designing ours
 - [x] Color picker — `ColorPicker`: SV square, hue/alpha sliders, hex,
       eyedropper, swatches; HSV maths exported
 - [ ] `useUndoRedo` + keyboard-shortcut manager
@@ -125,9 +148,14 @@ the components it uses.
       `ProgressiveBash` logs. *Missing primitives (progress bar, `DataTable`,
       stat tiles) get built in the library first.* (`/demos/jobs` — "Render
       queue")
-- [ ] **Editor shell** — once the editor toolkit lands: stage + toolbar +
-      inspector + layers in one screen
-- [ ] More over time — dashboard, gallery, settings/forms page
+- [ ] **Editor shell** — `EditorStage` + `Toolbar` + `InspectorPanel` +
+      `ColorPicker` all ship today, so this no longer needs to wait on Layers
+      or Selection/transform: build it now with a simple shape tool, add
+      layers/selection to the demo once those primitives land
+- [ ] **Dashboard** — pairs with the new Data visualization category:
+      `StatRow` + `Sparkline`/`TrendChart` + `DataTable`, the screen every
+      service frontend (3d-gen, music-dl, brain) currently improvises
+- [ ] More over time — gallery, settings/forms page
 
 ## Guard rails (for the goal-keeper)
 
@@ -138,3 +166,37 @@ the components it uses.
 - Don't cut public npm releases from a scheduled run; publish work-in-progress
   to the private verdaccio instead (`services/registry/publish.sh` from the
   homelab root) and leave `v*` tagging to a human.
+
+## Research log
+
+<!-- Appended by the goal-seeder agent. Newest first. -->
+
+### 2026-08-12 — seeded a Data visualization category, unblocked Editor shell
+
+- Bookkeeping fix: `EditorStage` is merged, exported (`index.ts:333`) and live
+  on the docs site, but its checkbox was never ticked — 3 hours of git history
+  (`feat(ui): EditorStage`, `Merge branch 'editor-stage'`) had gone unrecorded.
+  Ticked it; this also means the "Editor shell" demo was blocked on a fiction.
+- `grep -rl "recharts" ~/projects/*/src` → `appe/src/components/TokenBreakdownPopover.tsx`
+  imports `recharts` directly for a token-breakdown pie chart. The library has
+  **no chart primitive in any form** — checked `index.ts` for
+  Chart/Sparkline/Graph, nothing. Added a Data visualization category
+  (`Sparkline`, `TrendChart`, `DonutChart`) so the next dashboard-shaped need
+  (and a redo of `appe`'s chart) has something to reuse instead of a second
+  charting dependency.
+- Web search "react library selection transform handles resize rotate" →
+  `react-moveable` (draggable/resizable/rotatable/scalable/snappable, one
+  component) is the closest prior art for the still-unbuilt Selection &
+  transform handles item; noted as a reference, not a dependency to pull in.
+- Web search "shadcn ui new components 2026" → nothing changes the plan here:
+  Command palette (`GlobalSearch`) and Data grid (`DataTable`) are already
+  shipped; shadcn's move to Base UI over Radix doesn't apply since this
+  library has no Radix dependency to begin with (`grep -i radix package.json`
+  → no hits, it's built from scratch, not vendored shadcn primitives).
+- `npm outdated`: nothing at a major-jump-with-real-payoff level worth a
+  wishlist item — `react-resizable-panels` 2→4 and `lucide-react` 0→1 are
+  majors but no release-note read surfaced a reason to migrate over a
+  scheduled run; left for a human to judge.
+- Considered and rejected: a Figma/Grida-style "AI-native" design-tool
+  category (surfaced by the canvas-editor search) — the north star is a
+  *component library*, not a design tool product; out of scope for this unit.

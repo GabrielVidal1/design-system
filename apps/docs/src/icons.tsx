@@ -403,6 +403,28 @@ export function PaginationIcon() {
   );
 }
 
+/** Menu — a trigger dot pops a short list, the active row sweeping down it. */
+export function MenuIcon() {
+  return (
+    <Svg>
+      <circle cx="52" cy="65" r="9" fill="none" stroke={DIM} strokeWidth="2" />
+      <circle cx="52" cy="60" r="1.6" fill={DIM} />
+      <circle cx="52" cy="65" r="1.6" fill={DIM} />
+      <circle cx="52" cy="70" r="1.6" fill={DIM} />
+      <g className="a-panel" style={v({ '--dur': '4.2s' })}>
+        <path d="M70 60 l8 5 l-8 5 Z" fill={CY} />
+        <rect x="78" y="42" width="100" height="60" rx="8" fill={PAPER} stroke={CY} strokeWidth="2.5" />
+        <g className="a-drift" style={v({ '--dx': '0px', '--dy': '18px', '--dur': '4.2s' })}>
+          <rect x="88" y="50" width="80" height="12" rx="4" fill={CY} fillOpacity="0.22" />
+        </g>
+        <rect x="92" y="53" width="34" height="6" rx="3" fill={DIM} opacity="0.6" />
+        <rect x="92" y="71" width="46" height="6" rx="3" fill={DIM} opacity="0.5" />
+        <rect x="92" y="89" width="28" height="6" rx="3" fill={DIM} opacity="0.5" />
+      </g>
+    </Svg>
+  );
+}
+
 /** Tabs — the indicator slides under the strip and the panel swaps with it. */
 export function TabsIcon() {
   return (
@@ -1867,6 +1889,100 @@ export function InspectorPanelIcon() {
       <path d={`M ${x0 + 12} 84 l 5 4 l -5 4`} stroke={CY} strokeWidth="2.5" strokeLinecap="round" fill="none" />
       <rect x={x0 + 24} y="85" width="26" height="5" rx="2.5" fill={CY} fillOpacity="0.8" />
       {row(102, 2)}
+    </Svg>
+  );
+}
+
+/** BottomNav — the bar with its raised centre bubble; the sub-link drawer
+ * slides up from behind it and back down. */
+export function BottomNavIcon() {
+  const slot = (cx: number) => (
+    <g key={cx}>
+      <rect x={cx - 7} y="92" width="14" height="10" rx="3" stroke={DIM} strokeWidth="2" />
+      <rect x={cx - 9} y="107" width="18" height="4" rx="2" fill={DIM} opacity="0.55" />
+    </g>
+  );
+  return (
+    <Svg>
+      {/* the drawer, rising from behind the bar */}
+      <g className="a-drift" style={v({ '--dx': '0px', '--dy': '-26px', '--dur': '4.6s' })}>
+        <g className="a-fade" style={v({ '--o0': '0', '--o1': '1', '--dur': '4.6s' })}>
+          <rect x="34" y="86" width="152" height="30" rx="8" fill={PAPER} stroke={DIM} strokeWidth="2" />
+          {[62, 96, 130, 164].map((cx) => (
+            <g key={cx}>
+              <circle cx={cx} cy="97" r="5" stroke={CY} strokeWidth="2" opacity="0.9" />
+              <rect x={cx - 8} y="106" width="16" height="4" rx="2" fill={CY} opacity="0.6" />
+            </g>
+          ))}
+        </g>
+      </g>
+      {/* the bar itself */}
+      <rect x="26" y="82" width="168" height="38" rx="10" fill={INK} fillOpacity="0.25" stroke={DIM} strokeWidth="2" />
+      {[54, 82, 138, 166].map(slot)}
+      {/* the raised centre bubble */}
+      <g className="a-breathe" style={v({ '--s': '1.06', '--dur': '3.4s' })}>
+        <rect x="94" y="64" width="32" height="32" rx="10" fill={CY} />
+        <circle cx="110" cy="80" r="6" fill={INK} fillOpacity="0.55" />
+      </g>
+      <rect x="99" y="103" width="22" height="4" rx="2" fill={CY} opacity="0.85" />
+    </Svg>
+  );
+}
+
+/** EditorStage — a tile grid pans and zooms behind a fixed viewport frame,
+ * with the cursor the zoom is anchored on holding still. */
+export function EditorStageIcon() {
+  const s = 16; // tile side, in content units
+  const cols = 8;
+  const rows = 6;
+  const x0 = 46;
+  const y0 = 22;
+  return (
+    <Svg>
+      <defs>
+        <clipPath id="stage-clip">
+          <rect x="46" y="22" width="128" height="86" rx="8" />
+        </clipPath>
+      </defs>
+      {/* the content: one transform for the whole scene, exactly as the stage
+          does it — drift is the pan, breathe is the zoom about the cursor */}
+      <g clipPath="url(#stage-clip)">
+        <g
+          className="a-drift"
+          style={v({ '--dx': '-14px', '--dy': '-8px', '--dur': '6s' })}
+        >
+          <g
+            className="a-breathe"
+            style={v({ '--s': '1.22', '--dur': '6s', transformOrigin: '128px 74px' })}
+          >
+            {Array.from({ length: rows }, (_, r) =>
+              Array.from({ length: cols }, (_, c) => {
+                const solid = (c * 3 + r * 5) % 7 < 2;
+                return (
+                  <rect
+                    key={`${c}-${r}`}
+                    x={x0 + c * s}
+                    y={y0 + r * s}
+                    width={s}
+                    height={s}
+                    fill={solid ? CY : 'none'}
+                    fillOpacity={solid ? 0.55 : 0}
+                    stroke={DIM}
+                    strokeWidth="1.5"
+                  />
+                );
+              }),
+            )}
+          </g>
+        </g>
+      </g>
+      {/* the viewport — screen space, so it never scales with the content */}
+      <rect x="46" y="22" width="128" height="86" rx="8" stroke={DIM} strokeWidth="2" />
+      {/* the anchor the zoom is pinned to */}
+      <g>
+        <circle cx="128" cy="74" r="4" fill={INK} fillOpacity="0.5" stroke={CY} strokeWidth="2" />
+        <path d="M 128 62 v 6 M 128 80 v 6 M 116 74 h 6 M 134 74 h 6" stroke={CY} strokeWidth="2" strokeLinecap="round" />
+      </g>
     </Svg>
   );
 }
