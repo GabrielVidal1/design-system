@@ -20,8 +20,9 @@ to tell whether a need is already covered before writing a new component.
 A turborepo npm-workspaces monorepo:
 
 ```
-packages/ui/    @gabvdl/ui — the tree-shakeable component library
-apps/docs/      @gabvdl/docs — landing + catalogue + live demos (ui.gabvdl.xyz)
+packages/ui/            @gabvdl/ui — the tree-shakeable component library
+packages/eslint-config/ @gabvdl/eslint-config — shared ESLint flat config (TS+React bases + house rules)
+apps/docs/              @gabvdl/docs — landing + catalogue + live demos (ui.gabvdl.xyz)
 ```
 
 ## Commands
