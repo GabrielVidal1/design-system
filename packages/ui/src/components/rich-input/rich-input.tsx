@@ -542,6 +542,13 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
   // Wrapping chip row (default group) vs. the scrollable list (`group: 'list'`).
   const chipToggles = sel.toggles.filter((t) => (t.group ?? 'chip') !== 'list');
   const listToggles = sel.toggles.filter((t) => t.group === 'list');
+  // Tags auto-tag is currently proposing (dashed ring + accept/refuse, not yet
+  // selected) — surfaced to the chip rows so they can float those to the top
+  // too, right after the already-selected ones.
+  const highlightedTagIds = useMemo(
+    () => new Set(auto.suggestions.map((m) => m.tag.id)),
+    [auto.suggestions],
+  );
   // Idle ⇒ both chip rows collapse away; typing, attaching or focusing brings
   // them back. Selected chips don't count as content — default-on tags would
   // otherwise pin the rows open forever.
@@ -835,7 +842,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
               a mirror behind it (marks + measurement) and the ring layer on
               top. Present whether or not auto-tag is on, so the box the
               textarea sizes itself in never differs between the two modes. */}
-          <div className={cn('relative', fill && 'flex min-h-0 flex-1 flex-col')}>
+          <div className={cn('relative overflow-hidden', fill && 'flex min-h-0 flex-1 flex-col')}>
           <textarea
             ref={taRef}
             value={value}
@@ -880,6 +887,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
               <TagChips
                 tags={chipsActive ? chipToggles : []}
                 selected={sel.selected}
+                highlighted={highlightedTagIds}
                 onToggle={toggleTag}
                 showMax={showMax}
                 expanded={expanded}
@@ -905,6 +913,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
               <TagScrollList
                 tags={listToggles}
                 selected={sel.selected}
+                highlighted={highlightedTagIds}
                 onToggle={toggleTag}
                 rows={tagListRows}
                 searchable={tagSearch}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   CornerDownRight,
   File as FileIcon,
@@ -123,10 +123,28 @@ export function MasterSwitch({
   );
 }
 
+/** Selected first, then tags auto-tag is currently highlighting from the text
+ * (suggested but not yet accepted), each tier keeping its original order. */
+function sortByPriority(
+  tags: RichTag[],
+  selected: Set<string>,
+  highlighted: Set<string> | undefined,
+): RichTag[] {
+  const hi = highlighted ?? EMPTY_SET;
+  return [
+    ...tags.filter((t) => selected.has(t.id)),
+    ...tags.filter((t) => !selected.has(t.id) && hi.has(t.id)),
+    ...tags.filter((t) => !selected.has(t.id) && !hi.has(t.id)),
+  ];
+}
+
+const EMPTY_SET: Set<string> = new Set();
+
 /* ── Guideline toggle chips (with show-more + optional leading switch) ────── */
 export function TagChips({
   tags,
   selected,
+  highlighted,
   onToggle,
   showMax,
   expanded,
@@ -135,6 +153,9 @@ export function TagChips({
 }: {
   tags: RichTag[];
   selected: Set<string>;
+  /** Tags auto-tag is currently suggesting from the text — floated just after
+   * the selected ones. */
+  highlighted?: Set<string>;
   onToggle: (id: string) => void;
   showMax?: number;
   expanded: boolean;
@@ -142,9 +163,13 @@ export function TagChips({
   /** Rendered as the first item of the row (e.g. the guidelines master switch). */
   leading?: ReactNode;
 }) {
+  const ordered = useMemo(
+    () => sortByPriority(tags, selected, highlighted),
+    [tags, selected, highlighted],
+  );
   if (tags.length === 0 && !leading) return null;
-  const hidden = showMax != null && !expanded ? Math.max(0, tags.length - showMax) : 0;
-  const shown = hidden > 0 ? tags.slice(0, showMax) : tags;
+  const hidden = showMax != null && !expanded ? Math.max(0, ordered.length - showMax) : 0;
+  const shown = hidden > 0 ? ordered.slice(0, showMax) : ordered;
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {leading}
@@ -168,11 +193,6 @@ export function TagChips({
 /* ── Scrollable tag list (e.g. project/service locations), capped in height ── */
 const TAG_ROW_H = 30; // approx chip row height (px) incl. vertical gap
 
-/** Selected chips first, each side keeping its original order. */
-function sortSelectedFirst(tags: RichTag[], selected: Set<string>): RichTag[] {
-  return [...tags.filter((t) => selected.has(t.id)), ...tags.filter((t) => !selected.has(t.id))];
-}
-
 function tagMatches(tag: RichTag, q: string): boolean {
   return `${tag.label} ${tag.slug ?? tag.id} ${tag.description ?? ''}`.toLowerCase().includes(q);
 }
@@ -180,12 +200,16 @@ function tagMatches(tag: RichTag, q: string): boolean {
 export function TagScrollList({
   tags,
   selected,
+  highlighted,
   onToggle,
   rows = 3,
   searchable = true,
 }: {
   tags: RichTag[];
   selected: Set<string>;
+  /** Tags auto-tag is currently suggesting from the text — floated just after
+   * the selected ones. */
+  highlighted?: Set<string>;
   onToggle: (id: string) => void;
   /** Visible height in chip rows before it scrolls. Default 3. */
   rows?: number;
@@ -195,15 +219,16 @@ export function TagScrollList({
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState('');
 
-  // Selected-first ordering, snapshotted: re-sorted when the tag set changes or
-  // the search opens — NOT on every toggle, so a tapped chip doesn't teleport
-  // out from under the pointer and shift its neighbours mid-interaction.
+  // Selected-first (then auto-tag-highlighted) ordering, snapshotted: re-sorted
+  // when the tag set, the search state, or the live highlight set changes — NOT
+  // on every toggle, so a tapped chip doesn't teleport out from under the
+  // pointer and shift its neighbours mid-interaction.
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
-  const [order, setOrder] = useState<RichTag[]>(() => sortSelectedFirst(tags, selected));
+  const [order, setOrder] = useState<RichTag[]>(() => sortByPriority(tags, selected, highlighted));
   useEffect(() => {
-    setOrder(sortSelectedFirst(tags, selectedRef.current));
-  }, [tags, searching]);
+    setOrder(sortByPriority(tags, selectedRef.current, highlighted));
+  }, [tags, searching, highlighted]);
 
   if (tags.length === 0) return null;
 
@@ -213,6 +238,14 @@ export function TagScrollList({
   const closeSearch = () => {
     setSearching(false);
     setQuery('');
+  };
+
+  // Enabling a tag from the quick-search filter clears the typed query, so the
+  // list falls back to full (selected-first) order and is ready for the next
+  // pick instead of staying narrowed to what was just typed.
+  const handleToggle = (id: string) => {
+    onToggle(id);
+    if (query) setQuery('');
   };
 
   return (
@@ -264,7 +297,7 @@ export function TagScrollList({
             </button>
           ))}
         {shown.map((t) => (
-          <TagChip key={t.id} tag={t} on={selected.has(t.id)} onToggle={onToggle} />
+          <TagChip key={t.id} tag={t} on={selected.has(t.id)} onToggle={handleToggle} />
         ))}
         {q && shown.length === 0 && (
           <span className="px-1 py-1 text-xs text-muted-foreground">No tags match “{query.trim()}”</span>

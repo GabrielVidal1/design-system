@@ -23,18 +23,35 @@
   }
 }
 
+/* Every ring, mark and CTA is a fresh DOM node the moment auto-tag notices or
+ * accepts a word — this is what makes it fade in instead of popping in. */
+@keyframes ds-auto-tag-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
 .ds-auto-tag-ants {
   stroke-dashoffset: 0;
-  animation: ds-auto-tag-ants 0.8s linear infinite;
+  animation:
+    ds-auto-tag-ants 0.8s linear infinite,
+    ds-auto-tag-fade-in 0.9s ease-out;
 }
 
 .ds-auto-tag-mark {
   background-color: color-mix(in oklab, var(--ds-at, currentColor) 20%, transparent);
   box-shadow: inset 0 -1.5px 0 0 var(--ds-at, currentColor);
+  animation: ds-auto-tag-fade-in 0.9s ease-out;
+}
+
+.ds-auto-tag-cta {
+  animation: ds-auto-tag-fade-in 0.9s ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ds-auto-tag-ants {
+  .ds-auto-tag-ants,
+  .ds-auto-tag-mark,
+  .ds-auto-tag-cta {
     animation: none;
   }
 }
