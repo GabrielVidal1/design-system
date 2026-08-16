@@ -23,8 +23,6 @@ Two audiences, one library:
      removes its own line in the same commit that ticks the checkbox. Leave
      the section empty (this comment only) when nothing is in flight. -->
 
-- [design-system] `Sparkline` component (Data visualization category) — @2026-08-16T22:00Z
-
 ## Principles
 
 1. **Mobile-first, desktop-compatible.** Designed for touch first (gestures,
@@ -104,8 +102,13 @@ panel, a dashboard demo below) will do the same unless this lands first.
 Follow the homelab's own `dataviz` skill conventions (categorical/sequential
 token palette, legible in both themes) rather than inventing a second color
 system.
-- [ ] `Sparkline` — inline trend line/bars for a `StatTile`, no axes/legend,
-      tokened stroke/fill — the thing every dashboard hand-rolls in raw SVG
+- [x] `Sparkline` — inline trend line/bars for a `StatTile`, no axes/legend,
+      tokened stroke/fill — the thing every dashboard hand-rolls in raw SVG.
+      Shipped 2026-08-16: `packages/ui/src/components/sparkline` — `variant`
+      switches line ⇄ bar, `fill` shades the area under a line series, colour
+      comes from the shared `Tone` scale (matches `Progress`/`StatusBadge`).
+      Docs entry + live demo at `/c/sparkline` (a `StatTile` hint slot + a bar
+      series), 8 unit tests, full workspace `typecheck`/`test`/`build` pass.
 - [ ] `TrendChart` — small line-or-bar chart with hover tooltip, sized for a
       card, not a full analytics page
 - [ ] `DonutChart` — share/breakdown ring with a centered total, the exact

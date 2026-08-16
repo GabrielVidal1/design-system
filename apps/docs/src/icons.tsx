@@ -1531,6 +1531,31 @@ export function StatTileIcon() {
   );
 }
 
+/** Sparkline — a jagged trend line, its last point breathing like a live tick. */
+export function SparklineIcon() {
+  const points: [number, number][] = [
+    [40, 92],
+    [64, 70],
+    [88, 86],
+    [112, 48],
+    [136, 62],
+    [160, 30],
+    [184, 46],
+  ];
+  const line = points.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x},${y}`).join(' ');
+  const area = `${line} L184,110 L40,110 Z`;
+  const [lastX, lastY] = points[points.length - 1];
+  return (
+    <Svg>
+      <path d={area} fill={CY} fillOpacity="0.12" stroke="none" />
+      <path d={line} stroke={DIM} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <g className="a-breathe" style={v({ '--s': '1.6', '--dur': '2.6s' })}>
+        <circle cx={lastX} cy={lastY} r="5" fill={CY} />
+      </g>
+    </Svg>
+  );
+}
+
 /** DataTable — a sort flips and the rows glide into their new order. */
 export function DataTableIcon() {
   const row = (y: number, w1: number, w2: number, delay: string) => (

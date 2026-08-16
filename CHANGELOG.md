@@ -50,6 +50,12 @@ last release → grouped bullets under Unreleased), then curate the prose.
   for a *field*: a form's free-text answer has to be readable, and validatable,
   before anything is sent. Every path that mutates the text reports through it,
   including history recall, a restored draft and the imperative handle.
+- `Sparkline` — an inline trend line or bar chart, sized for a `StatTile`'s
+  `hint` slot or a table cell: no axes, no legend, no tooltip, just the shape
+  of a series. Reads its colour from the shared `Tone` scale, so it can match
+  a `Progress`/`StatusBadge` elsewhere on the same card. `variant="bar"` swaps
+  the line for discrete bars; `fill` shades the area under a line series. The
+  library's first Data visualization primitive.
 
 ### Changed
 - `HoldEditable` — **hold tiers: how urgently a press becomes a pickup is now

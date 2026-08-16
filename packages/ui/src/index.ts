@@ -89,6 +89,8 @@ export { Progress } from './components/progress';
 export type { ProgressProps, ProgressSize } from './components/progress';
 export { StatRow, StatTile } from './components/stat-tile';
 export type { StatRowProps, StatTileProps } from './components/stat-tile';
+export { Sparkline } from './components/sparkline';
+export type { SparklineProps } from './components/sparkline';
 export { DataTable } from './components/data-table';
 export type { DataTableColumn, DataTableProps, DataTableSort } from './components/data-table';
 export { CopyButton } from './components/copy-button';

@@ -100,6 +100,7 @@ import {
   SplitView,
   Spinner,
   Switch,
+  Sparkline,
   StatRow,
   StatTile,
   StatusBadge,
@@ -138,7 +139,7 @@ import {
   useTheme,
   useToast,
 } from '@gabvdl/ui';
-import type { EditorStageHandle, StageViewport } from '@gabvdl/ui';
+import type { EditorStageHandle, StageViewport, Tone } from '@gabvdl/ui';
 
 import {
   CnIcon,
@@ -191,6 +192,7 @@ import {
   SpinnerIcon,
   SwitchIcon,
   StatTileIcon,
+  SparklineIcon,
   StatusBadgeIcon,
   TextareaIcon,
   ThemeToggleIcon,
@@ -260,6 +262,7 @@ const GROUP_OF: Record<string, Group> = {
   'progressive-table': 'Data display',
   'data-table': 'Data display',
   'stat-tile': 'Data display',
+  sparkline: 'Data display',
   progress: 'Data display',
   'status-badge': 'Data display',
   'relative-time': 'Data display',
@@ -392,6 +395,7 @@ const SOURCE_FILE: Record<string, string> = {
   'status-badge': 'status-badge.tsx',
   'data-table': 'data-table.tsx',
   'stat-tile': 'stat-tile.tsx',
+  sparkline: 'sparkline.tsx',
   progress: 'progress.tsx',
   'copy-button': 'copy-button.tsx',
   'element-picker': 'element-picker.tsx',
@@ -1621,6 +1625,22 @@ if (await confirm({ title: 'Delete note?', destructive: true })) remove()
   <StatTile label="Cost" value={fmtCost(1.28)} delta="steady" />
 </StatRow>
 // values tick over with the CharRoll tally animation`,
+  },
+  {
+    id: 'sparkline',
+    name: 'Sparkline',
+    sig: 'data · tone · variant — inline trend line or bars',
+    tag: 'data',
+    Icon: SparklineIcon,
+    Demo: SparklineDemo,
+    code: `<Sparkline data={cpuSamples} tone="sky" fill />
+
+// bars, for a discrete series
+<Sparkline data={jobsPerDay} variant="bar" tone="emerald" />
+
+// drop into a StatTile's hint slot
+<StatTile label="CPU" value="42%"
+          hint={<Sparkline data={cpuSamples} width={72} tone="violet" />} />`,
   },
   {
     id: 'data-table',
@@ -5857,6 +5877,42 @@ function StatTileDemo() {
         Values tick over with the <Link to="/c/char-roll" className="underline underline-offset-2">CharRoll</Link>{' '}
         tally animation as the fake dashboard updates. Deltas colour by <code className="mono text-xs">goodDirection</code> —
         errors going down is emerald.
+      </p>
+    </div>
+  );
+}
+
+function SparklineDemo() {
+  const [cpu, setCpu] = useState(() => Array.from({ length: 20 }, () => 30 + Math.random() * 40));
+  useEffect(() => {
+    const id = setInterval(() => {
+      setCpu((s) => [...s.slice(1), Math.max(4, Math.min(96, s[s.length - 1] + (Math.random() - 0.5) * 24))]);
+    }, 700);
+    return () => clearInterval(id);
+  }, []);
+  const jobsPerDay = [3, 7, 4, 9, 6, 12, 8];
+  const cpuTone: Tone = cpu[cpu.length - 1] > 80 ? 'rose' : 'sky';
+
+  return (
+    <div className="max-w-md space-y-6">
+      <StatTile
+        label="CPU"
+        value={`${Math.round(cpu[cpu.length - 1])}%`}
+        Icon={Cpu}
+        hint={<Sparkline data={cpu} width={96} height={22} tone={cpuTone} fill />}
+      />
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-muted-foreground">Jobs shipped / day</span>
+        <Sparkline data={jobsPerDay} variant="bar" tone="emerald" width={90} height={26} />
+      </div>
+      <p className="text-sm text-muted-foreground">
+        No axes, no legend, no tooltip — just the shape of a series, sized for a{' '}
+        <Link to="/c/stat-tile" className="underline underline-offset-2">
+          StatTile
+        </Link>
+        's hint row or a table cell. Tone switches live above once the trend crosses 80%, the same{' '}
+        <code className="mono text-xs">Tone</code> scale as <code className="mono text-xs">Progress</code> and{' '}
+        <code className="mono text-xs">StatusBadge</code>.
       </p>
     </div>
   );
