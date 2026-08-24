@@ -18,6 +18,17 @@ last release → grouped bullets under Unreleased), then curate the prose.
 > Confirm without leaving the page — and a hold that knows what it landed on.
 
 ### Added
+- `AudioPlayer` — a compact voice-note-style audio player: a play/pause disc,
+  a seekable peak waveform that fills as it plays, elapsed/total time and a
+  playback-speed pill, in one touch-first row. Feed it any audio URL or the
+  object URL of a just-recorded blob; only one player sounds at a time unless
+  `exclusive={false}`. Ships with `extractPeaks`, the Web-Audio reducer that
+  turns a file/blob into the normalized peak array the waveform draws — call
+  it once at record time and pass `peaks` (plus a `duration` hint, which
+  `MediaRecorder` WebM blobs don't carry) so playback never re-decodes the
+  audio. Scrub by pointer anywhere on the waveform or with arrow/Home/End
+  keys; the played half of the waveform and the disc read the shared `Tone`
+  scale.
 - `PopConfirm` — the one-question confirmation bubble: a warning mark, the
   question, an optional line of consequence and a Cancel/OK pair, anchored to
   whatever triggered it. It is the lightweight half of `useConfirm()`: reach

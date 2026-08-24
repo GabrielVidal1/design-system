@@ -146,6 +146,8 @@ export { ImageViewerProvider, useImageViewer, ViewableImage, ProgressiveImage } 
 export type { ViewerMedia, ViewerMediaKind, ViewerOptions } from './components/image-viewer';
 export { SplitView } from './components/split-view';
 export type { SplitViewProps } from './components/split-view';
+export { AudioPlayer, extractPeaks } from './components/audio-player';
+export type { AudioPlayerProps } from './components/audio-player';
 export { FuzzyList, highlightAll, highlightSnippet } from './components/fuzzy-list';
 export type { FuzzyListProps, FuzzyRenderContext } from './components/fuzzy-list';
 export { GlobalSearch, formatHotkey, parseHotkey, useHotkey } from './components/global-search';
