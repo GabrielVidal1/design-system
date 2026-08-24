@@ -2011,3 +2011,38 @@ export function EditorStageIcon() {
     </Svg>
   );
 }
+
+/** AudioPlayer — a play disc beside a peak waveform; a playhead drifts across
+ * while the already-played bars glow. */
+export function AudioPlayerIcon() {
+  const heights = [10, 24, 16, 36, 44, 28, 40, 18, 32, 46, 26, 14, 30, 20, 10];
+  const x0 = 92;
+  const step = 8;
+  return (
+    <Svg>
+      {/* play disc */}
+      <circle cx="58" cy="65" r="19" stroke={CY} strokeWidth="2.5" fill={INK} fillOpacity="0.35" />
+      <path d="M 53 57 L 67 65 L 53 73 Z" fill={CY} />
+      {/* waveform — played bars are the actor, the rest structure */}
+      {heights.map((h, i) => (
+        <rect
+          key={i}
+          x={x0 + i * step}
+          y={65 - h / 2}
+          width="4"
+          height={h}
+          rx="2"
+          fill={i < 6 ? CY : DIM}
+          opacity={i < 6 ? 0.9 : 0.5}
+        />
+      ))}
+      {/* the playhead sweeping the strip */}
+      <g className="a-drift" style={v({ '--dx': `${(heights.length - 1) * step}px`, '--dur': '5s' })}>
+        <rect x={x0} y="38" width="2.5" height="54" rx="1.25" fill={CY} />
+      </g>
+      {/* time pill */}
+      <rect x="92" y="100" width="26" height="7" rx="3.5" fill={DIM} opacity="0.5" />
+      <rect x="180" y="100" width="18" height="7" rx="3.5" fill={DIM} opacity="0.35" />
+    </Svg>
+  );
+}

@@ -32,6 +32,8 @@ import {
   icons as lucideIcons,
 } from 'lucide-react';
 import {
+  AudioPlayer,
+  extractPeaks,
   Badge,
   Banner,
   Button,
@@ -142,6 +144,7 @@ import {
 import type { EditorStageHandle, StageViewport, Tone } from '@gabvdl/ui';
 
 import {
+  AudioPlayerIcon,
   CnIcon,
   ButtonIcon,
   ChangelogIcon,
@@ -255,6 +258,7 @@ const GROUP_OF: Record<string, Group> = {
   'viewable-image': 'Media',
   'progressive-image': 'Media',
   'split-view': 'Media',
+  'audio-player': 'Media',
   'fuzzy-list': 'Data display',
   'global-search': 'Navigation',
   'virtual-list': 'Data display',
@@ -349,6 +353,7 @@ const SOURCE_FILE: Record<string, string> = {
   'viewable-image': 'viewable-image.tsx',
   'progressive-image': 'progressive-image.tsx',
   'split-view': 'split-view.tsx',
+  'audio-player': 'audio-player.tsx',
   'fuzzy-list': 'fuzzy-list.tsx',
   'global-search': 'global-search.tsx',
   'virtual-list': 'virtual-list.tsx',
@@ -1333,6 +1338,28 @@ ref.current?.toggle('bottom')`,
   autoplay
   readonly
 />`,
+  },
+  {
+    id: 'audio-player',
+    name: 'AudioPlayer',
+    sig: 'src · peaks · seekable waveform · speed pill',
+    tag: 'media',
+    Icon: AudioPlayerIcon,
+    Demo: AudioPlayerDemo,
+    code: `<AudioPlayer src={url} />
+
+// a recorded voice note: precompute the waveform once,
+// hint the duration MediaRecorder blobs don't carry
+const peaks = await extractPeaks(blob, 40);
+<AudioPlayer
+  src={URL.createObjectURL(blob)}
+  peaks={peaks ?? undefined}
+  duration={note.seconds}
+  tone="emerald"
+/>
+
+// single speed, keep others playing
+<AudioPlayer src={url} rates={[1]} exclusive={false} />`,
   },
   {
     id: 'rich-input',
@@ -6354,6 +6381,70 @@ function FormatDemo() {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/* Render a short synthesized clip (a few soft piano-ish notes) so the demo
+ * needs no bundled audio asset, then PCM16-encode it as a WAV blob. */
+async function synthDemoClip(): Promise<Blob> {
+  const rate = 22050;
+  const seconds = 4.2;
+  const ctx = new OfflineAudioContext(1, Math.ceil(rate * seconds), rate);
+  const notes = [262, 330, 392, 523, 392, 330, 262, 196];
+  notes.forEach((freq, i) => {
+    const t = i * 0.5;
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.5, t + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.6);
+  });
+  const buffer = await ctx.startRendering();
+  const data = buffer.getChannelData(0);
+  const wav = new DataView(new ArrayBuffer(44 + data.length * 2));
+  const str = (off: number, s: string) => [...s].forEach((c, i) => wav.setUint8(off + i, c.charCodeAt(0)));
+  str(0, 'RIFF'); wav.setUint32(4, 36 + data.length * 2, true); str(8, 'WAVEfmt ');
+  wav.setUint32(16, 16, true); wav.setUint16(20, 1, true); wav.setUint16(22, 1, true);
+  wav.setUint32(24, rate, true); wav.setUint32(28, rate * 2, true); wav.setUint16(32, 2, true);
+  wav.setUint16(34, 16, true); str(36, 'data'); wav.setUint32(40, data.length * 2, true);
+  data.forEach((v, i) => wav.setInt16(44 + i * 2, Math.max(-1, Math.min(1, v)) * 0x7fff, true));
+  return new Blob([wav.buffer], { type: 'audio/wav' });
+}
+
+function AudioPlayerDemo() {
+  const [src, setSrc] = useState<string | null>(null);
+  const [peaks, setPeaks] = useState<number[] | undefined>();
+
+  useEffect(() => {
+    let url: string | null = null;
+    void (async () => {
+      const blob = await synthDemoClip();
+      setPeaks((await extractPeaks(blob, 44)) ?? undefined);
+      url = URL.createObjectURL(blob);
+      setSrc(url);
+    })();
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, []);
+
+  if (!src) return <div className="h-14" />;
+
+  return (
+    <div className="max-w-md space-y-4">
+      <AudioPlayer src={src} peaks={peaks} />
+      <AudioPlayer src={src} peaks={peaks} tone="emerald" rates={[1]} />
+      <p className="text-sm text-muted-foreground">
+        The clip above is synthesized in your browser — both players share it, and starting one
+        pauses the other (<code className="mono text-xs">exclusive</code>). Waveform peaks come from{' '}
+        <code className="mono text-xs">extractPeaks</code>; scrub by dragging the bars.
+      </p>
     </div>
   );
 }
