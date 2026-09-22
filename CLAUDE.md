@@ -119,7 +119,7 @@ keep a deprecated alias for at least one minor. Record user-visible changes in
 
 ## Git remotes
 
-`origin` is the homelab Gitea (`gitea.lab.gabvdl.xyz/gabrielvidal/design-system`)
-— push via the `commit-project` skill (Authelia blocks plain HTTPS git). The
+`origin` is the homelab Gitea (`git.gabvdl.xyz/gabrielvidal/design-system`,
+public — plain `git push` works; the `commit-project` skill wraps it). The
 `github` remote (`GabrielVidal1/design-system`) is the public mirror that
 drives the npm-publish CI; keep it in sync when pushing.
