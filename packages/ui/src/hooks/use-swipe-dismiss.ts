@@ -20,7 +20,10 @@ export interface UseSwipeDismissOptions {
  *
  * Spread the returned props onto the element. After a drag, the ensuing
  * `click` is swallowed once — so a card that is also a tap target doesn't
- * activate from the tail end of a swipe.
+ * activate from the tail end of a swipe. The props also opt the element out of
+ * the {@link BottomNav}'s page swipe (`data-bottom-nav-no-swipe`): that one
+ * listens natively on an ancestor, so it would see the gesture before these
+ * handlers could claim it — the card's swipe wins, page swipe is the fallback.
  *
  * @summary Swipe horizontally to dismiss, with spring-back under the threshold.
  */
@@ -47,6 +50,7 @@ export function useSwipeDismiss(
   };
 
   return {
+    'data-bottom-nav-no-swipe': '',
     onPointerDown: (e: React.PointerEvent) => {
       if (disabled || leaving) return;
       if (e.pointerType === 'mouse' && e.button !== 0) return;
