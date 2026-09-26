@@ -21,6 +21,7 @@ import { useTags } from './use-tags';
 import { useInputHistory } from './use-input-history';
 import { useMention } from './use-mention';
 import { useAutoTag, type AutoTagConfig } from './use-auto-tag';
+import { useKeepKeyboard } from './use-keep-keyboard';
 import { AutoTagOverlay } from './auto-tag-overlay';
 import { useSavedDrafts } from './use-saved-drafts';
 import { ReorderableToolbar, type ToolbarEntry } from './toolbar-reorder';
@@ -288,6 +289,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
 ) {
   const masterConfig = typeof masterSwitch === 'object' ? masterSwitch : DEFAULT_MASTER_SWITCH;
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const keepKeyboard = useKeepKeyboard(taRef);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const draft = useDraft(cacheKey, cacheLocation);
@@ -795,6 +797,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
       ) : (
         <div
           {...drop.rootProps}
+          {...keepKeyboard.rootProps}
           onFocus={() => setFocused(true)}
           onBlur={(e) => {
             // Focus-within: ignore blurs that land elsewhere inside the composer
@@ -856,6 +859,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
               mention.syncCaret();
             }}
             onSelect={mention.syncCaret}
+            onBlur={keepKeyboard.onTextareaBlur}
             onKeyDown={onKeyDown}
             onPaste={(e) => {
               if (uploadFiles && e.clipboardData.files.length > 0) {
