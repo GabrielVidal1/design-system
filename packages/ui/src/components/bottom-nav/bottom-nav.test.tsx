@@ -3,6 +3,7 @@ import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
+import { useSwipeDismiss } from '../../hooks/use-swipe-dismiss';
 import { BottomNav, type BottomNavLink } from './bottom-nav';
 
 const Dot = ({ className }: { className?: string }) => <svg className={className} data-testid="icon" />;
@@ -263,6 +264,32 @@ describe('BottomNav', () => {
         bar.dispatchEvent(new PointerEvent('pointerdown', { ...opts, clientX: 200, clientY: 300 }));
         bar.dispatchEvent(new PointerEvent('pointermove', { ...opts, clientX: 120, clientY: 300 }));
         bar.dispatchEvent(new PointerEvent('pointerup', { ...opts, clientX: 50, clientY: 300 }));
+      });
+      expect(onNavigate).not.toHaveBeenCalled();
+    });
+
+    it('leaves a swipe on a useSwipeDismiss card to the card', async () => {
+      const onNavigate = vi.fn();
+      const onDismiss = vi.fn();
+      function Card() {
+        return (
+          <div data-testid="card" {...useSwipeDismiss(onDismiss)}>
+            sent
+          </div>
+        );
+      }
+      render(
+        <>
+          <Card />
+          <BottomNav links={LINKS} selectedLink="files" swipeNavigation onNavigate={onNavigate} />
+        </>,
+      );
+      const card = screen.getByTestId('card');
+      const opts = { pointerId: 4, pointerType: 'touch', bubbles: true } as PointerEventInit;
+      await act(async () => {
+        card.dispatchEvent(new PointerEvent('pointerdown', { ...opts, clientX: 200, clientY: 300 }));
+        card.dispatchEvent(new PointerEvent('pointermove', { ...opts, clientX: 120, clientY: 300 }));
+        card.dispatchEvent(new PointerEvent('pointerup', { ...opts, clientX: 50, clientY: 300 }));
       });
       expect(onNavigate).not.toHaveBeenCalled();
     });

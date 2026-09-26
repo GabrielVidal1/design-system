@@ -141,6 +141,11 @@ last release → grouped bullets under Unreleased), then curate the prose.
   scrollable overflow, which propagates to the document: a 390 px viewport
   ended up with a 570 px body, and anything `fixed inset-0` (a bottom sheet,
   a scrim) sized itself to *that*. The twin is now clipped inside a 0×0 box.
+- `useSwipeDismiss` — swiping a card no longer also swipes the **page**. The
+  `BottomNav`'s `swipeNavigation` listens natively on the content element, so
+  it saw the gesture before the card's React handlers could claim it and both
+  moved at once. The returned props now carry `data-bottom-nav-no-swipe`, so a
+  swipe-to-dismiss card wins its gesture and page swipe stays the fallback.
 
 ### Added
 - **`EditorStage`** — the zoom/pan surface every canvas editor was going to
