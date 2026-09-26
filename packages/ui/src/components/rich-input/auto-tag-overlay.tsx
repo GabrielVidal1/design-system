@@ -93,6 +93,11 @@ function readMirrorStyle(ta: HTMLTextAreaElement): CSSProperties {
   // reserved as space rather than drawn.
   out.borderStyle = 'solid';
   out.borderColor = 'transparent';
+  // A classic (non-overlay) scrollbar narrows the textarea's text column; the
+  // mirror has none, so reserve the same width or every wrapped line drifts.
+  const bar =
+    ta.offsetWidth - ta.clientWidth - parseFloat(cs.borderLeftWidth) - parseFloat(cs.borderRightWidth);
+  if (bar > 0.5) out.paddingRight = `${parseFloat(cs.paddingRight) + bar}px`;
   return out as CSSProperties;
 }
 
@@ -115,6 +120,9 @@ export function AutoTagOverlay({
   const mirrorRef = useRef<HTMLDivElement | null>(null);
   const [measured, setMeasured] = useState<Measured[]>([]);
   const [mirrorStyle, setMirrorStyle] = useState<CSSProperties>();
+  // The textarea's visible text box (padding box, scrollbar excluded) relative
+  // to the wrapper: rings, tints and buttons never paint outside it.
+  const [clip, setClip] = useState<(Box & { inset: string }) | null>(null);
 
   const active = [...marks, ...suggestions].sort((a, b) => a.start - b.start);
   // Cheap identity of what is drawn — remeasuring keys off this rather than off
@@ -126,6 +134,9 @@ export function AutoTagOverlay({
     const wrap = wrapRef.current;
     const mirror = mirrorRef.current;
     if (!wrap || !mirror) return;
+    // Typing can scroll the textarea before any scroll event reaches us: slave
+    // the mirror first, or rings are measured against the old scroll offset.
+    if (taRef.current) mirror.scrollTop = taRef.current.scrollTop;
     const base = wrap.getBoundingClientRect();
     const next: Measured[] = [];
     for (const el of mirror.querySelectorAll<HTMLElement>('[data-at-key]')) {
@@ -139,7 +150,7 @@ export function AutoTagOverlay({
       if (boxes.length) next.push({ key, boxes });
     }
     setMeasured((prev) => (sameBoxes(prev, next) ? prev : next));
-  }, []);
+  }, [taRef]);
 
   // Layout effect: measure in the same frame the mirror is painted, so a ring
   // never shows up one frame late (and one word behind).
@@ -150,6 +161,14 @@ export function AutoTagOverlay({
     const wrap = wrapRef.current;
     if (!ta || !wrap) return;
     const sync = () => {
+      const x = ta.clientLeft;
+      const y = ta.clientTop;
+      const w = ta.clientWidth;
+      const h = ta.clientHeight;
+      const r = Math.max(0, ta.offsetWidth - x - w);
+      const b = Math.max(0, ta.offsetHeight - y - h);
+      const next = { x, y, w, h, inset: `inset(${y}px ${r}px ${b}px ${x}px)` };
+      setClip((prev) => (prev && prev.inset === next.inset && sameBox(prev, next) ? prev : next));
       setMirrorStyle((prev) => {
         const next = readMirrorStyle(ta);
         return sameStyle(prev, next) ? prev : next;
@@ -174,11 +193,18 @@ export function AutoTagOverlay({
   }, [taRef, measure]);
 
   const byKey = new Map(measured.map((m) => [m.key, m.boxes]));
+  // Not laid out yet (or jsdom): no box to clip to.
+  const clipStyle: CSSProperties | undefined = clip && clip.h > 0 ? { clipPath: clip.inset } : undefined;
 
   return (
     <>
-      <div ref={wrapRef} className="pointer-events-none absolute inset-0">
-        <div ref={mirrorRef} aria-hidden className={MIRROR_CLASS} style={mirrorStyle}>
+      <div ref={wrapRef} className="pointer-events-none absolute inset-0" style={clipStyle}>
+        <div
+          ref={mirrorRef}
+          aria-hidden
+          className={MIRROR_CLASS}
+          style={mirrorStyle}
+        >
           {segments(value, active).map((seg, i) =>
             seg.match ? (
               <span
@@ -208,7 +234,7 @@ export function AutoTagOverlay({
           {'​'}
         </div>
 
-        <svg className="absolute inset-0 h-full w-full overflow-visible" aria-hidden>
+        <svg className="absolute inset-0 h-full w-full overflow-hidden" aria-hidden>
           {suggestions.flatMap((m) =>
             (byKey.get(m.key) ?? []).map((b, i) => (
               <rect
@@ -233,12 +259,16 @@ export function AutoTagOverlay({
         const boxes = byKey.get(m.key);
         if (!boxes?.length) return null;
         const last = boxes[boxes.length - 1];
+        const cy = last.y + last.h / 2;
+        // Word scrolled out of the visible text (or its line only half in):
+        // no floating buttons pointing at nothing, over the chips or the page.
+        if (clip && clip.h > 0 && (cy < clip.y || cy > clip.y + clip.h || last.x > clip.x + clip.w)) return null;
         return (
           <AutoTagCta
             key={m.key}
             match={m}
             x={last.x + last.w + 6}
-            y={last.y + last.h / 2}
+            y={cy}
             onAccept={() => onAccept(m)}
             onRefuse={() => onRefuse(m)}
           />
@@ -316,6 +346,15 @@ function sameStyle(a: CSSProperties | undefined, b: CSSProperties): boolean {
   if (!a) return false;
   const ka = Object.keys(a) as (keyof CSSProperties)[];
   return ka.length === Object.keys(b).length && ka.every((k) => a[k] === b[k]);
+}
+
+function sameBox(x: Box, y: Box): boolean {
+  return (
+    Math.abs(x.x - y.x) < 0.5 &&
+    Math.abs(x.y - y.y) < 0.5 &&
+    Math.abs(x.w - y.w) < 0.5 &&
+    Math.abs(x.h - y.h) < 0.5
+  );
 }
 
 function sameBoxes(a: Measured[], b: Measured[]): boolean {

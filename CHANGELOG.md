@@ -135,6 +135,19 @@ last release → grouped bullets under Unreleased), then curate the prose.
   so deriving `tags` from it can't loop.
 
 ### Fixed
+- `RichInput` — tapping a chip, the master switch or any toolbar control on a
+  phone **no longer moves the keyboard**: hidden stays hidden, shown stays
+  shown, and the text keeps focus either way. Android re-shows the keyboard
+  after any tap while the textarea is focused (it stays focused when the back
+  gesture hides the keyboard), so such a tap now parks the textarea on
+  `inputmode="none"` until the text itself is tapped again; every touch tap on
+  a non-editable control also keeps focus in the text. Mouse clicks are
+  unchanged.
+- `RichInput` — the auto-tag rings, tints and ✓/✕ buttons are clipped to the
+  textarea's visible text box (its scrollbar excluded) and a word scrolled out
+  of view no longer leaves its buttons floating over the chips; the mirror also
+  reserves a classic scrollbar's width, so rings stay on their words once the
+  text overflows.
 - `Toolbar` — a collapsing toolbar no longer makes the **page** scroll
   sideways on a phone. The hidden twin it measures against is as wide as the
   uncollapsed strip, and an absolutely positioned box that wide still counts as

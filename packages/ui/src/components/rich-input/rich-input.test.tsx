@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
@@ -419,5 +419,52 @@ describe('reorderable toolbar', () => {
     );
     const { container } = render(<RichInput cacheKey="tb" toolbarReorder="tb" accept="*" />);
     expect(itemIds(container)).toContain('Send');
+  });
+});
+
+describe('RichInput on-screen keyboard', () => {
+  // jsdom has no visualViewport, so the keyboard always reads as hidden — the
+  // Android case: keyboard dismissed by the back gesture, textarea still focused.
+  it('keeps focus and the keyboard down when a chip is tapped', async () => {
+    render(<RichInput tags={TAGS} />);
+    const ta = screen.getByRole('textbox');
+    ta.focus();
+    const chip = screen.getByRole('button', { name: 'Careful' });
+
+    fireEvent.pointerDown(chip, { pointerType: 'touch' });
+    expect(ta).toHaveAttribute('inputmode', 'none');
+    // The touch-synthesised mousedown is cancelled: focus never leaves the text.
+    expect(fireEvent.mouseDown(chip)).toBe(false);
+    fireEvent.click(chip);
+    expect(ta).toHaveFocus();
+    expect(chip).toHaveAttribute('aria-pressed', 'true');
+
+    // Tapping the text asks for the keyboard back.
+    fireEvent.pointerDown(ta, { pointerType: 'touch' });
+    expect(ta).not.toHaveAttribute('inputmode');
+  });
+
+  it('leaves mouse clicks and a blurred textarea alone', () => {
+    render(<RichInput tags={TAGS} />);
+    const ta = screen.getByRole('textbox');
+    const chip = screen.getByRole('button', { name: 'Careful' });
+
+    ta.focus();
+    fireEvent.pointerDown(chip, { pointerType: 'mouse' });
+    expect(ta).not.toHaveAttribute('inputmode');
+
+    ta.blur();
+    fireEvent.pointerDown(chip, { pointerType: 'touch' });
+    expect(ta).not.toHaveAttribute('inputmode');
+  });
+
+  it('restores the input mode when the textarea loses focus', () => {
+    render(<RichInput tags={TAGS} />);
+    const ta = screen.getByRole('textbox');
+    ta.focus();
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Careful' }), { pointerType: 'touch' });
+    expect(ta).toHaveAttribute('inputmode', 'none');
+    ta.blur();
+    expect(ta).not.toHaveAttribute('inputmode');
   });
 });
