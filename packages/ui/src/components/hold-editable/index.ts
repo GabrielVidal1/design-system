@@ -1,4 +1,4 @@
-export { HoldEditable } from './hold-editable';
+export { HoldEditable, isHoldEditableActive } from './hold-editable';
 export type {
   HoldEditableProps,
   HoldEditableItemState,

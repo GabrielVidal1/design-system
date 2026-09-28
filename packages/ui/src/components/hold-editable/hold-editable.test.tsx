@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { HoldEditable } from './hold-editable';
+import { HoldEditable, isHoldEditableActive } from './hold-editable';
 
 interface Card {
   id: string;
@@ -150,7 +150,7 @@ describe('HoldEditable', () => {
     expect(screen.getByText('body:Commits')).toBeTruthy();
   });
 
-  it('leaves edit mode on a plain tap inside the group, without activating it', async () => {
+  it('keeps edit mode on a tap on a pill, without activating it', async () => {
     layout(40);
     const onEditEnd = vi.fn();
     const onClick = vi.fn();
@@ -186,9 +186,69 @@ describe('HoldEditable', () => {
         .dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     });
 
-    expect(onEditEnd).toHaveBeenCalled();
+    expect(onEditEnd).not.toHaveBeenCalled();
     expect(onClick).not.toHaveBeenCalled();
+    expect(document.querySelector('[data-hold-editable-stash]')).not.toBeNull();
+
+    // The gaps between the pills are not pills: a tap there dismisses.
+    const group = screen.getByText('body:Cost').closest('[data-hold-editable-item]')!.parentElement!;
+    await act(async () => {
+      group.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    });
+    expect(onEditEnd).toHaveBeenCalledTimes(1);
     expect(document.querySelector('[data-hold-editable-stash]')).toBeNull();
+  });
+
+  it('takes over the screen in edit mode; a press on the backdrop dismisses', async () => {
+    layout(40);
+    const onEditEnd = vi.fn();
+    render(
+      <HoldEditable
+        items={CARDS}
+        getKey={(c) => c.id}
+        onReorder={() => {}}
+        onEditEnd={onEditEnd}
+        holdDelay={100}
+      >
+        {(c) => <div>body:{c.label}</div>}
+      </HoldEditable>,
+    );
+    expect(document.querySelector('[data-hold-editable-backdrop]')).toBeNull();
+    expect(isHoldEditableActive()).toBe(false);
+
+    await holdFirstCard();
+    await act(async () => {
+      window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+    });
+    await advance(800);
+    const backdrop = document.querySelector('[data-hold-editable-backdrop]')!;
+    expect(backdrop).not.toBeNull();
+    expect(isHoldEditableActive()).toBe(true);
+
+    await act(async () => {
+      backdrop.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+    });
+    expect(onEditEnd).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('[data-hold-editable-backdrop]')).toBeNull();
+    expect(isHoldEditableActive()).toBe(false);
+  });
+
+  it('keeps a picked-up drag from reaching the gestures of its ancestors', async () => {
+    layout(40);
+    const parentMove = vi.fn();
+    render(
+      <div onPointerMove={parentMove}>
+        <HoldEditable items={CARDS} getKey={(c) => c.id} onReorder={() => {}} holdDelay={100}>
+          {(c) => <div>body:{c.label}</div>}
+        </HoldEditable>
+      </div>,
+    );
+    const slot = screen.getByText('body:Cost').closest('[data-hold-editable-item]')!;
+    await holdFirstCard();
+    await act(async () => {
+      slot.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 10, clientY: 90 }));
+    });
+    expect(parentMove).not.toHaveBeenCalled();
   });
 });
 
@@ -275,13 +335,50 @@ describe('HoldEditable hold tiers', () => {
         new PointerEvent('pointermove', {
           bubbles: true,
           pointerType: 'mouse',
-          clientX: 10 + 12, // drift, not a drag — under MOUSE_MOVE_CANCEL_PX
-          clientY: 10 + 6,
+          clientX: 10 + 6, // drift, not a drag — under MOUSE_MOVE_CANCEL_PX
+          clientY: 10 + 5,
         }),
       );
     });
     await advance(1200);
     expect(onEditStart).toHaveBeenCalledTimes(1);
+  });
+
+  it('drops a pending pickup when a mouse moves more than a tremor', async () => {
+    layout(40);
+    const onEditStart = vi.fn();
+    render(<TierHarness onEditStart={onEditStart} />);
+
+    await pressOn(screen.getByText('chrome:Cost'));
+    await act(async () => {
+      window.dispatchEvent(
+        new PointerEvent('pointermove', {
+          bubbles: true,
+          pointerType: 'mouse',
+          clientX: 10 + 20,
+          clientY: 10,
+        }),
+      );
+    });
+    await advance(5000);
+    expect(onEditStart).not.toHaveBeenCalled();
+  });
+
+  it('drops a pending pickup when the browser takes the touch for a scroll', async () => {
+    layout(40);
+    const onEditStart = vi.fn();
+    render(<TierHarness onEditStart={onEditStart} />);
+
+    // A vertical pan on touch ends the pointer stream in a pointercancel, and
+    // no more moves or scrolls reach the (now unsubscribed) listeners. The
+    // timer has to die with the press, or the card lifts mid-scroll.
+    await pressOn(screen.getByText('chrome:Cost'));
+    await advance(200);
+    await act(async () => {
+      window.dispatchEvent(new PointerEvent('pointercancel', { bubbles: true }));
+    });
+    await advance(5000);
+    expect(onEditStart).not.toHaveBeenCalled();
   });
 
   it('suppresses the context menu while a link press is armed', async () => {

@@ -3,7 +3,7 @@ import * as React from 'react';
 import { cn } from '../../lib/utils';
 import { useEscape, useOutsideClick } from '../../hooks/use-overlay';
 import { usePrefersReducedMotion } from '../../hooks/use-media-query';
-import { HoldEditable } from '../hold-editable/hold-editable';
+import { HoldEditable, isHoldEditableActive } from '../hold-editable/hold-editable';
 import { Tooltip } from '../tooltip/tooltip';
 
 /* ─── Model ───────────────────────────────────────────────────────────────── */
@@ -258,6 +258,13 @@ function useSwipeNavigation({
     const move = (e: PointerEvent) => {
       const s = state;
       if (!s || s.id !== e.pointerId || s.axis === 'y') return;
+      // A reorder owns the pointer (an item picked up, or edit mode on): a
+      // sideways drag is moving a pill, never turning the page.
+      if (isHoldEditableActive()) {
+        state = null;
+        if (s.axis === 'x') paint(0, true);
+        return;
+      }
       const dx = e.clientX - s.x;
       const dy = e.clientY - s.y;
       if (s.axis === 'none') {

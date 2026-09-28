@@ -23,15 +23,14 @@ const DROP_MS = 220;
  * wide table, where the page underneath never moves at all — and lifting an
  * item out from under that gesture is wrong every time. Tight on purpose.
  */
-const MOVE_CANCEL_PX = 8;
+const MOVE_CANCEL_PX = 6;
 /**
- * The same threshold for a mouse, wider. A mouse can't scroll with the button
- * down, and a hand resting on one drifts several pixels over the deliberate
- * 1.4s hold — a finger-tight threshold made hold-to-drag impossible on
- * desktop. Wide enough to absorb that drift, tight enough that an actual drag
- * still reads as one.
+ * The same threshold for a mouse, a little wider. A hand resting on a mouse
+ * drifts a few pixels over the deliberate 1.4s hold, and that drift must not
+ * cancel it — but anything more than a tremor is a move, and a move is never
+ * a hold.
  */
-const MOUSE_MOVE_CANCEL_PX = 32;
+const MOUSE_MOVE_CANCEL_PX = 12;
 /** How far into a slot the pointer must reach to claim it (fraction of its extent). */
 const CROSS_FRACTION = 0.45;
 /** Clicks fired within this window after a drop are swallowed (see below). */
@@ -44,6 +43,8 @@ const CLICK_SUPPRESS_MS = 500;
 const EDIT_HOLD_MS = 150;
 /** Gap between the group and the stash popover, in px. */
 const STASH_GAP = 10;
+/** Breathing room between the group and the edge of the edit-mode backdrop's cut-out, in px. */
+const BACKDROP_PAD = 6;
 /**
  * An item longer than this along the main axis is "big" — big enough that a
  * column of them doesn't fit on screen, which is what makes drag-reordering
@@ -103,6 +104,24 @@ function holdTierOf(target: Element | null | undefined): HoldEditableHoldTier {
   if (target.closest(FIRST_HOLD_SELECTOR)) return 'first';
   if (target.closest(LAST_HOLD_SELECTOR)) return 'last';
   return 'normal';
+}
+
+/**
+ * How many groups are dragging or in edit mode right now, page-wide. Other
+ * gestures that share the pointer stream — a page swipe, a swipe-to-dismiss
+ * drawer — read it through {@link isHoldEditableActive} and stand down, so a
+ * pill dragged sideways never turns the page and one dragged down never
+ * closes the sheet it lives in.
+ */
+let activeGroups = 0;
+
+/**
+ * True while any {@link HoldEditable} on the page has an item picked up or is
+ * in edit mode. For gesture handlers outside the group (swipe navigation,
+ * swipe-to-dismiss) to ignore the pointer while it belongs to a reorder.
+ */
+export function isHoldEditableActive(): boolean {
+  return activeGroups > 0;
 }
 
 const isTextEntry = (target: EventTarget | null): boolean =>
@@ -197,8 +216,8 @@ export interface HoldEditableProps<T> {
   /**
    * The benched items — everything that could fill a slot but currently
    * doesn't. The **stash system is on by default**: edit mode is persistent
-   * (it survives a drop, until a plain tap — inside the group or out — or
-   * Escape dismisses it) and,
+   * (it survives a drop, until a tap anywhere but on a pill — the rest of
+   * the screen sits under a dimmed backdrop — or Escape dismisses it) and,
    * while editing, a popover of tags opens beside the group. Slotted items
    * dragged onto the popover are benched; a tag dragged onto a slot swaps in
    * and benches the item it displaces; a tag dropped on the group's empty
@@ -564,6 +583,18 @@ function stashPositionStyle(
   }
 }
 
+/**
+ * The edit-mode backdrop's shape: the whole viewport minus the group's rect
+ * (padded a little), as an even-odd polygon — the second ring is the hole.
+ */
+function backdropClip(c: Rect): string {
+  const l = c.left - BACKDROP_PAD;
+  const t = c.top - BACKDROP_PAD;
+  const r = c.left + c.width + BACKDROP_PAD;
+  const b = c.top + c.height + BACKDROP_PAD;
+  return `polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0, ${l}px ${t}px, ${r}px ${t}px, ${r}px ${b}px, ${l}px ${b}px, ${l}px ${t}px)`;
+}
+
 /** Stash tag chrome — fixed by design; only the popover's placement is configurable. */
 const TAG_CLASS =
   'mono inline-flex max-w-full cursor-grab items-center rounded-full border border-border bg-background px-2.5 py-1 text-[11px] leading-4 text-foreground shadow-sm';
@@ -756,7 +787,8 @@ const sameOver = (a: StashOver | null, b: StashOver | null) =>
  * **The stash — on by default.** Every group has an overflow bench, so any
  * item can be taken out of the group and put back: a removal is never
  * destructive. Edit mode is persistent — a drop no longer ends it; a plain
- * tap (anywhere, in the group or outside it) or Escape does — and while
+ * tap anywhere that isn't a pill or Escape does. Edit mode takes over the
+ * screen: everything but the group sits under a dimmed backdrop. While
  * editing a popover of tags (one per
  * benched item) opens beside the group ({@link HoldEditableProps.stashPlacement}
  * picks the side; that placement is the only customization). Drag a slotted
@@ -1229,6 +1261,10 @@ export function HoldEditable<T>({
     actionFired.current = false;
     holdTimer.current = window.setTimeout(() => {
       holdTimer.current = null;
+      // The press may have ended without the timer being told — a touch the
+      // browser took over for a scroll ends in a pointercancel — and a pickup
+      // fired from a dead press lifts the item out from under a scroll.
+      if (pressKeyRef.current !== key) return;
       // Pick up wherever the pointer is *now*, not where it went down: over
       // 1.4s a mouse drifts, and starting the drag at a stale point would make
       // the item jump out from under the cursor.
@@ -1418,6 +1454,10 @@ export function HoldEditable<T>({
   const beginStashDrag = (e: React.PointerEvent, key: string) => {
     if (disabled || dragRef.current || stashDragRef.current) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    // The popover is portaled, but React still bubbles its events up the
+    // component tree — into whatever the group sits in. A drawer that swipes
+    // down to close would take this press for the start of its own swipe.
+    e.stopPropagation();
     const el = tagEls.current.get(key);
     const container = containerRef.current;
     if (!el || !container) return;
@@ -1547,6 +1587,11 @@ export function HoldEditable<T>({
 
     const onMove = (e: PointerEvent) => {
       lastPointer.current = { x: e.clientX, y: e.clientY };
+      // Once something is picked up the pointer is ours alone. This listener
+      // runs first (window, capture phase), so stopping the move here keeps it
+      // from every other gesture on the path — a drawer's swipe-down, the page
+      // swipe — which would otherwise follow the finger along with the item.
+      if (dragRef.current || stashDragRef.current) e.stopPropagation();
       const sd = stashDragRef.current;
       if (sd) {
         setStashDrag({ ...sd, x: e.clientX, y: e.clientY });
@@ -1587,7 +1632,12 @@ export function HoldEditable<T>({
     const onCancel = () => {
       if (stashDragRef.current) endStashDrag(true);
       else if (dragRef.current) endDrag(true);
-      else setPressKey(null);
+      else {
+        // The browser claimed the touch (a scroll, a pan). The press is over —
+        // and so is its timer, or it would still fire the pickup later.
+        clearHoldTimer();
+        setPressKey(null);
+      }
     };
     /**
      * A `last`-tier press usually sits on a text field, where the very same
@@ -1632,18 +1682,20 @@ export function HoldEditable<T>({
       if (dragRef.current || stashDragRef.current) e.preventDefault();
     };
 
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onCancel);
+    // Capture phase: these run before anything on the path to the target, so
+    // no handler further in can stop them — and `onMove` can stop the others.
+    window.addEventListener('pointermove', onMove, true);
+    window.addEventListener('pointerup', onUp, true);
+    window.addEventListener('pointercancel', onCancel, true);
     window.addEventListener('keydown', onKey);
     document.addEventListener('selectionchange', cancelTextPress);
     window.addEventListener('scroll', onScrollCancel, true);
     window.addEventListener('wheel', onScrollCancel, { passive: true });
     window.addEventListener('touchmove', onTouchMove, { passive: false });
     return () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onCancel);
+      window.removeEventListener('pointermove', onMove, true);
+      window.removeEventListener('pointerup', onUp, true);
+      window.removeEventListener('pointercancel', onCancel, true);
       window.removeEventListener('keydown', onKey);
       document.removeEventListener('selectionchange', cancelTextPress);
       window.removeEventListener('scroll', onScrollCancel, true);
@@ -1705,11 +1757,29 @@ export function HoldEditable<T>({
     bump();
     window.addEventListener('resize', bump);
     window.addEventListener('scroll', bump, true);
+    // The group itself changes size in edit mode too (compact rows, an item
+    // benched or swapped in), and the backdrop's cut-out has to follow it.
+    const ro =
+      typeof ResizeObserver !== 'undefined' && containerRef.current
+        ? new ResizeObserver(bump)
+        : null;
+    if (ro && containerRef.current) ro.observe(containerRef.current);
     return () => {
       window.removeEventListener('resize', bump);
       window.removeEventListener('scroll', bump, true);
+      ro?.disconnect();
     };
   }, [activeEdit]);
+
+  // Page-wide "a reorder owns the pointer" flag — see isHoldEditableActive.
+  const busy = drag !== null || stashDrag !== null || activeEdit;
+  useEffect(() => {
+    if (!busy) return;
+    activeGroups++;
+    return () => {
+      activeGroups--;
+    };
+  }, [busy]);
 
   useEffect(() => {
     if (disabled && editMode) exitEditMode();
@@ -1720,17 +1790,15 @@ export function HoldEditable<T>({
    * These items are usually links or buttons, so swallow the click that closes
    * a drag — reordering the navbar must not also navigate.
    *
-   * In persistent edit mode a tap on an item is swallowed too (it must not
-   * activate what it hits) **and it leaves edit mode**. iOS's jiggle mode makes
-   * a tap do nothing at all, which reads as the UI having gone dead: the only
-   * ways out are a tap on empty space or Escape, and on a group that fills the
-   * screen there is no empty space to find. Treating the tap as "I'm done"
-   * gives the mode the obvious exit its own surface was missing.
+   * In persistent edit mode a tap inside the group is swallowed too (it must
+   * not activate what it hits). A tap on a pill does nothing else: the pills
+   * are what the mode is for. A tap anywhere else leaves it: the gaps between
+   * the pills here, and the edit-mode backdrop, which covers the rest of the
+   * screen, through the outside-tap listener above.
    *
-   * Two exceptions, both about staying in the mode you are working in: taps
-   * inside the stash popover (picking a benched item back up is edit-mode
-   * work), and taps on the opted-out sub-trees — a freeform row's text input
-   * or its × — which keep their clicks and must not tear the mode down.
+   * Taps that keep their clicks: the stash popover (picking a benched item
+   * back up is edit-mode work), and the opted-out sub-trees (a freeform row's
+   * text input or its ×), which must not tear the mode down.
    */
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -1744,7 +1812,10 @@ export function HoldEditable<T>({
       droppedAt.current = 0;
       e.preventDefault();
       e.stopPropagation();
-      if (editingTap && inContainer) exitEditModeRef.current?.();
+      // A pill is what edit mode is *for* — tapping one keeps the mode. The
+      // gaps between them are the group's own empty space: they dismiss.
+      const onPill = !!t?.closest?.('[data-hold-editable-item]');
+      if (editingTap && inContainer && !onPill) exitEditModeRef.current?.();
     };
     window.addEventListener('click', onClick, true);
     return () => window.removeEventListener('click', onClick, true);
@@ -1846,8 +1917,8 @@ export function HoldEditable<T>({
               }}
               onPointerDown={(e) => onPointerDown(e, key)}
               className={typeof itemClassName === 'function' ? itemClassName(item) : itemClassName}
-              style={
-                arrangement && shift
+              style={{
+                ...(arrangement && shift
                   ? {
                       position: 'relative',
                       transform: `translate(${shift.x}px, ${shift.y}px)`,
@@ -1855,8 +1926,11 @@ export function HoldEditable<T>({
                     }
                   : stashTarget
                     ? { position: 'relative' }
-                    : undefined
-              }
+                    : undefined),
+                // In edit mode a press on a pill is always the start of a
+                // drag: the browser must not take the touch for a pan.
+                ...(editing ? { touchAction: 'none' } : undefined),
+              }}
             >
               {/* The item's own subtree is rendered in every state and is never
                   swapped out — a held item is only made invisible, and it keeps
@@ -1987,6 +2061,33 @@ export function HoldEditable<T>({
               })
             )}
           </div>,
+          document.body,
+        )}
+
+      {/* Edit mode takes over the screen: a dimmed backdrop over everything
+          but the group, cut out around it with an even-odd clip-path — which
+          clips hit-testing too, so the pills stay reachable through the hole
+          whatever stacking context the group sits in. A press on it lands
+          outside the group, which is what the outside-tap listener dismisses
+          on; stopping it here keeps it from bubbling (through the portal) into
+          the group's ancestors' gesture handlers. */}
+      {showStash &&
+        stashAnchor &&
+        canPortal &&
+        createPortal(
+          <div
+            aria-hidden
+            data-hold-editable-backdrop=""
+            onPointerDown={(e) => e.stopPropagation()}
+            className="bg-black/40 backdrop-blur-[2px]"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 80,
+              touchAction: 'none',
+              clipPath: backdropClip(stashAnchor),
+            }}
+          />,
           document.body,
         )}
 
