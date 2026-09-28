@@ -1,5 +1,7 @@
 import * as React from 'react';
 
+import { isHoldEditableActive } from '../components/hold-editable/hold-editable';
+
 export interface UseSwipeDismissOptions {
   /** Horizontal travel (px) past which releasing dismisses. Default 72. */
   threshold?: number;
@@ -61,6 +63,11 @@ export function useSwipeDismiss(
     onPointerMove: (e: React.PointerEvent) => {
       const from = start.current;
       if (!from || leaving) return;
+      // A reorder owns the pointer — dragging a pill is not a swipe.
+      if (isHoldEditableActive()) {
+        settle();
+        return;
+      }
       const moveX = e.clientX - from.x;
       const moveY = e.clientY - from.y;
       if (!engaged.current) {

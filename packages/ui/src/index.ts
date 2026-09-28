@@ -156,7 +156,7 @@ export { VirtualList } from './components/virtual-list';
 export type { VirtualListProps, VirtualListHandle, VirtualListColumns, GroupBy } from './components/virtual-list';
 export { AnimatedList } from './components/animated-list';
 export type { AnimatedListProps } from './components/animated-list';
-export { HoldEditable } from './components/hold-editable';
+export { HoldEditable, isHoldEditableActive } from './components/hold-editable';
 export type {
   HoldEditableProps,
   HoldEditableItemState,

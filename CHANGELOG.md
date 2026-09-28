@@ -69,6 +69,20 @@ last release → grouped bullets under Unreleased), then curate the prose.
   library's first Data visualization primitive.
 
 ### Changed
+- `HoldEditable` — **edit mode takes over the screen.** Everything but the
+  group sits under a dimmed backdrop (cut out around the group, so its pills
+  stay reachable whatever stacking context it lives in), and a tap anywhere
+  that isn't a draggable pill ends the mode — the backdrop, the gaps between
+  the pills. A tap *on* a pill now keeps edit mode instead of dismissing it.
+- `HoldEditable` — **the hold is static.** The travel that cancels a pending
+  hold is down to 6px for touch and 12px for a mouse (was 8/32): anything more
+  than a tremor is a move, and a move is never a hold.
+- `HoldEditable` — **a drag owns the pointer.** Once an item (or a stash tag)
+  is picked up, its moves stop at the window, so the gestures of the sheet
+  around it no longer follow the finger: dragging a composer pill down no
+  longer swipes the drawer it lives in shut. The new `isHoldEditableActive()`
+  export tells gesture code outside the group that a reorder is under way;
+  `BottomNav`'s page swipe and `useSwipeDismiss` stand down on it.
 - `HoldEditable` — **hold tiers: how urgently a press becomes a pickup is now
   resolved per target**, so one item can hold several kinds of thing at once. A
   link has to be picked up *before* the phone pops its own ~500ms link callout
@@ -135,6 +149,10 @@ last release → grouped bullets under Unreleased), then curate the prose.
   so deriving `tags` from it can't loop.
 
 ### Fixed
+- `HoldEditable` — a touch the browser took over for a scroll could still
+  lift the item it started on: the scroll ends the press in a `pointercancel`,
+  which cleared the press but not its timer, so the pickup fired anyway a
+  second later — mid-scroll. The timer now dies with the press.
 - `RichInput` — tapping a chip, the master switch or any toolbar control on a
   phone **no longer moves the keyboard**: hidden stays hidden, shown stays
   shown, and the text keeps focus either way. Android re-shows the keyboard
