@@ -89,7 +89,9 @@ export function AnimatedList<T>({
   emptyState,
 }: AnimatedListProps<T>) {
   const reduce = usePrefersReducedMotion();
-  // The row DOM node per key, and the top of each row from the previous paint.
+  // The list container, the row DOM node per key, and the top of each row from
+  // the previous paint.
+  const container = useRef<HTMLDivElement>(null);
   const nodes = useRef(new Map<Key, HTMLElement>());
   const prevTops = useRef(new Map<Key, number>());
 
@@ -97,11 +99,17 @@ export function AnimatedList<T>({
   // one recorded last paint. If it moved, jump it back to where it was (Invert)
   // with the transition off, then on the next frame clear the offset so it
   // Plays to its real slot. Runs synchronously before paint so there's no flash.
+  //
+  // Tops are measured from the list's own top, not the viewport: a re-render
+  // after the page scrolled (a ticking timer in a row) would otherwise read
+  // the scroll distance as a move, and every row would jump back to where it
+  // sat on screen before gliding home.
   useLayoutEffect(() => {
+    const origin = container.current?.getBoundingClientRect().top ?? 0;
     if (reduce) {
       // Still record positions so a later un-reduced session animates cleanly.
       const tops = new Map<Key, number>();
-      nodes.current.forEach((el, key) => tops.set(key, el.getBoundingClientRect().top));
+      nodes.current.forEach((el, key) => tops.set(key, el.getBoundingClientRect().top - origin));
       prevTops.current = tops;
       return;
     }
@@ -110,7 +118,7 @@ export function AnimatedList<T>({
     const moved: { el: HTMLElement; dy: number }[] = [];
 
     nodes.current.forEach((el, key) => {
-      const top = el.getBoundingClientRect().top;
+      const top = el.getBoundingClientRect().top - origin;
       newTops.set(key, top);
       const prev = prevTops.current.get(key);
       if (prev != null) {
@@ -191,7 +199,7 @@ export function AnimatedList<T>({
   }
 
   return (
-    <div className={className} style={style}>
+    <div ref={container} className={className} style={style}>
       {seq.map((row) => (
         <div
           key={row.key}

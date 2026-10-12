@@ -149,6 +149,12 @@ last release → grouped bullets under Unreleased), then curate the prose.
   so deriving `tags` from it can't loop.
 
 ### Fixed
+- `AnimatedList` — **scrolling no longer makes the rows jump.** Row positions
+  were measured against the viewport, so any re-render after the page scrolled
+  (a row with a ticking timer re-renders every second) read the scroll distance
+  as a move: every row snapped back to where it sat on screen, then glided to
+  its own slot. Positions are now measured from the list's own top, so only a
+  real reorder animates.
 - `RichInput` — **the guideline chip row keeps the order you gave it.**
   Turning a chip on (or auto-tag suggesting one) used to pull it to the front
   of the row, which also tore a child guideline (`depth` > 0) away from the
