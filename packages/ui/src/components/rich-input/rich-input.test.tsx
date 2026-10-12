@@ -259,6 +259,86 @@ describe('TagScrollList search & ordering', () => {
   });
 });
 
+describe('RichInput duplicate tag ids', () => {
+  // The caller's bug, reproduced: one id handed in twice. Two siblings sharing
+  // a React key make the keyed reconcile leak a DOM node on every re-order, so
+  // the scrollable list grew one more copy of the chip with each re-sort.
+  const DUP_TAGS: RichTag[] = [
+    { id: 'alpha', label: 'alpha', group: 'list' },
+    { id: 'skill:complete', label: 'complete', group: 'list' },
+    { id: 'beta', label: 'beta', group: 'list' },
+    { id: 'gamma', label: 'gamma', group: 'list' },
+    { id: 'skill:complete', label: 'complete (again)', group: 'list' },
+    { id: 'delta', label: 'delta', group: 'list' },
+  ];
+  const completeChips = () => screen.queryAllByRole('button', { name: /^complete/ });
+
+  it('renders one chip per id, however often the list re-sorts', async () => {
+    const user = userEvent.setup();
+    render(<RichInput cacheKey="dup1" tags={DUP_TAGS} />);
+    expect(completeChips()).toHaveLength(1);
+    // First occurrence wins.
+    expect(completeChips()[0]).toHaveTextContent(/^complete$/);
+
+    // Each round selects another chip and opens/closes the inline filter —
+    // a re-sort (selected first) plus a filtered render, every time.
+    for (const name of ['gamma', 'delta', 'beta', 'gamma', 'delta', 'beta']) {
+      await user.click(screen.getByRole('button', { name }));
+      await user.click(screen.getByRole('button', { name: 'Search tags' }));
+      await user.type(screen.getByPlaceholderText('Filter tags…'), 'e');
+      await user.keyboard('{Escape}');
+      expect(completeChips()).toHaveLength(1);
+    }
+  });
+
+  it('offers a duplicated id once in the # menu and sends it once', async () => {
+    const user = userEvent.setup();
+    let payload: RichSendPayload | null = null;
+    let reported: string[] = [];
+    render(
+      <RichInput
+        cacheKey="dup2"
+        undoWindowMs={0}
+        tags={DUP_TAGS}
+        onTagsChange={(t) => {
+          reported = t.map((x) => x.id);
+        }}
+        onSubmit={(p) => {
+          payload = p;
+        }}
+        renderSendButton={(p) => <TestSendButton {...p} />}
+      />,
+    );
+
+    await user.type(screen.getByRole('textbox'), 'go #skill');
+    expect(screen.getAllByRole('button', { name: '#skill:complete' })).toHaveLength(1);
+    await user.keyboard('{Enter}');
+
+    expect(reported).toEqual(['skill:complete']);
+    await user.click(screen.getByText('send-now'));
+    expect(payload!.tags.map((t) => t.id)).toEqual(['skill:complete']);
+  });
+
+  it('keeps a tapped list chip in place until the list has a reason to re-sort', async () => {
+    const user = userEvent.setup();
+    render(<RichInput cacheKey="dup3" tags={TAGS} />);
+    const listOrder = () =>
+      screen
+        .getAllByRole('button')
+        .map((b) => b.textContent ?? '')
+        .filter((t) => ['project-a', 'project-b', 'other-c'].includes(t));
+    expect(listOrder()).toEqual(['project-a', 'project-b', 'other-c']);
+
+    // A toggle re-renders the composer; the list must not chase the pointer.
+    await user.click(screen.getByRole('button', { name: 'other-c' }));
+    expect(listOrder()).toEqual(['project-a', 'project-b', 'other-c']);
+
+    // Opening the filter is a re-sort: selected first.
+    await user.click(screen.getByRole('button', { name: 'Search tags' }));
+    expect(listOrder()).toEqual(['other-c', 'project-a', 'project-b']);
+  });
+});
+
 describe('RichInput tag semantics', () => {
   it('hands the active tags to composePrompt and leaves the prompt to the caller', async () => {
     const user = userEvent.setup();

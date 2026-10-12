@@ -50,6 +50,22 @@ import type {
 
 const LINE_HEIGHT = 22;
 const DEFAULT_MASTER_SWITCH: MasterSwitchConfig = { label: 'Tags' };
+// A missing `tags` prop must not be a fresh array on every render: everything
+// derived from it (the chip rows, the list's sort snapshot) keys on identity.
+const EMPTY_TAGS: RichTag[] = [];
+
+/**
+ * One tag per id — the first occurrence wins. Ids are React keys all the way
+ * down (chip rows, the scrollable list, the `#` menu); two siblings sharing one
+ * make the keyed reconcile leak a DOM node on every re-order, so a duplicated
+ * chip multiplied each time the list re-sorted. The input array is returned
+ * as-is when it is already unique, keeping its identity.
+ */
+function uniqueTagsById(tags: RichTag[]): RichTag[] {
+  const seen = new Set<string>();
+  const unique = tags.filter((t) => !seen.has(t.id) && Boolean(seen.add(t.id)));
+  return unique.length === tags.length ? tags : unique;
+}
 
 export interface RichInputProps {
   /** Initial text (ignored when a cached draft exists). */
@@ -112,7 +128,8 @@ export interface RichInputProps {
    * The selectable tags — chips, the scrollable list, and mention-only entries.
    * The array may change between renders (tags loading in, a caller revealing
    * a tag's children): vanished ids leave the selection, new `defaultOn` ones
-   * join it.
+   * join it. Ids are meant to be unique; a repeated id is ignored (the first
+   * occurrence wins).
    */
   tags?: RichTag[];
   /**
@@ -264,7 +281,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     fileFilter,
     fileDrop,
     dropDirectories = true,
-    tags = [],
+    tags: tagsProp = EMPTY_TAGS,
     onTagsChange,
     masterSwitch = false,
     defaultMasterOn = true,
@@ -291,6 +308,10 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
   const taRef = useRef<HTMLTextAreaElement>(null);
   const keepKeyboard = useKeepKeyboard(taRef);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Everything below — selection, chips, list, `#` menu, auto-tag, the send
+  // payload — sees only the de-duplicated tags.
+  const tags = useMemo(() => uniqueTagsById(tagsProp), [tagsProp]);
 
   const draft = useDraft(cacheKey, cacheLocation);
   const { text: value, setText: setValueRaw } = draft;
@@ -542,14 +563,25 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
 
 
   // Wrapping chip row (default group) vs. the scrollable list (`group: 'list'`).
-  const chipToggles = sel.toggles.filter((t) => (t.group ?? 'chip') !== 'list');
-  const listToggles = sel.toggles.filter((t) => t.group === 'list');
+  // Memoized: the list snapshots its selected-first order and re-sorts whenever
+  // its `tags` change identity, so rebuilding these on every render re-sorted
+  // it on every keystroke and toggle — a tapped chip jumped out from under the
+  // pointer.
+  const chipToggles = useMemo(
+    () => sel.toggles.filter((t) => (t.group ?? 'chip') !== 'list'),
+    [sel.toggles],
+  );
+  const listToggles = useMemo(() => sel.toggles.filter((t) => t.group === 'list'), [sel.toggles]);
   // Tags auto-tag is currently proposing (dashed ring + accept/refuse, not yet
   // selected) — surfaced to the chip rows so they can float those to the top
-  // too, right after the already-selected ones.
+  // too, right after the already-selected ones. Keyed on the ids, not on the
+  // suggestions array, which is rebuilt on every selection change: the list
+  // re-sorts when this set changes, and it should only when its contents do.
+  const highlightKey = auto.suggestions.map((m) => m.tag.id).join(',');
   const highlightedTagIds = useMemo(
     () => new Set(auto.suggestions.map((m) => m.tag.id)),
-    [auto.suggestions],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [highlightKey],
   );
   // Idle ⇒ both chip rows collapse away; typing, attaching or focusing brings
   // them back. Selected chips don't count as content — default-on tags would
