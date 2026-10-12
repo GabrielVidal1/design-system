@@ -339,6 +339,60 @@ describe('RichInput duplicate tag ids', () => {
   });
 });
 
+describe('RichInput chip row order', () => {
+  // Guidelines, in the order the caller wants them read — a child sits right
+  // under its parent.
+  const GUIDES: RichTag[] = [
+    { id: 'g-plan', label: 'Plan first' },
+    { id: 'g-tests', label: 'Write tests' },
+    { id: 'g-e2e', label: 'End-to-end too', depth: 1 },
+    { id: 'g-careful', label: 'Careful', triggers: ['careful'] },
+    { id: 'g-docs', label: 'Update docs' },
+    { id: 'g-pr', label: 'Open a PR' },
+  ];
+  const chipRow = () =>
+    screen
+      .getAllByRole('button')
+      .filter((b) => b.hasAttribute('aria-pressed'))
+      .map((b) => b.textContent);
+
+  it('keeps the caller order when chips are toggled on', async () => {
+    const user = userEvent.setup();
+    render(<RichInput cacheKey="order1" tags={GUIDES} />);
+    const input = GUIDES.map((t) => t.label);
+    expect(chipRow()).toEqual(input);
+
+    await user.click(screen.getByRole('button', { name: 'Update docs' }));
+    expect(screen.getByRole('button', { name: 'Update docs' })).toHaveAttribute('aria-pressed', 'true');
+    expect(chipRow()).toEqual(input);
+
+    // A selected child stays under its parent.
+    await user.click(screen.getByRole('button', { name: 'End-to-end too' }));
+    expect(chipRow()).toEqual(input);
+  });
+
+  it('collapsed by showMax, still shows selected and suggested chips past the cut, in order', async () => {
+    const user = userEvent.setup();
+    const tags = GUIDES.map((t) => (t.id === 'g-docs' ? { ...t, defaultOn: true } : t));
+    render(<RichInput cacheKey="order2" tags={tags} showMax={2} autoTag={{ debounceMs: 10 }} />);
+
+    // First two, plus the selected chip past the cut — not pulled to the front.
+    expect(chipRow()).toEqual(['Plan first', 'Write tests', 'Update docs']);
+    expect(screen.getByRole('button', { name: '+3 more' })).toBeInTheDocument();
+
+    // An auto-tag suggestion past the cut shows up too, in its own place.
+    await user.click(screen.getByRole('textbox'));
+    await user.paste('be careful with this');
+    await waitFor(() =>
+      expect(chipRow()).toEqual(['Plan first', 'Write tests', 'Careful', 'Update docs']),
+    );
+    expect(screen.getByRole('button', { name: '+2 more' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '+2 more' }));
+    expect(chipRow()).toEqual(GUIDES.map((t) => t.label));
+  });
+});
+
 describe('RichInput tag semantics', () => {
   it('hands the active tags to composePrompt and leaves the prompt to the caller', async () => {
     const user = userEvent.setup();

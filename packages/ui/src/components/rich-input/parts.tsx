@@ -124,7 +124,8 @@ export function MasterSwitch({
 }
 
 /** Selected first, then tags auto-tag is currently highlighting from the text
- * (suggested but not yet accepted), each tier keeping its original order. */
+ * (suggested but not yet accepted), each tier keeping its original order. Only
+ * the scrollable list sorts this way; the chip row keeps the caller's order. */
 function sortByPriority(
   tags: RichTag[],
   selected: Set<string>,
@@ -141,6 +142,17 @@ function sortByPriority(
 const EMPTY_SET: Set<string> = new Set();
 
 /* ── Guideline toggle chips (with show-more + optional leading switch) ────── */
+/**
+ * The wrapping chip row. Chips always render in the order the caller passed
+ * them: toggling one on, or auto-tag suggesting one, never moves it — so a
+ * guideline child (`depth` > 0) stays under its parent and nothing shifts
+ * under the pointer.
+ *
+ * Collapsed by `showMax`, the row shows the first `showMax` chips plus every
+ * selected or suggested chip past the cut, still in the caller's order, so an
+ * active guideline is never hidden behind "+N more"; the button counts only
+ * the chips that remain hidden.
+ */
 export function TagChips({
   tags,
   selected,
@@ -153,23 +165,24 @@ export function TagChips({
 }: {
   tags: RichTag[];
   selected: Set<string>;
-  /** Tags auto-tag is currently suggesting from the text — floated just after
-   * the selected ones. */
+  /** Tags auto-tag is currently suggesting from the text — kept visible past
+   * the `showMax` cut, but never moved. */
   highlighted?: Set<string>;
   onToggle: (id: string) => void;
+  /** Collapse to this many chips (plus any selected/suggested ones past it). */
   showMax?: number;
   expanded: boolean;
   onExpand: () => void;
   /** Rendered as the first item of the row (e.g. the guidelines master switch). */
   leading?: ReactNode;
 }) {
-  const ordered = useMemo(
-    () => sortByPriority(tags, selected, highlighted),
-    [tags, selected, highlighted],
-  );
+  const shown = useMemo(() => {
+    if (showMax == null || expanded) return tags;
+    const hi = highlighted ?? EMPTY_SET;
+    return tags.filter((t, i) => i < showMax || selected.has(t.id) || hi.has(t.id));
+  }, [tags, selected, highlighted, showMax, expanded]);
   if (tags.length === 0 && !leading) return null;
-  const hidden = showMax != null && !expanded ? Math.max(0, ordered.length - showMax) : 0;
-  const shown = hidden > 0 ? ordered.slice(0, showMax) : ordered;
+  const hidden = tags.length - shown.length;
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {leading}

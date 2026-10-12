@@ -149,6 +149,14 @@ last release → grouped bullets under Unreleased), then curate the prose.
   so deriving `tags` from it can't loop.
 
 ### Fixed
+- `RichInput` — **the guideline chip row keeps the order you gave it.**
+  Turning a chip on (or auto-tag suggesting one) used to pull it to the front
+  of the row, which also tore a child guideline (`depth` > 0) away from the
+  parent it sits under. The row now always renders `tags` in the caller's
+  order. Collapsed by `showMax`, it shows the first `showMax` chips plus every
+  selected or suggested chip past the cut, each in its own place, and
+  "+N more" counts only the ones still hidden. The scrollable `group: 'list'`
+  tags keep their selected-first order.
 - `RichInput` — **a tag handed in twice no longer multiplies.** Two tags with
   the same `id` shared a React key, and every re-sort of the scrollable list
   (selected first, auto-tag suggestions next, the "Filter tags…" search) leaked

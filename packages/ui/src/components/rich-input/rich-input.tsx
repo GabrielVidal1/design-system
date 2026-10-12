@@ -162,7 +162,12 @@ export interface RichInputProps {
    * stay while a draft exists. Default false.
    */
   collapseWhenIdle?: boolean;
-  /** Chips shown before a "+N more" button. */
+  /**
+   * Collapse the chip row to its first `showMax` chips behind a "+N more"
+   * button. Selected chips — and any auto-tag is suggesting — stay visible
+   * past the cut, in their own place: the chip row always keeps the order
+   * `tags` gives it, it never pulls a selected chip to the front.
+   */
   showMax?: number;
   /** Mention trigger symbol. Default `#`. */
   mentionPrefix?: string;
@@ -573,10 +578,11 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
   );
   const listToggles = useMemo(() => sel.toggles.filter((t) => t.group === 'list'), [sel.toggles]);
   // Tags auto-tag is currently proposing (dashed ring + accept/refuse, not yet
-  // selected) — surfaced to the chip rows so they can float those to the top
-  // too, right after the already-selected ones. Keyed on the ids, not on the
-  // suggestions array, which is rebuilt on every selection change: the list
-  // re-sorts when this set changes, and it should only when its contents do.
+  // selected). The scrollable list floats them right after the selected ones;
+  // the chip row keeps its order and only keeps them visible past a `showMax`
+  // cut. Keyed on the ids, not on the suggestions array, which is rebuilt on
+  // every selection change: the list re-sorts when this set changes, and it
+  // should only when its contents do.
   const highlightKey = auto.suggestions.map((m) => m.tag.id).join(',');
   const highlightedTagIds = useMemo(
     () => new Set(auto.suggestions.map((m) => m.tag.id)),
