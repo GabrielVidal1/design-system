@@ -413,8 +413,9 @@ function GuidelinesDemo() {
         hands them to your <span className="mono text-foreground">composePrompt</span>; whatever
         they mean — a guideline line, a model, a target — is resolved in your code. Without a{' '}
         <span className="mono text-foreground">composePrompt</span> the prompt is just the typed
-        text. With <span className="mono text-foreground">showMax=4</span> the overflow collapses
-        behind a "+N more" button.
+        text. The chips keep the order you pass them in — turning one on never moves it. With{' '}
+        <span className="mono text-foreground">showMax=4</span> the overflow collapses behind a
+        "+N more" button, except for selected chips, which stay visible in their own place.
       </Lede>
       <RichInput
         tags={CHIP_TAGS}
