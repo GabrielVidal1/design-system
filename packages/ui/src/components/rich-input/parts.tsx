@@ -221,14 +221,26 @@ export function TagScrollList({
 
   // Selected-first (then auto-tag-highlighted) ordering, snapshotted: re-sorted
   // when the tag set, the search state, or the live highlight set changes — NOT
-  // on every toggle, so a tapped chip doesn't teleport out from under the
-  // pointer and shift its neighbours mid-interaction.
+  // when a chip of this list is tapped, so it doesn't teleport out from under
+  // the pointer and shift its neighbours mid-interaction.
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
   const [order, setOrder] = useState<RichTag[]>(() => sortByPriority(tags, selected, highlighted));
   useEffect(() => {
     setOrder(sortByPriority(tags, selectedRef.current, highlighted));
   }, [tags, searching, highlighted]);
+  // A selection that changes from elsewhere — a restored or cached draft
+  // landing after mount, a `#` pick, the reset after a send — re-sorts too;
+  // only the change our own tap caused is skipped.
+  const ownTap = useRef(false);
+  useEffect(() => {
+    if (ownTap.current) {
+      ownTap.current = false;
+      return;
+    }
+    setOrder(sortByPriority(tags, selected, highlighted));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected]);
 
   if (tags.length === 0) return null;
 
@@ -244,6 +256,7 @@ export function TagScrollList({
   // list falls back to full (selected-first) order and is ready for the next
   // pick instead of staying narrowed to what was just typed.
   const handleToggle = (id: string) => {
+    ownTap.current = true;
     onToggle(id);
     if (query) setQuery('');
   };

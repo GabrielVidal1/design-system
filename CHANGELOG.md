@@ -149,6 +149,19 @@ last release → grouped bullets under Unreleased), then curate the prose.
   so deriving `tags` from it can't loop.
 
 ### Fixed
+- `RichInput` — **a tag handed in twice no longer multiplies.** Two tags with
+  the same `id` shared a React key, and every re-sort of the scrollable list
+  (selected first, auto-tag suggestions next, the "Filter tags…" search) leaked
+  one more copy of the chip into the page. `tags` is now de-duplicated by id
+  on the way in, the first occurrence winning, so the chip rows, the list, the
+  `#` menu, `onTagsChange` and the send payload all see each tag once.
+- `RichInput` — the scrollable tag list now keeps a tapped chip where it is,
+  as its selected-first snapshot always meant to: the toggles it was handed
+  were rebuilt on every render, so it re-sorted on every keystroke and every
+  tap and the chip jumped out from under the finger. It still re-sorts when
+  the tag set, the filter or the auto-tag suggestions change, and when the
+  selection changes from elsewhere (a restored draft, a `#` pick, the reset
+  after a send).
 - `HoldEditable` — a touch the browser took over for a scroll could still
   lift the item it started on: the scroll ends the press in a `pointercancel`,
   which cleared the press but not its timer, so the pickup fired anyway a
