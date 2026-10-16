@@ -174,11 +174,13 @@ export interface RichInputProps {
 
   /**
    * **Auto-tag**: once the typing pauses, scan the text for the words and
-   * phrases tags declare in {@link RichTag.triggers} and offer each hit in
-   * place — the word circled by a travelling dashed ring in the tag's
-   * {@link RichTag.color}, with a ✓/✕ pair beside it. ✓ selects the tag (the
-   * word then keeps a coloured mark for as long as it stays selected); ✕
-   * dismisses it and that word won't offer that tag again this session.
+   * phrases tags declare in {@link RichTag.triggers}. A matched tag that is
+   * off floats to the front of the scrollable tag list (after the selected
+   * ones; the chip row keeps its order and only keeps it visible past a
+   * `showMax` cut); a matched tag that is on gets its words marked — a light
+   * wash and an underline in its {@link RichTag.color}. Nothing is drawn for
+   * a tag that is off and nothing asks to be answered: turning a tag on is an
+   * ordinary chip tap.
    *
    * Off by default, and inert until some tag actually declares triggers. Pass
    * `true` for the defaults or an {@link AutoTagConfig} to tune the pause,
@@ -523,16 +525,9 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
 
   useEffect(() => () => clearTimers(), [clearTimers]);
 
-  // Auto-tag. Accepting is an ordinary selection — it persists with the draft
-  // like any chip the user clicked, which is what lets an accepted word keep
-  // its mark after a reload.
-  const acceptAutoTag = useCallback(
-    (tag: RichTag) => {
-      touchTags();
-      sel.setOn(tag.id, true);
-    },
-    [touchTags, sel],
-  );
+  // Auto-tag: no call to action. Turning a matched tag on is an ordinary chip
+  // tap, so it persists with the draft — and its words keep their mark after
+  // a reload.
   const auto = useAutoTag({
     enabled: autoTag !== false,
     tags,
@@ -540,14 +535,11 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     selected: sel.selected,
     config: typeof autoTag === 'object' ? autoTag : {},
     mentionPrefix,
-    onAccept: acceptAutoTag,
   });
 
   const resetInput = useCallback(() => {
     draft.clear();
     files.reset();
-    // A refusal is scoped to the message it was refused in.
-    auto.reset();
     // Back to the default selection — and stop persisting until touched again,
     // so the post-clear default state doesn't get written as a draft.
     tagsDirty.current = false;
@@ -555,7 +547,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     sel.clear();
     setExpanded(false);
     hist.resetCursor();
-  }, [draft, files, sel, hist, auto]);
+  }, [draft, files, sel, hist]);
 
   // Every user-driven toggle marks the selection dirty so it persists with the draft.
   const toggleTag = useCallback(
@@ -577,8 +569,8 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     [sel.toggles],
   );
   const listToggles = useMemo(() => sel.toggles.filter((t) => t.group === 'list'), [sel.toggles]);
-  // Tags auto-tag is currently proposing (dashed ring + accept/refuse, not yet
-  // selected). The scrollable list floats them right after the selected ones;
+  // Tags auto-tag matched in the text but that are not selected (nothing is
+  // drawn for them in the text). The scrollable list floats them right after the selected ones;
   // the chip row keeps its order and only keeps them visible past a `showMax`
   // cut. Keyed on the ids, not on the suggestions array, which is rebuilt on
   // every selection change: the list re-sorts when this set changes, and it
@@ -879,10 +871,9 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
 
           <AttachmentChips files={files.files} onRemove={files.remove} />
 
-          {/* The textarea and its auto-tag layers share one positioning box:
-              a mirror behind it (marks + measurement) and the ring layer on
-              top. Present whether or not auto-tag is on, so the box the
-              textarea sizes itself in never differs between the two modes. */}
+          {/* The textarea and its auto-tag mirror (the marks) share one
+              positioning box. Present whether or not auto-tag is on, so the
+              box the textarea sizes itself in never differs between modes. */}
           <div className={cn('relative overflow-hidden', fill && 'flex min-h-0 flex-1 flex-col')}>
           <textarea
             ref={taRef}
@@ -917,9 +908,6 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
                 taRef={taRef}
                 value={value}
                 marks={auto.marks}
-                suggestions={auto.suggestions}
-                onAccept={auto.accept}
-                onRefuse={auto.refuse}
               />
             )}
           </div>

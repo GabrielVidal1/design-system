@@ -136,7 +136,7 @@ const MENTION_TAGS: RichTag[] = [
 ];
 
 // Auto-tag tags carry the words that should surface them, and the colour their
-// ring and accepted mark are drawn in. Everything else about them is ordinary.
+// mark is drawn in. Everything else about them is ordinary.
 const AUTO_TAGS: RichTag[] = [
   {
     id: 'skill:screenshot',
@@ -653,11 +653,11 @@ function AutoTagDemo() {
         The other half of <span className="mono text-foreground">#mention</span>: instead of you
         remembering a tag exists, the composer notices you already named it. A second after the
         typing stops, the text is scanned for the words each tag declares in{' '}
-        <span className="mono text-foreground">triggers</span>, and every hit is asked about{' '}
-        <strong className="text-foreground">where it sits in the sentence</strong> — circled by a
-        travelling dashed ring in the tag's colour, with a ✓/✕ beside it. ✓ turns the tag on and the
-        word keeps a coloured mark for as long as it stays on; ✕ dismisses it, and that word won't
-        ask for that tag again until you send. Multi-word triggers outrank single words, so{' '}
+        <span className="mono text-foreground">triggers</span>. A matched tag that is off{' '}
+        <strong className="text-foreground">moves to the front of the list</strong>, right after
+        the selected ones — nothing is drawn over the sentence and nothing asks to be answered, so a
+        wrong guess costs nothing. Turn it on with a chip tap and the word gets a mark in the tag's
+        colour for as long as it stays on. Multi-word triggers outrank single words, so{' '}
         <span className="mono text-foreground">take a screenshot</span> beats{' '}
         <span className="mono text-foreground">screenshot</span> for the same span. A tag with no{' '}
         <span className="mono text-foreground">triggers</span> is never suggested — nothing is
