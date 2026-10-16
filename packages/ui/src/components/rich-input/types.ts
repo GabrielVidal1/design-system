@@ -68,14 +68,14 @@ export interface RichTag {
    *
    * Nothing is inferred: a tag with no `triggers` is never auto-suggested, so a
    * caller opts in tag by tag rather than discovering that every chip in its
-   * list now interrupts the typing.
+   * list now jumps around as it types.
    */
   triggers?: string[];
   /**
-   * CSS colour for this tag's auto-tag ring and accepted mark — any colour
-   * value (`#0ea5e9`, `var(--color-sky-500)`, `oklch(…)`). Defaults to the
-   * theme's primary. Deliberately a raw colour and not a class: the ring is an
-   * SVG stroke measured at runtime, which no utility class can reach.
+   * CSS colour for this tag's auto-tag mark — any colour value
+   * (`#0ea5e9`, `var(--color-sky-500)`, `oklch(…)`). Defaults to the theme's
+   * primary. Deliberately a raw colour and not a class: it is handed to the
+   * mark as a custom property, which no utility class can reach.
    */
   color?: string;
 }

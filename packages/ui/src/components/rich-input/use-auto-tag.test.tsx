@@ -1,32 +1,10 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { RichInput } from './rich-input';
 import { findAutoTagMatches } from './use-auto-tag';
 import type { RichTag } from './types';
-
-beforeAll(() => {
-  Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
-    configurable: true,
-    value: 600,
-  });
-  Object.defineProperty(HTMLElement.prototype, 'offsetWidth', {
-    configurable: true,
-    value: 600,
-  });
-  // The overlay points its ring and its buttons at boxes it measures off the
-  // mirror. jsdom does no layout and reports none, and the component correctly
-  // draws nothing when it has nothing to point at — so give the mirrored spans
-  // a box, or there is no call to action to click in these tests.
-  const rect = { x: 8, y: 4, left: 8, top: 4, width: 64, height: 22, right: 72, bottom: 26 };
-  Object.defineProperty(Element.prototype, 'getClientRects', {
-    configurable: true,
-    value(this: Element) {
-      return this instanceof HTMLElement && this.dataset.atKey ? [rect] : [];
-    },
-  });
-});
 
 const TAGS: RichTag[] = [
   {
@@ -88,52 +66,56 @@ describe('findAutoTagMatches', () => {
 });
 
 describe('RichInput autoTag', () => {
-  const type = async (text: string) => {
+  const type = async (text: string, tags = TAGS) => {
     const user = userEvent.setup();
-    render(<RichInput tags={TAGS} autoTag={{ debounceMs: 10 }} />);
+    const { container } = render(<RichInput tags={tags} autoTag={{ debounceMs: 10 }} />);
     await user.click(screen.getByRole('textbox'));
     await user.paste(text);
-    return user;
+    return { user, container };
   };
+  const markOf = (container: HTMLElement, word: string) =>
+    [...container.querySelectorAll<HTMLElement>('[data-at-key]')].find((el) => el.textContent === word);
+  const chipOrder = () =>
+    screen
+      .getAllByRole('button')
+      .map((b) => b.textContent ?? '')
+      .filter((t) => ['screenshot', 'nanobanana', 'no-triggers'].includes(t));
 
-  it('offers an accept/refuse pair once the typing settles', async () => {
-    await type('please screenshot the page');
-    await waitFor(() => expect(screen.getByLabelText('Add tag screenshot')).toBeTruthy());
-    expect(screen.getByLabelText('Dismiss suggested tag screenshot')).toBeTruthy();
+  it('floats a matched tag to the front of the list once the typing settles', async () => {
+    // Reversed so the matched tag starts last.
+    await type('please screenshot the page', [...TAGS].reverse());
+    await waitFor(() => expect(chipOrder()[0]).toBe('screenshot'));
   });
 
-  it('offers nothing until the debounce elapses', () => {
-    render(<RichInput tags={TAGS} autoTag={{ debounceMs: 10_000 }} />);
-    expect(screen.queryByLabelText('Add tag screenshot')).toBeNull();
+  it('draws nothing in the text while the tag is off: no mark, no ring, no buttons', async () => {
+    const { container } = await type('please screenshot the page', [...TAGS].reverse());
+    await waitFor(() => expect(chipOrder()[0]).toBe('screenshot'));
+    expect(container.querySelector('[data-at-key]')).toBeNull();
+    expect(container.querySelector('svg rect')).toBeNull();
+    expect(screen.queryByLabelText(/Add tag|Dismiss suggested tag/)).toBeNull();
   });
 
-  it('accepting selects the tag and retires the call to action', async () => {
-    const user = await type('please screenshot the page');
-    await waitFor(() => expect(screen.getByLabelText('Add tag screenshot')).toBeTruthy());
-    await user.click(screen.getByLabelText('Add tag screenshot'));
-    await waitFor(() => expect(screen.queryByLabelText('Add tag screenshot')).toBeNull());
-    // The chip is now on — the tag list renders it pressed.
-    const chip = screen.getAllByRole('button', { name: /screenshot/ })[0];
-    expect(chip.getAttribute('aria-pressed')).toBe('true');
+  it('does not reorder until the debounce elapses', async () => {
+    const user = userEvent.setup();
+    render(<RichInput tags={[...TAGS].reverse()} autoTag={{ debounceMs: 10_000 }} />);
+    await user.click(screen.getByRole('textbox'));
+    await user.paste('please screenshot the page');
+    expect(chipOrder()[0]).toBe('no-triggers');
   });
 
-  it('refusing drops it, and the same word does not ask again', async () => {
-    const user = await type('please screenshot the page');
-    await waitFor(() => expect(screen.getByLabelText('Add tag screenshot')).toBeTruthy());
-    await user.click(screen.getByLabelText('Dismiss suggested tag screenshot'));
-    await waitFor(() => expect(screen.queryByLabelText('Add tag screenshot')).toBeNull());
-    await user.paste(' and screenshot again');
-    // Give the debounce a chance to re-run over the longer text.
-    await new Promise((r) => setTimeout(r, 60));
-    expect(screen.queryByLabelText('Add tag screenshot')).toBeNull();
+  it('turning the chip on marks the word in the tag colour', async () => {
+    const { user, container } = await type('please screenshot the page');
+    await user.click(screen.getByRole('button', { name: 'screenshot' }));
+    await waitFor(() => expect(markOf(container, 'screenshot')).toBeTruthy());
+    expect(markOf(container, 'screenshot')!.className).toContain('ds-auto-tag-mark');
   });
 
   it('is off unless asked for', async () => {
     const user = userEvent.setup();
-    render(<RichInput tags={TAGS} />);
+    const { container } = render(<RichInput tags={TAGS} />);
     await user.click(screen.getByRole('textbox'));
     await user.paste('please screenshot the page');
     await new Promise((r) => setTimeout(r, 60));
-    expect(screen.queryByLabelText('Add tag screenshot')).toBeNull();
+    expect(container.querySelector('[data-at-key]')).toBeNull();
   });
 });

@@ -69,6 +69,14 @@ last release → grouped bullets under Unreleased), then curate the prose.
   library's first Data visualization primitive.
 
 ### Changed
+- `RichInput` auto-tag — **no more prompt in the text.** The travelling dashed
+  ring and the ✓/✕ pair around a recognised word are gone: they were
+  distracting, and often wrong. A tag whose trigger matched but is still off
+  now draws nothing in the sentence — it only moves to the front of the tag
+  list (after the selected ones), and you turn it on with a chip tap. A tag
+  that is on keeps its words marked in its colour. Refusals are gone with the
+  ✕ (nothing is left to dismiss); `auto-tag.css` now only carries
+  `ds-auto-tag-mark`.
 - `HoldEditable` — **edit mode takes over the screen.** Everything but the
   group sits under a dimmed backdrop (cut out around the group, so its pills
   stay reachable whatever stacking context it lives in), and a tap anywhere

@@ -1,41 +1,22 @@
 /*
- * Motion and tint for RichInput's auto-tag layer.
+ * The mark of RichInput's auto-tag layer.
  *
  * Plain CSS — no Tailwind directives — so it works whether or not the consumer
- * scans this package. Two pieces:
+ * scans this package.
  *
- *  - `ds-auto-tag-ants`: the rounded dashed outline travelling around a
- *    suggested word. It is an SVG stroke, so the "rotation" is the dash pattern
- *    sliding along the path (`stroke-dashoffset`), which follows the rounded
- *    corners exactly — a CSS dashed border cannot be animated this way.
- *  - `ds-auto-tag-mark`: what an accepted word keeps wearing — a wash of the
- *    tag's colour (passed in as `--ds-at`) under the glyphs, with a solid
- *    underline. It sits behind the textarea, so the tint must stay light
- *    enough to read through.
- *
- * Under `prefers-reduced-motion` the dashes stop travelling and simply hold —
- * the ring still reads as a ring, it just doesn't move.
+ * `ds-auto-tag-mark` is what a word wears while the tag its trigger matched is
+ * selected: a wash of the tag's colour (passed in as `--ds-at`) under the
+ * glyphs, with a solid underline. It sits on the mirror behind the textarea,
+ * so the tint must stay light enough to read through. A word whose tag is off
+ * gets nothing — auto-tag only floats that tag forward in the list.
  */
 
-@keyframes ds-auto-tag-ants {
-  to {
-    stroke-dashoffset: -18;
-  }
-}
-
-/* Every ring, mark and CTA is a fresh DOM node the moment auto-tag notices or
- * accepts a word — this is what makes it fade in instead of popping in. */
+/* A mark is a fresh DOM node the moment its tag turns on — this is what makes
+ * it fade in instead of popping in. */
 @keyframes ds-auto-tag-fade-in {
   from {
     opacity: 0;
   }
-}
-
-.ds-auto-tag-ants {
-  stroke-dashoffset: 0;
-  animation:
-    ds-auto-tag-ants 0.8s linear infinite,
-    ds-auto-tag-fade-in 0.9s ease-out;
 }
 
 .ds-auto-tag-mark {
@@ -44,14 +25,8 @@
   animation: ds-auto-tag-fade-in 0.9s ease-out;
 }
 
-.ds-auto-tag-cta {
-  animation: ds-auto-tag-fade-in 0.9s ease-out;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .ds-auto-tag-ants,
-  .ds-auto-tag-mark,
-  .ds-auto-tag-cta {
+  .ds-auto-tag-mark {
     animation: none;
   }
 }
