@@ -1,9 +1,10 @@
 import * as React from 'react';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { useSwipeDismiss } from '../../hooks/use-swipe-dismiss';
+import { isHoldEditableActive } from '../hold-editable/hold-editable';
 import { BottomNav, type BottomNavLink } from './bottom-nav';
 
 const Dot = ({ className }: { className?: string }) => <svg className={className} data-testid="icon" />;
@@ -357,5 +358,40 @@ describe('BottomNav', () => {
       await swipe(-150);
       expect(onNavigate).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('BottomNav edit mode', () => {
+  const realRect = HTMLElement.prototype.getBoundingClientRect;
+  afterEach(() => {
+    HTMLElement.prototype.getBoundingClientRect = realRect;
+    vi.useRealTimers();
+  });
+
+  it('keeps the icons of a bar whose slots are wide (three links on a phone)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    // jsdom lays nothing out: give each slot the ~125px a three-link phone bar
+    // has, past HoldEditable's compact-edit trigger.
+    const slots = new Map<Element, DOMRect>();
+    HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+      const box = (left: number, width: number) =>
+        ({ left, top: 0, width, height: 56, right: left + width, bottom: 56, x: left, y: 0, toJSON: () => ({}) }) as DOMRect;
+      if (!this.hasAttribute('data-hold-editable-item')) return box(0, 375);
+      if (!slots.has(this)) slots.set(this, box(slots.size * 125, 125));
+      return slots.get(this)!;
+    };
+    render(<BottomNav links={LINKS.slice(0, 3)} editable onReorder={() => {}} />);
+
+    await act(async () => {
+      link('Files').dispatchEvent(
+        new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0, clientX: 180, clientY: 20 }),
+      );
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(600);
+    });
+
+    expect(isHoldEditableActive()).toBe(true);
+    for (const l of LINKS.slice(0, 3)) expect(screen.getAllByRole('link', { name: l.label }).length).toBeGreaterThan(0);
   });
 });
