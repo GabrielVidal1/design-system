@@ -165,6 +165,13 @@ last release → grouped bullets under Unreleased), then curate the prose.
   was visibly off the middle of the screen. The cell now carries the slot's
   sizing and the link spans it; a plain bar is unchanged. The `links` docs
   now also say to keep the count odd while the centre bubble is on.
+- `BottomNav` — **edit mode keeps the bar's icons.** The bar and its drawer
+  were left on `HoldEditable`'s compact edit mode, which is meant for a column
+  of tall cards but trips on any item wider than ~96px: every slot of a
+  three-link bar on a phone, a five-link bar at desktop width, a drawer
+  sub-link with a long label. Holding a link there collapsed the whole row to
+  grip pills named by the links' raw keys (`settings` for a link labelled
+  "You"). Both rows now opt out with `compactEdit={false}`.
 - `AnimatedList` — **scrolling no longer makes the rows jump.** Row positions
   were measured against the viewport, so any re-render after the page scrolled
   (a row with a ticking timer re-renders every second) read the scroll distance

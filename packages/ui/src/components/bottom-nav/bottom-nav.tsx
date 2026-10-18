@@ -680,6 +680,7 @@ export function BottomNav({
               onStashChange={(next, stash) => commitChildren(drawerLink, [...next, ...stash])}
               stashLabel={(l) => l.label}
               stashPlacement="top"
+              compactEdit={false}
               className={rowClass}
               itemClassName="flex"
             >
@@ -702,6 +703,12 @@ export function BottomNav({
           stash={false}
           getKey={(l) => l.key}
           onReorder={(next) => onReorder?.(next)}
+          // Compact edit mode is for a column of tall cards, but it trips on
+          // any item over ~96px (every slot of a three-link phone bar, a
+          // five-link bar at desktop width, a long drawer label) and would
+          // trade a row that already fits for bare keys. Off here and on the
+          // drawer.
+          compactEdit={false}
           className={rowClass}
           itemClassName={cn('flex', SLOT_CLASS)}
         >
