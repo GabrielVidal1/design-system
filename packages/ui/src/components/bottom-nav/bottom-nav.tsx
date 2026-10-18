@@ -69,7 +69,11 @@ export interface BottomNavLinkRender {
 export type BottomNavSource = 'tap' | 'swipe';
 
 export interface BottomNavProps {
-  /** The destinations, left to right. */
+  /**
+   * The destinations, left to right. Keep the count odd (3 or 5) while the
+   * centre bubble is on: an even bar has no middle slot, and the bubble lands
+   * right of centre.
+   */
   links: BottomNavLink[];
   /** Key of the current destination — a link's or a sub-link's. */
   selectedLink?: string;
@@ -173,6 +177,16 @@ function Icon({ icon, className }: { icon: BottomNavIcon | undefined; className:
 }
 
 const LABEL_CLASS = 'text-[9.5px] font-semibold uppercase tracking-[0.08em] leading-none';
+
+/**
+ * One bar slot: an equal share of the row (a zero basis, not a fixed width, so
+ * five still fit a 320px phone), and 64px of intrinsic width for the floating
+ * bar, which sizes to its content. It belongs on the row's flex item: the link
+ * itself, or in edit mode the `HoldEditable` cell around it, where the link
+ * has to span the cell instead. A 64px link sat at the cell's left edge, so
+ * the icons were off-centre (by a third of a slot on a three-link bar).
+ */
+const SLOT_CLASS = 'w-16 min-w-0 flex-1';
 
 function Badge({ badge }: { badge: React.ReactNode }) {
   if (badge === undefined || badge === null || badge === false) return null;
@@ -508,13 +522,14 @@ export function BottomNav({
   const item = (link: BottomNavLink, index: number, held = false) => {
     const active = owns(link, selectedLink);
     const primary = index === centerIndex;
+    const slot = editable ? 'w-full' : SLOT_CLASS;
 
     if (primary) {
       return renderOne(link, {
         sub: false,
         className: cn(
-          // basis, not a fixed width: five items must still fit a 320px phone.
-          'relative flex w-16 min-w-0 flex-1 flex-col items-center justify-start pt-1.5',
+          slot,
+          'relative flex flex-col items-center justify-start pt-1.5',
           link.disabled && 'pointer-events-none opacity-40',
         ),
         content: (
@@ -541,7 +556,8 @@ export function BottomNav({
     return renderOne(link, {
       sub: false,
       className: cn(
-        'group relative flex w-16 min-w-0 flex-1 flex-col items-center gap-1 pb-1.5 pt-2',
+        slot,
+        'group relative flex flex-col items-center gap-1 pb-1.5 pt-2',
         held && 'rounded-xl bg-accent',
         link.disabled && 'pointer-events-none opacity-40',
       ),
@@ -687,7 +703,7 @@ export function BottomNav({
           getKey={(l) => l.key}
           onReorder={(next) => onReorder?.(next)}
           className={rowClass}
-          itemClassName="flex min-w-0 flex-1"
+          itemClassName={cn('flex', SLOT_CLASS)}
         >
           {(link, { index, held }) => item(link, index, held)}
         </HoldEditable>

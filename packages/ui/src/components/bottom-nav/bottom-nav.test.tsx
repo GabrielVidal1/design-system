@@ -90,6 +90,29 @@ describe('BottomNav', () => {
     });
   });
 
+  // jsdom lays nothing out, so this pins the structure that centres an icon:
+  // the row's flex item takes the equal share, and everything between it and
+  // the link spans it — a narrower box in between parks the icon off-centre.
+  describe.each([
+    ['a plain bar', false],
+    ['an editable bar', true],
+  ])('slots of %s', (_name, editable) => {
+    it.each([3, 5])('give each of %i links an equal share, the link spanning it', (count) => {
+      render(<BottomNav links={LINKS.slice(0, count)} editable={editable} onReorder={() => {}} />);
+      const row = document.querySelector('nav[data-bottom-nav]')!.lastElementChild!;
+      const links = screen.getAllByRole('link');
+      expect(links).toHaveLength(count);
+      for (const a of links) {
+        let el: Element = a;
+        while (el.parentElement !== row) {
+          expect(el).toHaveClass('w-full');
+          el = el.parentElement!;
+        }
+        expect(el).toHaveClass('min-w-0', 'flex-1');
+      }
+    });
+  });
+
   describe('sub-link drawer', () => {
     it('navigates on the first tap and opens on the second', async () => {
       const onNavigate = vi.fn();

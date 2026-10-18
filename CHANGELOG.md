@@ -157,6 +157,14 @@ last release → grouped bullets under Unreleased), then curate the prose.
   so deriving `tags` from it can't loop.
 
 ### Fixed
+- `BottomNav` — **an `editable` bar centres its icons.** In edit-capable mode
+  each link sits in a `HoldEditable` cell that takes the equal share of the
+  row, but the link inside kept its 64px width and hugged the cell's left
+  edge: every icon sat left of its slot's centre, by a few pixels on a
+  five-link bar and by about 30px on a three-link one, so the centre bubble
+  was visibly off the middle of the screen. The cell now carries the slot's
+  sizing and the link spans it; a plain bar is unchanged. The `links` docs
+  now also say to keep the count odd while the centre bubble is on.
 - `AnimatedList` — **scrolling no longer makes the rows jump.** Row positions
   were measured against the viewport, so any re-render after the page scrolled
   (a row with a ticking timer re-renders every second) read the scroll distance
