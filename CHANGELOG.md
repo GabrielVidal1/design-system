@@ -69,6 +69,18 @@ last release → grouped bullets under Unreleased), then curate the prose.
   library's first Data visualization primitive.
 
 ### Changed
+- `RichInput` un-send — **the composer locks instead of disappearing.** The
+  "Sent — tap to un-send" button that replaced the whole composer for the
+  3-second window is gone: the composer now stays in place showing the text,
+  attachments and tags that went out, read-only, while a wash sweeps across
+  it left → right and a "Sending… tap to cancel · 3s" label counts down. A
+  tap anywhere on it, or Escape, cancels and hands the draft back editable —
+  and the textarea keeps its focus throughout, so a phone keyboard never
+  drops. New `held` prop: a caller that runs its own un-send window (one that
+  must outlive the composer) locks the composer the same way, passing the
+  held text/files/tags, the window's `startedAt`/`durationMs` (a remount
+  mid-window resumes the sweep) and `onCancel`. New exported type
+  `RichHeldSend`.
 - `RichInput` auto-tag — **no more prompt in the text.** The travelling dashed
   ring and the ✓/✕ pair around a recognised word are gone: they were
   distracting, and often wrong. A tag whose trigger matched but is still off

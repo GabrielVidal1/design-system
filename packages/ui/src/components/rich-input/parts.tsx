@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   CornerDownRight,
   File as FileIcon,
@@ -523,23 +523,83 @@ export function SubmitErrorBanner({
   );
 }
 
-/* ── Un-send banner ──────────────────────────────────────────────────────── */
-export function UnsendBanner({
-  countdown,
-  onUndo,
+/* ── Un-send overlay ─────────────────────────────────────────────────────── */
+/**
+ * The lock laid over the composer while a send waits out its un-send window:
+ * the composer underneath keeps showing what went out, a primary wash sweeps
+ * across it left → right as the window runs down, and a tap anywhere on it
+ * takes the send back.
+ *
+ * Driven by the window's start and length rather than a ticking prop, so a
+ * composer that remounts mid-window (a caller-held send outliving its
+ * composer) resumes the sweep where it was. The sweep runs on the Web
+ * Animations API — no keyframes to ship in a stylesheet the consumer may not
+ * import.
+ */
+export function UnsendOverlay({
+  startedAt,
+  durationMs,
+  onCancel,
 }: {
-  countdown: number;
-  onUndo: () => void;
+  startedAt: number;
+  durationMs: number;
+  onCancel: () => void;
 }) {
+  const sweepRef = useRef<HTMLDivElement>(null);
+  const remaining = () => Math.max(0, startedAt + durationMs - Date.now());
+  const [left, setLeft] = useState(remaining);
+
+  useEffect(() => {
+    setLeft(remaining());
+    const id = setInterval(() => setLeft(remaining()), 200);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startedAt, durationMs]);
+
+  useLayoutEffect(() => {
+    const el = sweepRef.current;
+    if (!el || durationMs <= 0) return;
+    const elapsed = Math.min(durationMs, Math.max(0, Date.now() - startedAt));
+    if (typeof el.animate !== 'function') {
+      el.style.transform = `translateX(${(elapsed / durationMs) * 100 - 100}%)`;
+      return;
+    }
+    const anim = el.animate([{ transform: 'translateX(-100%)' }, { transform: 'translateX(0)' }], {
+      duration: durationMs,
+      easing: 'linear',
+      fill: 'forwards',
+    });
+    anim.currentTime = elapsed;
+    return () => anim.cancel();
+  }, [startedAt, durationMs]);
+
+  const seconds = Math.ceil(left / 1000);
   return (
     <button
       type="button"
-      onClick={onUndo}
-      className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-primary/15"
+      data-unsend-overlay=""
+      aria-label={`Sending in ${seconds}s — tap to cancel`}
+      // Keep the textarea's focus (and the phone keyboard) through the tap.
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={(e) => {
+        e.stopPropagation();
+        onCancel();
+      }}
+      className="absolute inset-0 z-30 cursor-pointer overflow-hidden rounded-2xl bg-card/30 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <Undo2 className="size-4" />
-      Sent — tap to un-send
-      <span className="font-mono tabular-nums text-muted-foreground">{countdown}s</span>
+      <div
+        ref={sweepRef}
+        aria-hidden
+        className="pointer-events-none absolute inset-0 border-r-2 border-primary/70 bg-primary/15"
+        style={{ transform: 'translateX(-100%)' }}
+      />
+      <span className="pointer-events-none absolute inset-0 flex items-center justify-center p-2">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm">
+          <Undo2 className="size-3.5 text-primary" />
+          Sending… tap to cancel ·
+          <span className="font-mono tabular-nums text-muted-foreground">{seconds}s</span>
+        </span>
+      </span>
     </button>
   );
 }

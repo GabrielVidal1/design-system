@@ -6,6 +6,7 @@ export type {
   MasterSwitchConfig,
   RichDraft,
   RichSendPayload,
+  RichHeldSend,
   RichSendButtonProps,
   RichInputHandle,
   ComposeInput,

@@ -34,7 +34,7 @@ import {
   SubmitErrorBanner,
   TagChips,
   TagScrollList,
-  UnsendBanner,
+  UnsendOverlay,
 } from './parts';
 import type {
   ComposeInput,
@@ -42,6 +42,7 @@ import type {
   RichTag,
   RichDraft,
   RichFile,
+  RichHeldSend,
   RichInputHandle,
   RichSendButtonProps,
   RichSendPayload,
@@ -100,8 +101,24 @@ export interface RichInputProps {
    * a dismissible notification above the composer (tap ✕ or swipe it away).
    */
   onSubmit?: (payload: RichSendPayload) => void | Promise<void>;
-  /** ms to hold a submission so it can be un-sent. 0 disables. Default 3000. */
+  /**
+   * ms to hold a submission so it can be un-sent. While held the composer
+   * locks — it keeps showing the text, attachments and tags that went out,
+   * read-only — and a wash sweeps across it left → right as the window runs
+   * down; a tap on it (or Escape) cancels the send and unlocks the composer
+   * with everything in place. 0 disables. Default 3000.
+   */
   undoWindowMs?: number;
+  /**
+   * Lock the composer under the un-send overlay for a send the *caller* holds
+   * — when its window must outlive the composer (a send that still fires after
+   * navigating away), the caller passes `undoWindowMs={0}`, runs its own timer
+   * and hands the held send here. The composer shows `text` / `files` / `tags`
+   * read-only and calls `onCancel` on a tap or Escape; putting the draft back
+   * is then the caller's job ({@link RichInputHandle.setValue} /
+   * `setFiles`). `null` / absent: nothing held.
+   */
+  held?: RichHeldSend | null;
   /** `'enter'` (default): Enter submits, Shift+Enter newline. `'mod+enter'`: ⌘/Ctrl+Enter submits. */
   submitKey?: 'enter' | 'mod+enter';
 
@@ -279,6 +296,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     onChange,
     onSubmit,
     undoWindowMs = 3000,
+    held: heldProp = null,
     submitKey = 'enter',
     cacheKey,
     cacheLocation = 'local',
@@ -335,7 +353,34 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
   const [sending, setSending] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const busy = disabled || files.uploading || sending;
+  // Un-send window: the submission waiting it out, and when it started (the
+  // overlay draws its sweep from that). A caller-held send (`held`) locks the
+  // composer the same way; the composer's own hold wins if both are set.
+  const [pending, setPending] = useState<{ payload: RichSendPayload; startedAt: number } | null>(
+    null,
+  );
+  const queueTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const busy = disabled || files.uploading || sending || pending != null || heldProp != null;
+
+  // What a locked composer shows: the held send, in place of the (already
+  // cleared) live draft. Keyed on the held content, not the `held` object — a
+  // caller rebuilding it every render must not re-derive the chip selection.
+  const isHeld = heldProp != null;
+  const heldText = heldProp?.text ?? '';
+  const heldFiles = heldProp?.files;
+  const heldTags = heldProp?.tags;
+  const heldView = useMemo(
+    () =>
+      pending
+        ? { text: pending.payload.text, files: pending.payload.files, tags: pending.payload.tags }
+        : isHeld
+          ? { text: heldText, files: heldFiles, tags: heldTags }
+          : null,
+    [pending, isHeld, heldText, heldFiles, heldTags],
+  );
+  const shownText = heldView ? heldView.text : value;
+  const shownFiles = heldView ? (heldView.files ?? []) : files.files;
 
   // A drop is just another way to pick files: useFileDrop only hands us the
   // dragged files (expanding folders), `files.add` still runs the accept /
@@ -404,12 +449,6 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
 
   // Reverse search (Ctrl+R).
   const [rsearch, setRsearch] = useState<{ query: string; match: string | null } | null>(null);
-
-  // Un-send window.
-  const [pending, setPending] = useState<RichSendPayload | null>(null);
-  const [countdown, setCountdown] = useState(0);
-  const queueTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const tickTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const setValue = useCallback(
     (v: string) => {
@@ -496,7 +535,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     el.style.height = `${Math.min(el.scrollHeight, maxRows * LINE_HEIGHT)}px`;
   }, [maxRows, fill]);
 
-  useLayoutEffect(measureHeight, [value, measureHeight]);
+  useLayoutEffect(measureHeight, [shownText, measureHeight]);
 
   // Re-measure when the composer's width changes: line wrapping — of the value
   // and of the placeholder, which Chrome counts into scrollHeight — depends on
@@ -518,9 +557,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
 
   const clearTimers = useCallback(() => {
     if (queueTimer.current) clearTimeout(queueTimer.current);
-    if (tickTimer.current) clearInterval(tickTimer.current);
     queueTimer.current = null;
-    tickTimer.current = null;
   }, []);
 
   useEffect(() => () => clearTimers(), [clearTimers]);
@@ -585,7 +622,16 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
   // them back. Selected chips don't count as content — default-on tags would
   // otherwise pin the rows open forever.
   const idle =
-    collapseWhenIdle && !focused && value.trim().length === 0 && files.files.length === 0;
+    collapseWhenIdle &&
+    !focused &&
+    !heldView &&
+    value.trim().length === 0 &&
+    files.files.length === 0;
+  // A locked composer shows the held send's tags as the selection.
+  const shownSelected = useMemo(
+    () => (heldView ? new Set((heldView.tags ?? []).map((t) => t.id)) : sel.selected),
+    [heldView, sel.selected],
+  );
 
   const buildPayload = useCallback((): RichSendPayload | null => {
     const base = value.trim();
@@ -647,9 +693,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
       return;
     }
     clearTimers();
-    setPending(payload);
-    setCountdown(Math.ceil(undoWindowMs / 1000));
-    tickTimer.current = setInterval(() => setCountdown((c) => Math.max(0, c - 1)), 1000);
+    setPending({ payload, startedAt: Date.now() });
     queueTimer.current = setTimeout(() => {
       clearTimers();
       setPending(null);
@@ -660,12 +704,19 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
   const cancelSend = useCallback((): RichSendPayload | null => {
     if (!queueTimer.current || !pending) return null;
     clearTimers();
-    const restored = pending;
+    const restored = pending.payload;
     setPending(null);
     restorePayload(restored);
     requestAnimationFrame(() => taRef.current?.focus());
     return restored;
   }, [pending, clearTimers, restorePayload]);
+
+  const lockCancel = pending ? () => void cancelSend() : heldProp?.onCancel;
+  const lockTiming = pending
+    ? { startedAt: pending.startedAt, durationMs: undoWindowMs }
+    : heldProp
+      ? { startedAt: heldProp.startedAt, durationMs: heldProp.durationMs }
+      : null;
 
   /* ── saved drafts ────────────────────────────────────────────────────────
    * The selection stored with a draft is the applied one plus any ids still
@@ -776,6 +827,11 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
   /* ── keyboard ────────────────────────────────────────────────────────── */
   const onKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
+      // Locked: nothing to edit or send (Escape is the card's, below).
+      if (heldView) {
+        if (e.key === 'Enter') e.preventDefault();
+        return;
+      }
       if (mention.onKeyDown(e)) return;
 
       if (e.ctrlKey && e.key.toLowerCase() === 'r' && historyEnabled) {
@@ -812,7 +868,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
         }
       }
     },
-    [mention, historyEnabled, openReverse, value.length, recallPrev, recallNext, hist.browsing, submitKey, coarse, submit],
+    [heldView, mention, historyEnabled, openReverse, value.length, recallPrev, recallNext, hist.browsing, submitKey, coarse, submit],
   );
 
   const canSend = (value.trim().length > 0 || files.files.length > 0) && !busy;
@@ -822,253 +878,270 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
       {submitError && (
         <SubmitErrorBanner message={submitError} onDismiss={() => setSubmitError(null)} />
       )}
-      {pending ? (
-        <UnsendBanner countdown={countdown} onUndo={cancelSend} />
-      ) : (
-        <div
-          {...drop.rootProps}
-          {...keepKeyboard.rootProps}
-          onFocus={() => setFocused(true)}
-          onBlur={(e) => {
-            // Focus-within: ignore blurs that land elsewhere inside the composer
-            // (textarea → chip → toolbar), only a real exit collapses the rows.
-            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false);
-          }}
-          className={cn(
-            'relative rounded-2xl border border-input bg-card p-2 transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40',
-            fill && 'flex min-h-0 flex-1 flex-col',
-            // Dim the contents, not the card: whole-element opacity would make
-            // the surface translucent and let whatever is behind bleed through.
-            disabled && '[&>*]:opacity-60',
-            drop.dragging && 'border-primary ring-2 ring-primary/40',
-          )}
-        >
-          {drop.dragging && (
-            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-primary/60 bg-card/80 text-xs font-medium text-primary">
-              <Upload className="size-4" />
-              Drop files to attach
-            </div>
-          )}
-
-          {rsearch ? (
-            <ReverseSearchBar
-              query={rsearch.query}
-              match={rsearch.match}
-              onQueryChange={reverseType}
-              onNext={reverseNext}
-              onAccept={reverseAccept}
-              onClose={() => setRsearch(null)}
-            />
-          ) : mention.open ? (
-            <MentionMenu
-              matches={mention.matches}
-              active={mention.active}
-              prefix={mentionPrefix}
-              onHover={mention.setActive}
-              onPick={mention.pick}
-            />
-          ) : null}
-
-          <AttachmentChips files={files.files} onRemove={files.remove} />
-
-          {/* The textarea and its auto-tag mirror (the marks) share one
-              positioning box. Present whether or not auto-tag is on, so the
-              box the textarea sizes itself in never differs between modes. */}
-          <div className={cn('relative overflow-hidden', fill && 'flex min-h-0 flex-1 flex-col')}>
-          <textarea
-            ref={taRef}
-            value={value}
-            disabled={disabled}
-            autoFocus={autoFocus}
-            placeholder={placeholder}
-            rows={minRows}
-            onChange={(e) => {
-              setValue(e.target.value);
-              hist.resetCursor();
-              mention.syncCaret();
-            }}
-            onSelect={mention.syncCaret}
-            onBlur={keepKeyboard.onTextareaBlur}
-            onKeyDown={onKeyDown}
-            onPaste={(e) => {
-              if (uploadFiles && e.clipboardData.files.length > 0) {
+      <div
+        {...drop.rootProps}
+        {...keepKeyboard.rootProps}
+        onKeyDown={
+          lockCancel
+            ? (e) => {
+                if (e.key !== 'Escape') return;
                 e.preventDefault();
-                void files.add(e.clipboardData.files);
+                lockCancel();
               }
-            }}
-            style={fill ? undefined : { maxHeight: maxRows * LINE_HEIGHT }}
-            className={cn(
-              // `relative` keeps the glyphs above the mirror's tints.
-              'relative w-full resize-none bg-transparent px-2 py-1 text-sm leading-[22px] text-foreground outline-none placeholder:text-muted-foreground',
-              fill && 'min-h-0 flex-1',
-            )}
+            : undefined
+        }
+        onFocus={() => setFocused(true)}
+        onBlur={(e) => {
+          // Focus-within: ignore blurs that land elsewhere inside the composer
+          // (textarea → chip → toolbar), only a real exit collapses the rows.
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false);
+        }}
+        className={cn(
+          'relative rounded-2xl border border-input bg-card p-2 transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40',
+          fill && 'flex min-h-0 flex-1 flex-col',
+          // Dim the contents, not the card: whole-element opacity would make
+          // the surface translucent and let whatever is behind bleed through.
+          // A locked composer is dimmed by its overlay instead.
+          disabled && !heldView && '[&>*]:opacity-60',
+          drop.dragging && 'border-primary ring-2 ring-primary/40',
+        )}
+      >
+        {lockTiming && lockCancel && (
+          <UnsendOverlay
+            startedAt={lockTiming.startedAt}
+            durationMs={lockTiming.durationMs}
+            onCancel={lockCancel}
           />
-            {autoTag !== false && (
-              <AutoTagOverlay
-                taRef={taRef}
-                value={value}
-                marks={auto.marks}
-              />
-            )}
+        )}
+
+        {drop.dragging && (
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-primary/60 bg-card/80 text-xs font-medium text-primary">
+            <Upload className="size-4" />
+            Drop files to attach
           </div>
+        )}
 
-          {!idle && (masterSwitch !== false || chipToggles.length > 0) && (
-            <div className="px-1 pt-1.5">
-              <TagChips
-                tags={chipsActive ? chipToggles : []}
-                selected={sel.selected}
-                highlighted={highlightedTagIds}
-                onToggle={toggleTag}
-                showMax={showMax}
-                expanded={expanded}
-                onExpand={() => setExpanded(true)}
-                leading={
-                  masterSwitch !== false ? (
-                    <MasterSwitch
-                      on={masterOn}
-                      config={masterConfig}
-                      onToggle={() => {
-                        touchTags();
-                        setMasterOn((v) => !v);
-                      }}
-                    />
-                  ) : undefined
-                }
-              />
-            </div>
+        {rsearch ? (
+          <ReverseSearchBar
+            query={rsearch.query}
+            match={rsearch.match}
+            onQueryChange={reverseType}
+            onNext={reverseNext}
+            onAccept={reverseAccept}
+            onClose={() => setRsearch(null)}
+          />
+        ) : mention.open ? (
+          <MentionMenu
+            matches={mention.matches}
+            active={mention.active}
+            prefix={mentionPrefix}
+            onHover={mention.setActive}
+            onPick={mention.pick}
+          />
+        ) : null}
+
+        <AttachmentChips files={shownFiles} onRemove={files.remove} />
+
+        {/* The textarea and its auto-tag mirror (the marks) share one
+            positioning box. Present whether or not auto-tag is on, so the
+            box the textarea sizes itself in never differs between modes. */}
+        <div className={cn('relative overflow-hidden', fill && 'flex min-h-0 flex-1 flex-col')}>
+        <textarea
+          ref={taRef}
+          value={shownText}
+          // Locked, not disabled: the textarea keeps its focus (and a phone
+          // its keyboard) through the window, so a cancel resumes typing.
+          readOnly={heldView != null}
+          disabled={disabled}
+          autoFocus={autoFocus}
+          placeholder={placeholder}
+          rows={minRows}
+          onChange={(e) => {
+            setValue(e.target.value);
+            hist.resetCursor();
+            mention.syncCaret();
+          }}
+          onSelect={mention.syncCaret}
+          onBlur={keepKeyboard.onTextareaBlur}
+          onKeyDown={onKeyDown}
+          onPaste={(e) => {
+            if (uploadFiles && e.clipboardData.files.length > 0) {
+              e.preventDefault();
+              void files.add(e.clipboardData.files);
+            }
+          }}
+          style={fill ? undefined : { maxHeight: maxRows * LINE_HEIGHT }}
+          className={cn(
+            // `relative` keeps the glyphs above the mirror's tints.
+            'relative w-full resize-none bg-transparent px-2 py-1 text-sm leading-[22px] text-foreground outline-none placeholder:text-muted-foreground',
+            fill && 'min-h-0 flex-1',
           )}
-
-          {!idle && listToggles.length > 0 && (
-            <div className="px-1 pt-1.5">
-              <TagScrollList
-                tags={listToggles}
-                selected={sel.selected}
-                highlighted={highlightedTagIds}
-                onToggle={toggleTag}
-                rows={tagListRows}
-                searchable={tagSearch}
-              />
-            </div>
-          )}
-
-          {files.error && <p className="px-2 pt-1 text-xs text-destructive">{files.error}</p>}
-
-          {filesEnabled && (
-            <input
-              ref={fileRef}
-              type="file"
-              multiple
-              accept={accept}
-              className="hidden"
-              onChange={(e) => void files.add(e.target.files)}
-              onClick={(e) => {
-                (e.currentTarget as HTMLInputElement).value = '';
-              }}
+        />
+          {autoTag !== false && !heldView && (
+            <AutoTagOverlay
+              taRef={taRef}
+              value={value}
+              marks={auto.marks}
             />
           )}
+        </div>
 
-          {(() => {
-            const attachNode = filesEnabled ? (
-              <IconButton
-                label="Attach files"
-                disabled={busy}
-                onClick={() => fileRef.current?.click()}
-              >
-                {files.uploading ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Paperclip className="size-4" />
-                )}
+        {!idle && (masterSwitch !== false || chipToggles.length > 0) && (
+          <div className="px-1 pt-1.5">
+            <TagChips
+              tags={chipsActive ? chipToggles : []}
+              selected={shownSelected}
+              highlighted={highlightedTagIds}
+              onToggle={toggleTag}
+              showMax={showMax}
+              expanded={expanded}
+              onExpand={() => setExpanded(true)}
+              leading={
+                masterSwitch !== false ? (
+                  <MasterSwitch
+                    on={masterOn}
+                    config={masterConfig}
+                    onToggle={() => {
+                      touchTags();
+                      setMasterOn((v) => !v);
+                    }}
+                  />
+                ) : undefined
+              }
+            />
+          </div>
+        )}
+
+        {!idle && listToggles.length > 0 && (
+          <div className="px-1 pt-1.5">
+            <TagScrollList
+              tags={listToggles}
+              selected={shownSelected}
+              highlighted={highlightedTagIds}
+              onToggle={toggleTag}
+              rows={tagListRows}
+              searchable={tagSearch}
+            />
+          </div>
+        )}
+
+        {files.error && <p className="px-2 pt-1 text-xs text-destructive">{files.error}</p>}
+
+        {filesEnabled && (
+          <input
+            ref={fileRef}
+            type="file"
+            multiple
+            accept={accept}
+            className="hidden"
+            onChange={(e) => void files.add(e.target.files)}
+            onClick={(e) => {
+              (e.currentTarget as HTMLInputElement).value = '';
+            }}
+          />
+        )}
+
+        {(() => {
+          const attachNode = filesEnabled ? (
+            <IconButton
+              label="Attach files"
+              disabled={busy}
+              onClick={() => fileRef.current?.click()}
+            >
+              {files.uploading ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Paperclip className="size-4" />
+              )}
+            </IconButton>
+          ) : null;
+          const historyNode =
+            historyEnabled && hist.entries.length > 0 ? (
+              <IconButton label="History" onClick={() => setSheetOpen(true)}>
+                <History className="size-4" />
               </IconButton>
             ) : null;
-            const historyNode =
-              historyEnabled && hist.entries.length > 0 ? (
-                <IconButton label="History" onClick={() => setSheetOpen(true)}>
-                  <History className="size-4" />
-                </IconButton>
-              ) : null;
-            const sendNode = renderSendButton ? (
-              renderSendButton({
-                canSend,
-                sending,
-                submit,
-                saveDraft,
-                ...(reorderKey
-                  ? { menuOpen: sendMenuOpen, onMenuOpenChange: setSendMenuOpen }
-                  : {}),
-              })
-            ) : (
-              <SendDraftButton
-                canSend={canSend}
-                sending={sending}
-                submit={submit}
-                onSaveDraft={draftsEnabled ? saveDraft : undefined}
-                {...(reorderKey ? { open: sendMenuOpen, onOpenChange: setSendMenuOpen } : {})}
-              />
-            );
-            const draftsNode = draftsEnabled ? (
-              <DraftsMenu
-                drafts={savedDrafts.drafts}
-                onPick={restoreDraft}
-                onDelete={savedDrafts.remove}
-              />
-            ) : null;
+          const sendNode = renderSendButton ? (
+            renderSendButton({
+              canSend,
+              sending,
+              submit,
+              saveDraft,
+              ...(reorderKey
+                ? { menuOpen: sendMenuOpen, onMenuOpenChange: setSendMenuOpen }
+                : {}),
+            })
+          ) : (
+            <SendDraftButton
+              canSend={canSend}
+              sending={sending}
+              submit={submit}
+              onSaveDraft={draftsEnabled ? saveDraft : undefined}
+              {...(reorderKey ? { open: sendMenuOpen, onOpenChange: setSendMenuOpen } : {})}
+            />
+          );
+          const draftsNode = draftsEnabled ? (
+            <DraftsMenu
+              drafts={savedDrafts.drafts}
+              onPick={restoreDraft}
+              onDelete={savedDrafts.remove}
+            />
+          ) : null;
 
-            if (!reorderKey)
-              return (
-                <div className="mt-1.5 flex items-center gap-1.5 px-1">
-                  {attachNode}
-                  {toolbarExtra}
-                  <div className="ml-auto flex items-center gap-1.5">
-                    {historyNode}
-                    {sendNode}
-                    {draftsNode}
-                  </div>
-                </div>
-              );
-
-            // Reorderable toolbar: every control is a HoldEditable entry, the
-            // classic left/right split lives on as the draggable spacer, and
-            // the send button's first-stage hold opens its draft menu.
-            const extraEntries: ToolbarEntry[] = toolbarExtraItems
-              ? toolbarExtraItems.map((it) => ({
-                  id: it.id,
-                  label: it.label,
-                  stashable: true,
-                  node: it.node,
-                }))
-              : toolbarExtra != null
-                ? [{ id: 'extra', label: 'Extras', stashable: true, node: toolbarExtra }]
-                : [];
-            const entries: ToolbarEntry[] = [
-              ...(attachNode
-                ? [{ id: 'attach', label: 'Attach', stashable: true, node: attachNode }]
-                : []),
-              ...extraEntries,
-              { id: 'spacer', label: 'Spacer', stashable: true, flex: true, node: null },
-              ...(historyNode
-                ? [{ id: 'history', label: 'History', stashable: true, node: historyNode }]
-                : []),
-              { id: 'send', label: 'Send', stashable: false, node: sendNode },
-              ...(draftsNode && savedDrafts.drafts.length > 0
-                ? [{ id: 'drafts', label: 'Drafts', stashable: true, node: draftsNode }]
-                : []),
-            ];
-            const sendHasMenu = renderSendButton !== undefined || draftsEnabled;
+          if (!reorderKey)
             return (
-              <ReorderableToolbar
-                storageKey={reorderKey}
-                entries={entries}
-                onEditStart={() => setSendMenuOpen(false)}
-                onItemHold={(e) => {
-                  if (e.id !== 'send' || !canSend || !sendHasMenu) return false;
-                  setSendMenuOpen(true);
-                }}
-              />
+              <div className="mt-1.5 flex items-center gap-1.5 px-1">
+                {attachNode}
+                {toolbarExtra}
+                <div className="ml-auto flex items-center gap-1.5">
+                  {historyNode}
+                  {sendNode}
+                  {draftsNode}
+                </div>
+              </div>
             );
-          })()}
-        </div>
-      )}
+
+          // Reorderable toolbar: every control is a HoldEditable entry, the
+          // classic left/right split lives on as the draggable spacer, and
+          // the send button's first-stage hold opens its draft menu.
+          const extraEntries: ToolbarEntry[] = toolbarExtraItems
+            ? toolbarExtraItems.map((it) => ({
+                id: it.id,
+                label: it.label,
+                stashable: true,
+                node: it.node,
+              }))
+            : toolbarExtra != null
+              ? [{ id: 'extra', label: 'Extras', stashable: true, node: toolbarExtra }]
+              : [];
+          const entries: ToolbarEntry[] = [
+            ...(attachNode
+              ? [{ id: 'attach', label: 'Attach', stashable: true, node: attachNode }]
+              : []),
+            ...extraEntries,
+            { id: 'spacer', label: 'Spacer', stashable: true, flex: true, node: null },
+            ...(historyNode
+              ? [{ id: 'history', label: 'History', stashable: true, node: historyNode }]
+              : []),
+            { id: 'send', label: 'Send', stashable: false, node: sendNode },
+            ...(draftsNode && savedDrafts.drafts.length > 0
+              ? [{ id: 'drafts', label: 'Drafts', stashable: true, node: draftsNode }]
+              : []),
+          ];
+          const sendHasMenu = renderSendButton !== undefined || draftsEnabled;
+          return (
+            <ReorderableToolbar
+              storageKey={reorderKey}
+              entries={entries}
+              onEditStart={() => setSendMenuOpen(false)}
+              onItemHold={(e) => {
+                if (e.id !== 'send' || !canSend || !sendHasMenu) return false;
+                setSendMenuOpen(true);
+              }}
+            />
+          );
+        })()}
+      </div>
 
       {sheetOpen && (
         <HistorySheet
