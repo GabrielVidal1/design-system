@@ -173,6 +173,13 @@ last release → grouped bullets under Unreleased), then curate the prose.
   so deriving `tags` from it can't loop.
 
 ### Fixed
+- `RichInput` drafts — **the last keystrokes are never dropped.** A draft is
+  saved a quarter-second after typing stops, and that pending write used to
+  die with its timer: switching a composer to another `cacheKey` (the same
+  composer reused for the next conversation), unmounting it, or reloading
+  within that quarter-second lost what was just typed. The pending write now
+  goes out at once on a key change, on unmount and on `pagehide` — and a
+  `clear()` (a send) cancels it, so a sent message never comes back as a draft.
 - `BottomNav` — **an `editable` bar centres its icons.** In edit-capable mode
   each link sits in a `HoldEditable` cell that takes the equal share of the
   row, but the link inside kept its 64px width and hugged the cell's left

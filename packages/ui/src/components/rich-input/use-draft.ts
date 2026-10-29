@@ -46,6 +46,17 @@ function parse(raw: string | null): { text: string; meta: DraftMeta | null } {
   return { text: raw, meta: null };
 }
 
+function write(key: string, text: string, meta: DraftMeta | null, where: Where) {
+  const s = store(where);
+  if (!s) return;
+  try {
+    if (text || meta) s.setItem(key, JSON.stringify({ text, ...(meta ?? {}) }));
+    else s.removeItem(key);
+  } catch {
+    /* best-effort */
+  }
+}
+
 function read(key: string | null, where: Where): { text: string; meta: DraftMeta | null } {
   const s = key ? store(where) : null;
   if (!s || !key) return { text: '', meta: null };
@@ -73,6 +84,11 @@ export interface Draft {
  * `rich-input:draft:<key>`; legacy plain-string drafts are still read. When
  * `key` is falsy the value is kept purely in memory. An empty draft removes
  * the stored key; changing `key` re-loads its draft.
+ *
+ * The debounce never drops a keystroke: what it still owes is written at once
+ * when `key` changes (a composer reused for another conversation), when the
+ * composer unmounts, and when the page goes away (`pagehide` — a reload, a
+ * closed tab, a phone backgrounding the app).
  */
 export function useDraft(
   key: string | null | undefined,
@@ -81,6 +97,8 @@ export function useDraft(
 ): Draft {
   const storageKey = key ? PREFIX + key : null;
   const [{ text, meta }, setState] = useState(() => read(storageKey, where));
+  // The write the debounce still owes — for the key it was typed under.
+  const owed = useRef<{ key: string; text: string; meta: DraftMeta | null } | null>(null);
 
   // Re-load when the key changes (reset during render, no effect flash).
   const prevKey = useRef(storageKey);
@@ -89,25 +107,34 @@ export function useDraft(
     setState(read(storageKey, where));
   }
 
+  const pay = useCallback(() => {
+    const w = owed.current;
+    owed.current = null;
+    if (w) write(w.key, w.text, w.meta, where);
+  }, [where]);
+
   useEffect(() => {
+    // The key changed under a pending write: that one is the old key's.
+    if (owed.current && owed.current.key !== storageKey) pay();
     if (!storageKey) return;
-    const s = store(where);
-    if (!s) return;
-    const t = window.setTimeout(() => {
-      try {
-        if (text || meta) s.setItem(storageKey, JSON.stringify({ text, ...(meta ?? {}) }));
-        else s.removeItem(storageKey);
-      } catch {
-        /* best-effort */
-      }
-    }, debounceMs);
+    owed.current = { key: storageKey, text, meta };
+    const t = window.setTimeout(pay, debounceMs);
     return () => window.clearTimeout(t);
-  }, [text, meta, storageKey, where, debounceMs]);
+  }, [text, meta, storageKey, debounceMs, pay]);
+
+  useEffect(() => {
+    window.addEventListener('pagehide', pay);
+    return () => {
+      window.removeEventListener('pagehide', pay);
+      pay(); // unmount
+    };
+  }, [pay]);
 
   const setText = useCallback((v: string) => setState((p) => ({ ...p, text: v })), []);
   const setMeta = useCallback((m: DraftMeta | null) => setState((p) => ({ ...p, meta: m })), []);
 
   const clear = useCallback(() => {
+    owed.current = null; // nothing typed before the clear may come back
     setState({ text: '', meta: null });
     if (!storageKey) return;
     try {
