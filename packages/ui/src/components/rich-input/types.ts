@@ -134,6 +134,29 @@ export interface RichSendPayload {
   tags: RichTag[];
 }
 
+/**
+ * A send held in its un-send window by the *caller* rather than by the
+ * composer ({@link RichInputProps.held}): what to show locked under the
+ * overlay, and where the window stands.
+ */
+export interface RichHeldSend {
+  /** The text that went out — shown read-only in the composer while held. */
+  text: string;
+  /** Its attachments. */
+  files?: RichFile[];
+  /** Its active tags — shown selected in the chip rows. */
+  tags?: RichTag[];
+  /**
+   * When the window opened (`Date.now()` ms). The sweep is drawn from it, so a
+   * composer that remounts mid-window picks the progress up where it was.
+   */
+  startedAt: number;
+  /** The window's length in ms. */
+  durationMs: number;
+  /** Tap on the overlay (or Escape in the composer): take the send back. */
+  onCancel: () => void;
+}
+
 /** Inputs handed to a custom {@link RichInputProps.composePrompt}. */
 export interface ComposeInput {
   text: string;

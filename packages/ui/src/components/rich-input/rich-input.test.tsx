@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { RichInput } from './rich-input';
 import type { RichTag, RichSendButtonProps, RichSendPayload } from './types';
@@ -600,5 +600,108 @@ describe('RichInput on-screen keyboard', () => {
     expect(ta).toHaveAttribute('inputmode', 'none');
     ta.blur();
     expect(ta).not.toHaveAttribute('inputmode');
+  });
+});
+
+describe('RichInput un-send lock', () => {
+  afterEach(() => vi.useRealTimers());
+
+  const cancelButton = () => screen.getByRole('button', { name: /tap to cancel/ });
+
+  it('locks the composer on the sent text and fires once the window runs out', () => {
+    vi.useFakeTimers();
+    const sent: RichSendPayload[] = [];
+    render(
+      <RichInput
+        undoWindowMs={3000}
+        onSubmit={(p) => void sent.push(p)}
+        renderSendButton={(p) => <TestSendButton {...p} />}
+      />,
+    );
+    const ta = screen.getByRole('textbox');
+    fireEvent.change(ta, { target: { value: 'hello' } });
+    fireEvent.click(screen.getByRole('button', { name: 'send-now' }));
+
+    // Held: the text stays, read-only, under the overlay — nothing went out.
+    expect(ta).toHaveValue('hello');
+    expect(ta).toHaveAttribute('readonly');
+    expect(cancelButton()).toHaveAccessibleName(/3s/);
+    expect(screen.getByRole('button', { name: 'send-now' })).toBeDisabled();
+    expect(sent).toHaveLength(0);
+
+    act(() => vi.advanceTimersByTime(3000));
+    expect(sent.map((p) => p.text)).toEqual(['hello']);
+    expect(ta).toHaveValue('');
+    expect(ta).not.toHaveAttribute('readonly');
+    expect(screen.queryByRole('button', { name: /tap to cancel/ })).toBeNull();
+  });
+
+  it('a tap on the overlay cancels: the draft is editable again and never sent', () => {
+    vi.useFakeTimers();
+    const sent: RichSendPayload[] = [];
+    render(
+      <RichInput
+        undoWindowMs={3000}
+        tags={TAGS}
+        onSubmit={(p) => void sent.push(p)}
+        renderSendButton={(p) => <TestSendButton {...p} />}
+      />,
+    );
+    const ta = screen.getByRole('textbox');
+    fireEvent.change(ta, { target: { value: 'take it back' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Careful' }));
+    fireEvent.click(screen.getByRole('button', { name: 'send-now' }));
+
+    // The chip it went out with still reads as selected while held.
+    expect(screen.getByRole('button', { name: 'Careful' })).toHaveAttribute('aria-pressed', 'true');
+
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(cancelButton());
+    expect(ta).toHaveValue('take it back');
+    expect(ta).not.toHaveAttribute('readonly');
+    expect(screen.getByRole('button', { name: 'Careful' })).toHaveAttribute('aria-pressed', 'true');
+
+    act(() => vi.advanceTimersByTime(5000));
+    expect(sent).toHaveLength(0);
+  });
+
+  it('Escape cancels the held send', () => {
+    vi.useFakeTimers();
+    const onSubmit = vi.fn();
+    render(
+      <RichInput
+        undoWindowMs={3000}
+        onSubmit={onSubmit}
+        renderSendButton={(p) => <TestSendButton {...p} />}
+      />,
+    );
+    const ta = screen.getByRole('textbox');
+    fireEvent.change(ta, { target: { value: 'oops' } });
+    fireEvent.click(screen.getByRole('button', { name: 'send-now' }));
+    fireEvent.keyDown(ta, { key: 'Escape' });
+
+    expect(ta).toHaveValue('oops');
+    expect(screen.queryByRole('button', { name: /tap to cancel/ })).toBeNull();
+    act(() => vi.advanceTimersByTime(5000));
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('locks on a caller-held send and resumes its sweep from `startedAt`', () => {
+    vi.useFakeTimers();
+    const onCancel = vi.fn();
+    render(
+      <RichInput
+        undoWindowMs={0}
+        held={{ text: 'held outside', startedAt: Date.now() - 2000, durationMs: 3000, onCancel }}
+      />,
+    );
+    const ta = screen.getByRole('textbox');
+    expect(ta).toHaveValue('held outside');
+    expect(ta).toHaveAttribute('readonly');
+    // Two of the three seconds were already spent before this mount.
+    expect(cancelButton()).toHaveAccessibleName(/1s/);
+
+    fireEvent.click(cancelButton());
+    expect(onCancel).toHaveBeenCalledTimes(1);
   });
 });

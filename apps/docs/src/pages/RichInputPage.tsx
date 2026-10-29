@@ -250,11 +250,15 @@ function UnsendDemo() {
       }
     >
       <Lede>
-        On submit the message is held for 3 seconds behind a "tap to un-send" banner — the{' '}
-        <span className="mono text-foreground">onSubmit</span> only fires once the countdown
-        elapses. The imperative <span className="mono text-foreground">cancelSend()</span> (exposed
-        via <span className="mono text-foreground">forwardRef</span>) restores the exact text, files
-        and tags. Press <span className="mono text-foreground">Enter</span> to send,{' '}
+        On submit the composer locks on what was sent and a wash sweeps across it for 3 seconds
+        — the <span className="mono text-foreground">onSubmit</span> only fires once it has
+        filled. Tap the composer (or press <span className="mono text-foreground">Esc</span>) to
+        cancel: the text, files and tags are back, editable. The imperative{' '}
+        <span className="mono text-foreground">cancelSend()</span> (exposed via{' '}
+        <span className="mono text-foreground">forwardRef</span>) does the same, and a caller
+        running its own window locks the composer through{' '}
+        <span className="mono text-foreground">held</span>. Press{' '}
+        <span className="mono text-foreground">Enter</span> to send,{' '}
         <span className="mono text-foreground">Shift+Enter</span> for a newline.
       </Lede>
       <RichInput
