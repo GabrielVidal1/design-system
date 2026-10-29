@@ -69,6 +69,10 @@ last release → grouped bullets under Unreleased), then curate the prose.
   library's first Data visualization primitive.
 
 ### Changed
+- `RichInput` un-send — the lock's sweep **eases out** (quart) instead of
+  running linearly: about 80 % across in the first second, then a slow last
+  stretch to full exactly when the send fires — the message reads as on its
+  way at once, and the end of the window still leaves room to take it back.
 - `RichInput` un-send — **the composer locks instead of disappearing.** The
   "Sent — tap to un-send" button that replaced the whole composer for the
   3-second window is gone: the composer now stays in place showing the text,
