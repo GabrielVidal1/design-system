@@ -525,10 +525,19 @@ export function SubmitErrorBanner({
 
 /* ── Un-send overlay ─────────────────────────────────────────────────────── */
 /**
+ * The sweep's progression: ease-out quart — about 80 % across in the first
+ * second, then a slow last stretch to full exactly when the send fires. The
+ * send reads as already on its way while the end of the window still leaves
+ * room to take it back.
+ */
+const UNSEND_EASING = 'cubic-bezier(0.25, 1, 0.5, 1)';
+
+/**
  * The lock laid over the composer while a send waits out its un-send window:
  * the composer underneath keeps showing what went out, a primary wash sweeps
- * across it left → right as the window runs down, and a tap anywhere on it
- * takes the send back.
+ * across it left → right as the window runs down (fast at first, easing into
+ * the send — {@link UNSEND_EASING}), and a tap anywhere on it takes the send
+ * back.
  *
  * Driven by the window's start and length rather than a ticking prop, so a
  * composer that remounts mid-window (a caller-held send outliving its
@@ -561,12 +570,13 @@ export function UnsendOverlay({
     if (!el || durationMs <= 0) return;
     const elapsed = Math.min(durationMs, Math.max(0, Date.now() - startedAt));
     if (typeof el.animate !== 'function') {
+      // No Web Animations (jsdom): a static, linear snapshot is enough.
       el.style.transform = `translateX(${(elapsed / durationMs) * 100 - 100}%)`;
       return;
     }
     const anim = el.animate([{ transform: 'translateX(-100%)' }, { transform: 'translateX(0)' }], {
       duration: durationMs,
-      easing: 'linear',
+      easing: UNSEND_EASING,
       fill: 'forwards',
     });
     anim.currentTime = elapsed;
