@@ -97,4 +97,35 @@ describe('CharRoll roll timing (real barrel: one character rests at a time)', ()
     rerender(<CharRoll value="4" data-testid="roll" />); // 1 step
     expect(lastEasing(spy)).not.toMatch(/^steps/);
   });
+
+  it('retries with the smooth ease when the engine rejects steps() easing', () => {
+    const spy = vi.fn((_k: Keyframe[], opts: KeyframeAnimationOptions) => {
+      if (String(opts.easing).startsWith('steps(')) {
+        throw new TypeError(`Unsupported animation easing: ${opts.easing}`);
+      }
+      return { cancel: () => {} } as unknown as Animation;
+    });
+    Element.prototype.animate = spy;
+    const { rerender } = render(<CharRoll value="3" data-testid="roll" />);
+    expect(() => rerender(<CharRoll value="7" data-testid="roll" />)).not.toThrow();
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(spy.mock.calls[0][1].easing).toBe('steps(4, end)');
+    expect(lastEasing(spy)).toBe('cubic-bezier(0.23, 1, 0.32, 1)');
+    expect(screen.getByTestId('roll')).toHaveAttribute('aria-label', '7');
+  });
+
+  it('skips the roll and still shows the new value when animate always throws', () => {
+    const spy = vi.fn(() => {
+      throw new TypeError('Unsupported animation');
+    });
+    Element.prototype.animate = spy;
+    const { rerender } = render(<CharRoll value="3" data-testid="roll" />);
+    expect(() => rerender(<CharRoll value="7" data-testid="roll" />)).not.toThrow();
+    expect(spy).toHaveBeenCalledTimes(2);
+    const el = screen.getByTestId('roll');
+    expect(el).toHaveAttribute('aria-label', '7');
+    // The strip rests on its top cell — the new character.
+    const strip = el.querySelector(':scope > span > span:last-child');
+    expect(strip?.firstElementChild?.textContent).toBe('7');
+  });
 });

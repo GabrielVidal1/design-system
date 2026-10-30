@@ -136,14 +136,29 @@ function Cell({ spec, gen, duration, animate }: CellProps) {
     // no intermediate character to hold on, so it keeps the smooth ease —
     // steps(1, end) would just be a jump-cut.
     const easing = steps > 1 ? `steps(${steps}, end)` : EASE_OUT;
-    const anim = el.animate(
-      [
-        { transform: `translateY(${-(steps / (steps + 1)) * 100}%)` },
-        { transform: 'translateY(0%)' },
-      ],
-      { duration, delay: spec.delay, easing, fill: 'backwards' },
-    );
-    return () => anim.cancel();
+    const roll = (e: string) =>
+      el.animate(
+        [
+          { transform: `translateY(${-(steps / (steps + 1)) * 100}%)` },
+          { transform: 'translateY(0%)' },
+        ],
+        { duration, delay: spec.delay, easing: e, fill: 'backwards' },
+      );
+    // Engines without `steps()` support (e.g. the Obscura headless browser)
+    // throw from animate() — uncaught in a layout effect, that unmounted the
+    // whole host app. Retry with the smooth ease; if that throws too, skip
+    // the roll: the strip already rests on the new character.
+    let anim: Animation | undefined;
+    try {
+      anim = roll(easing);
+    } catch {
+      try {
+        if (easing !== EASE_OUT) anim = roll(EASE_OUT);
+      } catch {
+        anim = undefined;
+      }
+    }
+    return () => anim?.cancel();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [strip]);
 
