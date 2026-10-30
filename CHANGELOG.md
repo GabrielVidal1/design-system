@@ -18,6 +18,18 @@ last release → grouped bullets under Unreleased), then curate the prose.
 > Confirm without leaving the page — and a hold that knows what it landed on.
 
 ### Added
+- `ProgressiveList` — **a live feed catches up to now instead of replaying
+  what you missed.** Give it `getTimestamp` (when each row happened) and it
+  never falls more than `maxLag` (default 5 s) behind real time. Whenever a
+  row's turn comes (at mount, as rows are appended, or once the row ahead
+  finishes typing), every pending row that is already older than that shows at
+  once, like history (`isNew: false`), and only the last few seconds animate.
+  A feed reopened from a stale cache, a refetch that lands a backlog, or a tab
+  that slept in the background used to reveal every missed row in turn;
+  `timestamp`/`catchUp` couldn't help, because they only act at mount. The
+  ProgressiveList page has a demo of a 30-second backlog.
+- `makeCatchUpClock` — `realElapsedFor(virtualMs)`, the inverse of
+  `virtualElapsed`: when a given point of the eased catch-up is reached.
 - `AudioPlayer` — a compact voice-note-style audio player: a play/pause disc,
   a seekable peak waveform that fills as it plays, elapsed/total time and a
   playback-speed pill, in one touch-first row. Feed it any audio URL or the
@@ -173,6 +185,11 @@ last release → grouped bullets under Unreleased), then curate the prose.
   so deriving `tags` from it can't loop.
 
 ### Fixed
+- `ProgressiveText` with `catchUp` — **the next row no longer waits out the
+  ramp at live speed.** The reveal reported its remaining backlog as if it
+  typed at 1×, so inside a `ProgressiveList` the following row appeared up to
+  a full ramp after the text had already finished. It now reports when its
+  last character actually lands on the eased clock.
 - `CharRoll` — **no longer crashes the app in browsers that reject `steps()`
   animation easing.** An engine without `steps()` support (the Obscura
   headless browser, for one) threw from the roll's animation, and since that

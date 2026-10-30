@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useRef, useState, type Key, type ReactNode, type Ref } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type Key,
+  type ReactNode,
+  type Ref,
+} from 'react';
 
 import { normalizeCatchUp, type CatchUpConfig } from '../../lib/catch-up';
 import { cn } from '../../lib/utils';
@@ -51,6 +60,26 @@ export interface ProgressiveListProps<T> {
    * (`{ ms, window?, easing? }`) tunes it. `0` / omitted keeps the instant jump.
    */
   catchUp?: CatchUpConfig;
+  /**
+   * When each item *happened*, as wall-clock time (a `Date` or epoch ms) — a
+   * chat message's send time, a log line's stamp. With it the reveal never falls
+   * more than {@link maxLag} behind real time: whenever the timeline is about to
+   * reveal a row (at mount, as items are appended, or once the row ahead finishes
+   * its own animation), every pending row already older than `now − maxLag` is
+   * shown at once — like history, with `isNew: false` — and only the rows inside
+   * that window animate. So a feed reopened from a stale cache, a refetch that
+   * lands a backlog, or a tab that slept in the background catches up to now
+   * instead of replaying everything it missed one row at a time. Unlike
+   * `timestamp` (one anchor, read once at mount), this is checked on every step.
+   * Return `null`/`undefined` for a row with no time — it animates as usual.
+   */
+  getTimestamp?: (item: T, index: number) => Date | number | null | undefined;
+  /**
+   * How far behind real time (ms) the reveal may fall before {@link getTimestamp}
+   * catches it up. Keep it above the feed's delivery latency, or rows that
+   * arrive a little late would never animate. @default 5000
+   */
+  maxLag?: number;
   /** Stable key per item. @default the index */
   getKey?: (item: T, index: number) => Key;
   /**
@@ -91,7 +120,9 @@ function reducedMotion(): boolean {
  *
  * Pass a `timestamp` to anchor the reveal to wall-clock time: on remount the
  * list resumes at the row it should be at (and back-dates each animating row's
- * anchor), so the sequence stays consistent across page changes.
+ * anchor), so the sequence stays consistent across page changes. For a live
+ * feed whose rows carry their own times, pass `getTimestamp` instead: the reveal
+ * then never lags more than `maxLag` behind now — late rows land at once.
  *
  * @summary Staggered reveal of list items on the shared progressive timeline.
  */
@@ -103,6 +134,8 @@ export function ProgressiveList<T>({
   getDelay,
   timestamp,
   catchUp,
+  getTimestamp,
+  maxLag = 5000,
   getKey,
   initialReveal,
   instant = false,
@@ -174,12 +207,17 @@ export function ProgressiveList<T>({
   // Catch-up back-dates the head, so every skipped-over row is already complete.
   const [completed, setCompleted] = useState(Math.max(0, initialRevealed.current - 1 - initialCount));
   const handleComplete = useCallback(() => setCompleted((c) => c + 1), []);
+  // Rows the lag limit (`getTimestamp` + `maxLag`) landed at once: rendered like
+  // history, with no timeline slot. A Set, so re-adding a row is a no-op.
+  const [caught, setCaught] = useState<ReadonlySet<number>>(() => new Set());
 
   // Latest values read by the reveal scheduler without forcing it to reschedule.
   const itemsRef = useRef(items);
   itemsRef.current = items;
   const getDelayRef = useRef(getDelay);
   getDelayRef.current = getDelay;
+  const getTimestampRef = useRef(getTimestamp);
+  getTimestampRef.current = getTimestamp;
 
   // Cumulative fallback offset (ms) of animating row i from the anchor — used to
   // back-date each slot's own wall-clock start so its inner animation resumes at
@@ -193,14 +231,39 @@ export function ProgressiveList<T>({
 
   // Advance the timeline: reveal the next item only once every already-revealed
   // animating slot has completed its inner animation (or its fallback elapsed).
-  useEffect(() => {
+  // A layout effect, so rows the lag limit lands at once are in before paint —
+  // a refetched backlog never flashes a frame without them.
+  useLayoutEffect(() => {
     if (skip) {
       if (revealed !== items.length) setRevealed(items.length);
       return;
     }
     if (revealed >= items.length) return;
-    const animatingShown = revealed - initialCount;
+    // Slots shown so far (lag-landed rows have none).
+    const animatingShown = revealed - initialCount - caught.size;
     if (completed < animatingShown) return; // the current head is still animating
+    // Lag limit: the rows from here on that happened more than `maxLag` ago land
+    // at once instead of queueing behind each other's animations.
+    const stampOf = getTimestampRef.current;
+    if (stampOf) {
+      const cutoff = Date.now() - Math.max(0, maxLag);
+      let end = revealed;
+      while (end < items.length) {
+        const at = toEpochMs(stampOf(itemsRef.current[end], end));
+        if (at == null || at >= cutoff) break;
+        end++;
+      }
+      if (end > revealed) {
+        const from = revealed;
+        setCaught((prev) => {
+          const next = new Set(prev);
+          for (let i = from; i < end; i++) next.add(i);
+          return next;
+        });
+        setRevealed((r) => Math.max(r, end));
+        return;
+      }
+    }
     // First item of a fresh batch waits the lead-in `delay`; the rest chain off
     // completions, so their spacing comes from each row's own inner animation.
     // (An anchored list already fast-forwarded past the lead-in at mount.)
@@ -210,7 +273,7 @@ export function ProgressiveList<T>({
       wait,
     );
     return () => window.clearTimeout(t);
-  }, [revealed, completed, items.length, skip, delay, initialCount, anchor]);
+  }, [revealed, completed, caught, items.length, skip, delay, initialCount, anchor, maxLag]);
 
   const headIndex = revealed - 1; // the one currently animating
 
@@ -218,7 +281,7 @@ export function ProgressiveList<T>({
     <div ref={containerRef} className={className}>
       {items.slice(0, revealed).map((item, i) => {
         const key = getKey ? getKey(item, i) : i;
-        const isNew = i >= initialCount;
+        const isNew = i >= initialCount && !caught.has(i);
         const content = children(item, i, { isNew });
 
         // Historical / instant rows: no timeline slot, a bare keyed child so the

@@ -98,4 +98,24 @@ describe('makeCatchUpClock', () => {
     expect(c.virtualElapsed(0)).toBeCloseTo(0, 6);
     expect(c.virtualElapsed(600)).toBeCloseTo(900, 6); // 300 backlog + 600 real
   });
+
+  it('realElapsedFor inverts the clock: snapped content is due at once, the rest on the ramp', () => {
+    const c = makeCatchUpClock(5000, 600); // seed 3800, ramp ends at virtual 5600
+    expect(c.realElapsedFor(3000)).toBe(0); // inside the snapped seed
+    expect(c.realElapsedFor(5600)).toBeCloseTo(600, 0); // the ramp's end
+    expect(c.realElapsedFor(8000)).toBeCloseTo(3000, 6); // then live: virtual − backlog
+    for (const v of [3900, 4400, 5000, 5500]) {
+      const r = c.realElapsedFor(v);
+      expect(r).toBeGreaterThan(0);
+      expect(r).toBeLessThan(600);
+      expect(c.virtualElapsed(r)).toBeGreaterThanOrEqual(v);
+      expect(c.virtualElapsed(Math.max(0, r - 1))).toBeLessThan(v);
+    }
+  });
+
+  it('realElapsedFor without easing is the remaining live time', () => {
+    const c = makeCatchUpClock(2000, 0);
+    expect(c.realElapsedFor(1500)).toBe(0);
+    expect(c.realElapsedFor(2600)).toBe(600);
+  });
 });

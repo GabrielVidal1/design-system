@@ -1,6 +1,7 @@
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { ProgressiveTimelineSlot } from '../progressive-timeline';
 import { ProgressiveText } from './progressive-text';
 
 /**
@@ -105,5 +106,28 @@ describe('ProgressiveText eased catch-up seed', () => {
       <ProgressiveText text={LONG} speed={10} timestamp={now - 200} catchUp={200} />,
     );
     expect(container.textContent).toBe('');
+  });
+});
+
+describe('ProgressiveText catchUp hand-off', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('reports the eased duration, so its slot hands off when the text lands', () => {
+    vi.useFakeTimers();
+    const now = 1_000_000_000;
+    vi.setSystemTime(now);
+    const onComplete = vi.fn();
+    // 100 chars at 10 cps = 10 s of typing, started 2 s ago. catchUp 600 ms
+    // (window 1200): 800 ms snapped, 1200 ms eased over 600 ms, then live — so
+    // the last char lands 10000 − 2000 = 8000 ms from now (not 9200 at 1×).
+    render(
+      <ProgressiveTimelineSlot active fallbackMs={0} onComplete={onComplete}>
+        <ProgressiveText text={'x'.repeat(100)} speed={10} timestamp={now - 2000} catchUp={600} />
+      </ProgressiveTimelineSlot>,
+    );
+    act(() => vi.advanceTimersByTime(7900));
+    expect(onComplete).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(200));
+    expect(onComplete).toHaveBeenCalledTimes(1);
   });
 });
