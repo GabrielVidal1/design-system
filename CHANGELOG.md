@@ -173,6 +173,12 @@ last release → grouped bullets under Unreleased), then curate the prose.
   so deriving `tags` from it can't loop.
 
 ### Fixed
+- `CharRoll` — **no longer crashes the app in browsers that reject `steps()`
+  animation easing.** An engine without `steps()` support (the Obscura
+  headless browser, for one) threw from the roll's animation, and since that
+  happened during layout the error unmounted the whole host app — a blank
+  page. The roll now falls back to a smooth ease, and if the browser rejects
+  that too it simply shows the new value without rolling.
 - `RichInput` drafts — **the last keystrokes are never dropped.** A draft is
   saved a quarter-second after typing stops, and that pending write used to
   die with its timer: switching a composer to another `cacheKey` (the same
