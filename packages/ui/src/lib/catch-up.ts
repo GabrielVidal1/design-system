@@ -83,6 +83,13 @@ export interface CatchUpClock {
    * still-growing (streaming) reveal is never double-counted.
    */
   virtualElapsed(realMs: number): number;
+  /**
+   * The inverse: real ms after mount at which `virtualMs` of animation is shown
+   * (`0` if the snapped seed already covers it). This is what a reveal that eases
+   * through its backlog should report as its remaining duration — the ramp
+   * plays faster than 1×, so `content ÷ speed` overstates it.
+   */
+  realElapsedFor(virtualMs: number): number;
 }
 
 /**
@@ -111,20 +118,38 @@ export function makeCatchUpClock(backlogMs: number, config: CatchUpConfig | unde
       seedMs: backlog,
       backlogMs: backlog,
       virtualElapsed: (realMs) => backlog + Math.max(0, realMs),
+      realElapsedFor: (virtualMs) => Math.max(0, virtualMs - backlog),
     };
   }
 
   const easedWindow = Math.min(window, backlog);
   const seed = backlog - easedWindow; // snapped instantly at mount
 
+  const virtualElapsed = (realMs: number) => {
+    const r = Math.max(0, realMs);
+    const p = r >= ms ? 1 : easing(r / ms);
+    return seed + r + easedWindow * p;
+  };
+
   return {
     easing: true,
     seedMs: seed,
     backlogMs: backlog,
-    virtualElapsed: (realMs) => {
-      const r = Math.max(0, realMs);
-      const p = r >= ms ? 1 : easing(r / ms);
-      return seed + r + easedWindow * p;
+    virtualElapsed,
+    realElapsedFor: (virtualMs) => {
+      if (virtualMs <= seed) return 0;
+      // Past the ramp the clock runs at 1× from `backlog + ms`.
+      if (virtualMs >= backlog + ms) return virtualMs - backlog;
+      // Inside the ramp: virtualElapsed is monotonic and ≥ seed + r, so bisect
+      // on [0, ms] (any easing, no closed form needed).
+      let lo = 0;
+      let hi = ms;
+      for (let i = 0; i < 32 && hi - lo > 0.5; i++) {
+        const mid = (lo + hi) / 2;
+        if (virtualElapsed(mid) >= virtualMs) hi = mid;
+        else lo = mid;
+      }
+      return hi;
     },
   };
 }

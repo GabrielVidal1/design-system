@@ -145,6 +145,7 @@ export function ProgressiveText({
     seedLen: number; // chars snapped instantly at mount (the instant part)
     clock: ReturnType<typeof makeCatchUpClock>;
     easing: boolean; // an eased ramp is (or was) in play — drive off the clock
+    rampStart: number; // rAF timestamp the ramp began at (0 = not yet)
   } | null>(null);
   if (catchUpState.current === null) {
     const anchor = toEpochMs(timestamp);
@@ -153,7 +154,7 @@ export function ProgressiveText({
     const cfg = catchUp ?? slot.catchUp;
     const clock = makeCatchUpClock(backlogMs, cfg);
     const seedLen = skip ? 0 : Math.min(text.length, Math.floor(clock.seedMs / interval));
-    catchUpState.current = { seedLen, clock, easing: clock.easing };
+    catchUpState.current = { seedLen, clock, easing: clock.easing, rampStart: 0 };
   }
   const seedLen = catchUpState.current.seedLen;
 
@@ -220,7 +221,7 @@ export function ProgressiveText({
       const behind = visibleRef.current.length < tgt0.length;
       const notDeleting = visibleRef.current === tgt0.slice(0, visibleRef.current.length);
       if (cs.easing && catchStart >= 0 && behind && notDeleting) {
-        if (catchStart === 0) catchStart = ts;
+        if (catchStart === 0) catchStart = cs.rampStart = ts;
         const virtual = cs.clock.virtualElapsed(ts - catchStart);
         const dueLen = Math.min(tgt0.length, Math.floor(virtual / typeIv));
         if (dueLen > visibleRef.current.length) {
@@ -307,7 +308,17 @@ export function ProgressiveText({
     // Constant rate ⇒ the reveal takes delay + (length / speed). Report the
     // *remaining* time (a catch-up jump/ramp already consumed part of it), so an
     // anchored ProgressiveList delays the next item by only what's left to type.
-    const remaining = Math.max(0, text.length - visibleRef.current.length) * interval;
+    // While the eased ramp is in play it runs faster than 1×: ask its clock when
+    // the last character lands, or the slot would hold the next row for the
+    // whole backlog window at live speed after the text had already finished.
+    const cs = catchUpState.current!;
+    const remaining = cs.easing
+      ? Math.max(
+          0,
+          cs.clock.realElapsedFor(text.length * interval) -
+            (cs.rampStart > 0 ? performance.now() - cs.rampStart : 0),
+        )
+      : Math.max(0, text.length - visibleRef.current.length) * interval;
     const lead = startedRef.current ? 0 : Math.max(0, delay) * 1000;
     slotRef.current.report(lead + remaining);
     kickRef.current();

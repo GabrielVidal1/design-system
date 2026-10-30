@@ -907,7 +907,7 @@ open(media, { story: true })      // auto-advancing story + progress bar`,
   {
     id: 'progressive-list',
     name: 'ProgressiveList',
-    sig: '<T>(items, speed, delay, getDelay?)',
+    sig: '<T>(items, speed, delay, getDelay?, getTimestamp?, maxLag?)',
     tag: 'animation',
     Icon: ProgressiveListIcon,
     Demo: ProgressiveListDemo,
@@ -930,6 +930,13 @@ const { active, report, finish } = useProgressiveSlot()
 // EASE the held-back rows in (whoosh) instead of snapping past them.
 <ProgressiveList items={rows} initialReveal={0} timestamp={startedAt} catchUp={700}>
   {(row, i, { isNew }) => <ProgressiveText text={row.text} instant={!isNew} />}
+</ProgressiveList>
+
+// getTimestamp: a live feed whose rows carry their own time never
+// lags more than maxLag behind now — a backlog (stale cache, a tab
+// that slept) lands at once as history; only the last seconds animate.
+<ProgressiveList items={messages} getTimestamp={(m) => m.sentAt} maxLag={5000}>
+  {(m, i, { isNew }) => <ProgressiveText text={m.text} instant={!isNew} />}
 </ProgressiveList>`,
   },
   {
@@ -4584,6 +4591,117 @@ function ProgressiveListDemo() {
       </div>
       <p className="mono text-[11px] text-muted-foreground">
         timeline context · each row waits for the previous row's ProgressiveText to finish
+      </p>
+      <div className="border-t border-border pt-5">
+        <p className="eyebrow mb-3">getTimestamp + maxLag — catches up to now</p>
+        <LagLimitDemo />
+      </div>
+    </div>
+  );
+}
+
+const LAG_LINES = [
+  'Read the failing test',
+  'Ran the suite — 2 failures',
+  'Patched the scheduler',
+  'Re-ran the suite',
+  'Bumped the version',
+  'Wrote the changelog entry',
+];
+
+type LagRow = { id: number; at: number; text: string };
+
+/**
+ * One feed, shown twice: the left list knows when each row happened
+ * (`getTimestamp`) and never lags more than `maxLag` behind now; the right is
+ * the classic append-and-stagger. "Come back after 30 s" lands the backlog a
+ * stale cache or a sleeping tab would — the left shows the old rows at once and
+ * animates only the last few seconds, the right replays every one of them.
+ */
+function LagLimitDemo() {
+  const [rows, setRows] = useState<LagRow[]>([]);
+  const [runId, setRunId] = useState(0);
+  const append = (ages: number[]) =>
+    setRows((xs) => {
+      const now = Date.now();
+      return [
+        ...xs,
+        ...ages.map((age, k) => ({ id: xs.length + k, at: now - age, text: LAG_LINES[(xs.length + k) % LAG_LINES.length] })),
+      ];
+    });
+  const column = (lag: boolean) => (
+    <ProgressiveList
+      key={`${lag}-${runId}`}
+      items={rows}
+      speed={2}
+      getKey={(r) => r.id}
+      getTimestamp={lag ? (r) => r.at : undefined}
+      maxLag={5000}
+      className="max-h-64 space-y-1.5 overflow-y-auto"
+    >
+      {(r, _i, { isNew }) => (
+        <div
+          className={cn(
+            'flex items-baseline gap-2 rounded-md border px-3 py-1.5 text-[13px]',
+            isNew ? 'border-[color:var(--cyan)]/40 bg-[var(--surface)]' : 'border-border bg-[var(--surface-2)]',
+          )}
+        >
+          <ProgressiveText text={r.text} speed={30} instant={!isNew} />
+          <span className="mono ml-auto shrink-0 text-[10px] text-muted-foreground">
+            {new Date(r.at).toLocaleTimeString([], { minute: '2-digit', second: '2-digit' })}
+          </span>
+        </div>
+      )}
+    </ProgressiveList>
+  );
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Badge tone="emerald" dot>
+              maxLag = 5 s
+            </Badge>
+            <span className="mono text-[11px] text-muted-foreground">late rows land at once</span>
+          </div>
+          {column(true)}
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Badge tone="sky" dot>
+              classic
+            </Badge>
+            <span className="mono text-[11px] text-muted-foreground">replays the backlog</span>
+          </div>
+          {column(false)}
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="outline" onClick={() => append([0])}>
+          A row arrives now
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          // 12 rows spread over the last 30 s, delivered in one go
+          onClick={() => append(Array.from({ length: 12 }, (_, k) => (11 - k) * 2500))}
+        >
+          Come back after 30 s
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            setRows([]);
+            setRunId((n) => n + 1);
+          }}
+        >
+          Reset
+        </Button>
+      </div>
+      <p className="mono text-[11px] text-muted-foreground">
+        both lists get the same rows · the left checks each row's time whenever its turn comes — anything
+        older than now − maxLag lands at once, like history · the right types every missed row in turn
       </p>
     </div>
   );
