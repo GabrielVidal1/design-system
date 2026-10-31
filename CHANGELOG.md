@@ -18,6 +18,13 @@ last release → grouped bullets under Unreleased), then curate the prose.
 > Confirm without leaving the page — and a hold that knows what it landed on.
 
 ### Added
+- `Modal` — **closes the way it opened.** On phones the bottom sheet now
+  sinks back below the edge (and the scrim fades) instead of vanishing; wider,
+  the panel fades and scales out. The modal stays mounted until its exit
+  animation ends, showing what it last showed while open, so a consumer that
+  clears its content together with `open` doesn't empty the sheet mid-slide.
+  Needs `overlay.css`; without it, or with reduced motion, it unmounts at once
+  as before. Imperative modals (`useModal` / `useConfirm`) still pop out.
 - `ProgressiveList` — **a live feed catches up to now instead of replaying
   what you missed.** Give it `getTimestamp` (when each row happened) and it
   never falls more than `maxLag` (default 5 s) behind real time. Whenever a

@@ -1,5 +1,6 @@
 /*
- * Motion for <Modal> and the toast stack.
+ * Motion for <Modal> and the toast stack. A closing modal keeps
+ * `data-state="closed"` on its scrim until its exit animation ends.
  *
  * Plain CSS — no Tailwind directives — so the animations work whether or not
  * the consumer's Tailwind config scans this package. Everything is under
@@ -28,6 +29,25 @@
 
 @keyframes ds-panel-in-sheet {
   from {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes ds-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes ds-panel-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@keyframes ds-panel-out-sheet {
+  to {
     transform: translateY(100%);
   }
 }
@@ -61,6 +81,23 @@
   }
 }
 
+/* Closing: the sheet sinks back below the edge while the scrim fades; clicks
+   already go through to the page. */
+.ds-modal-scrim[data-state='closed'] {
+  animation: ds-fade-out 200ms ease-in forwards;
+  pointer-events: none;
+}
+
+.ds-modal-scrim[data-state='closed'] .ds-modal-panel {
+  animation: ds-panel-out-sheet 220ms cubic-bezier(0.32, 0, 0.67, 0) forwards;
+}
+
+@media (min-width: 640px) {
+  .ds-modal-scrim[data-state='closed'] .ds-modal-panel {
+    animation: ds-panel-out 140ms ease-in forwards;
+  }
+}
+
 .ds-toast--bottom {
   animation: ds-toast-in-bottom 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -84,5 +121,10 @@
   .ds-popover-panel,
   .ds-menu-panel {
     animation: ds-fade-in 1ms linear;
+  }
+
+  .ds-modal-scrim[data-state='closed'],
+  .ds-modal-scrim[data-state='closed'] .ds-modal-panel {
+    animation: ds-fade-out 1ms linear forwards;
   }
 }

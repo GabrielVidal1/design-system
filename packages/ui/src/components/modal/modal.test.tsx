@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -121,5 +121,79 @@ describe('Modal', () => {
 
     await user.click(screen.getByText('close-b'));
     expect(document.body.style.overflow).toBe('');
+  });
+
+  describe('closing with overlay.css loaded', () => {
+    // jsdom applies no stylesheet: make the panel report an exit animation.
+    function animated() {
+      const real = window.getComputedStyle.bind(window);
+      return vi.spyOn(window, 'getComputedStyle').mockImplementation((el, pseudo) => {
+        const style = real(el, pseudo);
+        if (!(el as Element).classList?.contains('ds-modal-panel')) return style;
+        return new Proxy(style, {
+          get: (t, k) => {
+            if (k === 'animationName') return 'ds-panel-out-sheet';
+            const v = (t as unknown as Record<PropertyKey, unknown>)[k];
+            return typeof v === 'function' ? v.bind(t) : v;
+          },
+        });
+      });
+    }
+
+    // React listens under a vendor-prefixed name where the DOM has no
+    // AnimationEvent (jsdom): fire both.
+    function animationEnd(el: Element) {
+      for (const type of ['animationend', 'webkitAnimationEnd']) fireEvent(el, new Event(type, { bubbles: true }));
+    }
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it('stays mounted, marked closed, until its exit animation ends', () => {
+      animated();
+      const { rerender } = render(<Modal open onClose={() => {}} title="Hi" />);
+      rerender(<Modal open={false} onClose={() => {}} title="Hi" />);
+      const dialog = screen.getByRole('dialog');
+      expect(dialog.parentElement).toHaveAttribute('data-state', 'closed');
+      // Not over yet: an animation bubbling up from inside doesn't count.
+      animationEnd(screen.getByRole('button', { name: 'Close' }));
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      animationEnd(dialog);
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('keeps showing what it showed while open', () => {
+      animated();
+      const { rerender } = render(
+        <Modal open onClose={() => {}} title="Item 3" footer={<button>Save</button>}>
+          details of item 3
+        </Modal>,
+      );
+      rerender(<Modal open={false} onClose={() => {}} />);
+      expect(screen.getByText('Item 3')).toBeInTheDocument();
+      expect(screen.getByText('details of item 3')).toBeInTheDocument();
+      expect(screen.getByText('Save')).toBeInTheDocument();
+    });
+
+    it('reopens mid-exit without unmounting', () => {
+      animated();
+      const { rerender } = render(<Modal open onClose={() => {}} title="Hi" />);
+      rerender(<Modal open={false} onClose={() => {}} title="Hi" />);
+      rerender(<Modal open onClose={() => {}} title="Hi" />);
+      const dialog = screen.getByRole('dialog');
+      expect(dialog.parentElement).toHaveAttribute('data-state', 'open');
+      animationEnd(dialog);
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    it('unmounts anyway when animationend never comes', () => {
+      vi.useFakeTimers();
+      animated();
+      const { rerender } = render(<Modal open onClose={() => {}} title="Hi" />);
+      rerender(<Modal open={false} onClose={() => {}} title="Hi" />);
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      act(() => vi.advanceTimersByTime(500));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      vi.useRealTimers();
+    });
   });
 });
