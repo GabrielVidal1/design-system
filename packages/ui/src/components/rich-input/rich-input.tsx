@@ -245,7 +245,9 @@ export interface RichInputProps {
    * Make the bottom toolbar user-arrangeable: hold any control (~1.4s) to
    * enter edit mode and drag to reorder — including across the draggable
    * spacer that splits the left/right clusters — and bench controls you don't
-   * use into the stash popover. Holding the **send button** passes through a
+   * use into the stash popover. While anything is benched, a movable `+`
+   * control opens a menu of the benched controls, so they stay usable.
+   * Holding the **send button** passes through a
    * first stage (~0.5s) that opens its draft menu; keep holding to reach edit
    * mode. The arrangement persists in localStorage: pass a string to name the
    * storage key (share it across composers that should stay arranged alike),

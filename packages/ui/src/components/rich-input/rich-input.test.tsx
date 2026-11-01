@@ -543,7 +543,32 @@ describe('reorderable toolbar', () => {
       JSON.stringify({ order: ['spacer', 'send'], stash: ['attach'] }),
     );
     const second = render(<RichInput cacheKey="tb" toolbarReorder="tb" accept="*" />);
-    expect(itemIds(second.container)).toEqual(['spacer', 'Send']);
+    // Something benched: the + control joins the row, right before send.
+    expect(itemIds(second.container)).toEqual(['spacer', 'Stashed controls (1)', 'Send']);
+  });
+
+  it('opens the benched controls from the + control, and keeps its own place', async () => {
+    window.localStorage.setItem(
+      orderKey,
+      JSON.stringify({ order: ['more', 'spacer', 'send'], stash: ['attach'] }),
+    );
+    const { container } = render(<RichInput cacheKey="tb" toolbarReorder="tb" accept="*" />);
+    expect(itemIds(container)).toEqual(['Stashed controls (1)', 'spacer', 'Send']);
+    const menu = () => document.querySelector('[role="group"][aria-label="Stashed controls"]');
+    expect(menu()?.className).toContain('hidden');
+    await userEvent.click(screen.getByRole('button', { name: 'Stashed controls (1)' }));
+    expect(menu()?.className).not.toContain('hidden');
+    // The real control, usable from the menu.
+    expect(menu()?.querySelector('[aria-label="Attach files"]')).not.toBeNull();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(menu()?.className).toContain('hidden'));
+  });
+
+  it('has no + control while nothing is benched', () => {
+    window.localStorage.setItem(orderKey, JSON.stringify({ order: ['more', 'send'], stash: [] }));
+    const { container } = render(<RichInput cacheKey="tb" toolbarReorder="tb" accept="*" />);
+    expect(itemIds(container)).not.toContain('Stashed controls (0)');
+    expect(document.querySelector('[aria-label="Stashed controls"]')).toBeNull();
   });
 
   it('never benches the send button, even if the stored stash says so', () => {
