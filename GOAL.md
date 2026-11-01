@@ -23,6 +23,8 @@ Two audiences, one library:
      removes its own line in the same commit that ticks the checkbox. Leave
      the section empty (this comment only) when nothing is in flight. -->
 
+- [design-system] `TrendChart` — small line-or-bar chart with hover tooltip, sized for a card — @2026-11-01T12:18Z
+
 ## Principles
 
 1. **Mobile-first, desktop-compatible.** Designed for touch first (gestures,
