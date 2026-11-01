@@ -18,6 +18,12 @@ last release → grouped bullets under Unreleased), then curate the prose.
 > Confirm without leaving the page — and a hold that knows what it landed on.
 
 ### Added
+- `RichInput` — **a reorderable toolbar keeps its benched controls a tap
+  away.** While anything is in the stash, a `+` control joins the row (first
+  right before send; hold it to move it like any other control — it can't be
+  benched itself). It opens a menu of the benched controls — the real ones, so
+  a chip there opens its own picker as it would in the row. The menu stays
+  mounted while closed, so a picker opened from it outlives it.
 - `Modal` — **closes the way it opened.** On phones the bottom sheet now
   sinks back below the edge (and the scrim fades) instead of vanishing; wider,
   the panel fades and scales out. The modal stays mounted until its exit
