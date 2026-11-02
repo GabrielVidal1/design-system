@@ -18,6 +18,20 @@ last release → grouped bullets under Unreleased), then curate the prose.
 > Confirm without leaving the page — and a hold that knows what it landed on.
 
 ### Added
+- `RichInput` — **`tagList="link"`: the long tag list leaves the screen.**
+  One row keeps a 🔍 link pill, the `group: 'list'` tags that are on, and the
+  ones auto-tag matched in the text in a **dashed outline** (a tap turns one
+  on, in place). The pill opens the filter with every tag unfolding under the
+  row — Enter turns the first match on, Escape or leaving folds it. Each tag
+  keeps the place it took: newcomers pop in at the end, a tag that stops
+  matching shrinks out and its neighbours glide into the gap. `tagLinkLabel`
+  names the pill (tooltip + accessible name).
+- `RichInput` — **motion, behind `motion` (default on, always off under reduced
+  motion).** Waking a `collapseWhenIdle` composer opens the tag rows' room and
+  pops their chips in left to right; idling folds them away. Guideline chips a
+  parent reveals pop in and shrink out; the reorderable toolbar's controls rise
+  in when it mounts, and one that comes or goes later (a harness switch) pops
+  in or shrinks out while its neighbours glide.
 - `RichInput` — **a reorderable toolbar keeps its benched controls a tap
   away.** While anything is in the stash, a `+` control joins the row (first
   right before send; hold it to move it like any other control — it can't be
@@ -94,6 +108,11 @@ last release → grouped bullets under Unreleased), then curate the prose.
   library's first Data visualization primitive.
 
 ### Changed
+- `RichInput` auto-tag — **a reading stands while you type.** The matches of
+  the last pause stay put mid-word and are refreshed at the next pause, instead
+  of emptying on every keystroke and coming back a second later (the list
+  jumped). The marks under a selected tag's words follow the text: a mark
+  before or after the edit stays, only one the edit touches drops.
 - `RichInput` un-send — the lock's sweep **eases out** (quart) instead of
   running linearly: about 80 % across in the first second, then a slow last
   stretch to full exactly when the send fires — the message reads as on its

@@ -5,6 +5,7 @@ import { Plus } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useLocalStorage } from '../../hooks/use-local-storage';
 import { HoldEditable } from '../hold-editable';
+import { riseIn, useFlipPop } from './motion';
 
 /** One control in the reorderable toolbar — built-ins and caller extras alike. */
 export interface ToolbarEntry {
@@ -55,10 +56,16 @@ export function ReorderableToolbar({
   entries,
   onItemHold,
   onEditStart,
+  motion = true,
 }: {
   /** Namespaces the persisted arrangement (`rich-input:toolbar:<key>`). */
   storageKey: string;
   entries: ToolbarEntry[];
+  /** The controls rise in, staggered, when the toolbar mounts; later, one
+   * that comes (a harness switch revealing its own knobs) pops in while its
+   * neighbours glide aside, and one that goes shrinks out before they close
+   * the gap. Default true. */
+  motion?: boolean;
   /** First-stage hold action per entry (see {@link HoldEditable}). */
   onItemHold?: (entry: ToolbarEntry) => boolean | void;
   onEditStart?: () => void;
@@ -98,6 +105,25 @@ export function ReorderableToolbar({
     }
     return { row: out, benched: stashIds.map((id) => byId.get(id)!) };
   }, [entries, saved]);
+
+  // ── motion ────────────────────────────────────────────────────────────────
+  // HoldEditable keeps its container to itself: the wrapper (display:
+  // contents, layout-transparent) is the way in. Its slots are this row, in
+  // order — except mid-drag, when the row is left alone.
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useFlipPop(wrapRef, motion, {
+    // The row rises in when the composer appears; later, a control that comes
+    // pops in and one that goes shrinks out before its neighbours close up.
+    mount: riseIn,
+    ghosts: true,
+    collect: (wrap) => {
+      const box = wrap.firstElementChild;
+      if (!box || box.hasAttribute('data-hold-editable-dragging')) return null;
+      const slots = [...box.children].filter((el) => el.hasAttribute('data-hold-editable-item'));
+      if (slots.length !== row.length) return null;
+      return row.map((e, i) => [e.id, slots[i] as HTMLElement]);
+    },
+  });
 
   // ── the menu ──────────────────────────────────────────────────────────────
   const [place, setPlace] = useState<{ left: number; top: number } | null>(null);
@@ -141,7 +167,7 @@ export function ReorderableToolbar({
   }, [open]);
 
   return (
-    <>
+    <div ref={wrapRef} className="contents">
       <HoldEditable
         items={row}
         getKey={(e) => e.id}
@@ -214,6 +240,6 @@ export function ReorderableToolbar({
           </div>,
           document.body,
         )}
-    </>
+    </div>
   );
 }

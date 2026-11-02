@@ -33,9 +33,11 @@ import {
   ReverseSearchBar,
   SubmitErrorBanner,
   TagChips,
+  TagLinkRow,
   TagScrollList,
   UnsendOverlay,
 } from './parts';
+import { foldRoom, motionAllowed, openRoom } from './motion';
 import type {
   ComposeInput,
   MasterSwitchConfig,
@@ -174,6 +176,19 @@ export interface RichInputProps {
   /** Height (in chip rows) of the scrollable `group: 'list'` tag list. Default 3. */
   tagListRows?: number;
   /**
+   * How the `group: 'list'` tags are offered.
+   *
+   * - `'scroll'` (default): the whole list, in a box {@link tagListRows} high,
+   *   selected first, then what auto-tag matched.
+   * - `'link'`: no list on screen — one row with a 🔍 link pill (it opens the
+   *   filter, the matching tags unfolding under it), the selected tags, and
+   *   the ones auto-tag matched in a dashed outline (a tap selects them). For
+   *   a long list you mostly reach through the text and the filter.
+   */
+  tagList?: 'scroll' | 'link';
+  /** The `'link'` row's 🔍 pill: its tooltip and accessible name. Default "Link tags". */
+  tagLinkLabel?: string;
+  /**
    * Hide the master switch and tag chip rows while the composer is idle —
    * empty (no text, no attachments) and not focused. They appear on focus and
    * stay while a draft exists. Default false.
@@ -188,6 +203,15 @@ export interface RichInputProps {
   showMax?: number;
   /** Mention trigger symbol. Default `#`. */
   mentionPrefix?: string;
+
+  /**
+   * Motion: the tag rows open their room and pop their chips in when the
+   * composer wakes (and fold away when it idles), chips arriving or leaving
+   * pop and shrink while their neighbours glide, toolbar controls that come
+   * and go do the same. Always off under `prefers-reduced-motion`. Pass the
+   * host app's own animations switch here. Default true.
+   */
+  motion?: boolean;
 
   /**
    * **Auto-tag**: once the typing pauses, scan the text for the words and
@@ -314,9 +338,12 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     defaultMasterOn = true,
     onMasterSwitchChange,
     tagListRows = 3,
+    tagList = 'scroll',
+    tagLinkLabel,
     collapseWhenIdle = false,
     showMax,
     mentionPrefix = '#',
+    motion = true,
     autoTag = false,
     history: historyEnabled = true,
     drafts: draftsEnabled = true,
@@ -629,6 +656,41 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     !heldView &&
     value.trim().length === 0 &&
     files.files.length === 0;
+
+  // The rows' wake and idle: waking, their room opens and the chips pop in;
+  // idling, they fold away before they unmount (`folding` keeps them on
+  // screen through it — derived during the render that idles, so they never
+  // miss a commit).
+  const rowsRef = useRef<HTMLDivElement>(null);
+  const [lastIdle, setLastIdle] = useState(idle);
+  const [folding, setFolding] = useState(false);
+  if (lastIdle !== idle) {
+    setLastIdle(idle);
+    setFolding(idle && motion && motionAllowed() && rowsRef.current != null);
+  }
+  const rowsShown = !idle || folding;
+  const wasIdle = useRef(idle);
+  useLayoutEffect(() => {
+    const woke = wasIdle.current && !idle;
+    wasIdle.current = idle;
+    const el = rowsRef.current;
+    if (!el || !woke || !motion || !motionAllowed()) return;
+    openRoom(el, [...el.querySelectorAll('[data-motion-key], [data-motion-pill]')]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idle]);
+  useLayoutEffect(() => {
+    const el = rowsRef.current;
+    if (!folding || !el) return;
+    const fold = foldRoom(el);
+    fold.finished.then(
+      () => setFolding(false),
+      () => {},
+    );
+    return () => {
+      fold.cancel();
+      el.style.overflow = '';
+    };
+  }, [folding]);
   // A locked composer shows the held send's tags as the selection.
   const shownSelected = useMemo(
     () => (heldView ? new Set((heldView.tags ?? []).map((t) => t.id)) : sel.selected),
@@ -988,42 +1050,59 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
           )}
         </div>
 
-        {!idle && (masterSwitch !== false || chipToggles.length > 0) && (
-          <div className="px-1 pt-1.5">
-            <TagChips
-              tags={chipsActive ? chipToggles : []}
-              selected={shownSelected}
-              highlighted={highlightedTagIds}
-              onToggle={toggleTag}
-              showMax={showMax}
-              expanded={expanded}
-              onExpand={() => setExpanded(true)}
-              leading={
-                masterSwitch !== false ? (
-                  <MasterSwitch
-                    on={masterOn}
-                    config={masterConfig}
-                    onToggle={() => {
-                      touchTags();
-                      setMasterOn((v) => !v);
-                    }}
-                  />
-                ) : undefined
-              }
-            />
-          </div>
-        )}
+        {rowsShown && (masterSwitch !== false || chipToggles.length > 0 || listToggles.length > 0) && (
+          <div ref={rowsRef}>
+            {(masterSwitch !== false || chipToggles.length > 0) && (
+              <div className="px-1 pt-1.5">
+                <TagChips
+                  tags={chipsActive ? chipToggles : []}
+                  selected={shownSelected}
+                  highlighted={highlightedTagIds}
+                  onToggle={toggleTag}
+                  showMax={showMax}
+                  expanded={expanded}
+                  onExpand={() => setExpanded(true)}
+                  motion={motion}
+                  leading={
+                    masterSwitch !== false ? (
+                      <MasterSwitch
+                        on={masterOn}
+                        config={masterConfig}
+                        onToggle={() => {
+                          touchTags();
+                          setMasterOn((v) => !v);
+                        }}
+                      />
+                    ) : undefined
+                  }
+                />
+              </div>
+            )}
 
-        {!idle && listToggles.length > 0 && (
-          <div className="px-1 pt-1.5">
-            <TagScrollList
-              tags={listToggles}
-              selected={shownSelected}
-              highlighted={highlightedTagIds}
-              onToggle={toggleTag}
-              rows={tagListRows}
-              searchable={tagSearch}
-            />
+            {listToggles.length > 0 && (
+              <div className="px-1 pt-1.5">
+                {tagList === 'link' ? (
+                  <TagLinkRow
+                    tags={listToggles}
+                    selected={shownSelected}
+                    highlighted={highlightedTagIds}
+                    onToggle={toggleTag}
+                    rows={tagListRows}
+                    label={tagLinkLabel}
+                    motion={motion}
+                  />
+                ) : (
+                  <TagScrollList
+                    tags={listToggles}
+                    selected={shownSelected}
+                    highlighted={highlightedTagIds}
+                    onToggle={toggleTag}
+                    rows={tagListRows}
+                    searchable={tagSearch}
+                  />
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -1135,6 +1214,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
             <ReorderableToolbar
               storageKey={reorderKey}
               entries={entries}
+              motion={motion}
               onEditStart={() => setSendMenuOpen(false)}
               onItemHold={(e) => {
                 if (e.id !== 'send' || !canSend || !sendHasMenu) return false;

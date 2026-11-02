@@ -14,6 +14,7 @@ import { cn } from '../../lib/utils';
 import { useSwipeDismiss } from '../../hooks/use-swipe-dismiss';
 import { VirtualList } from '../virtual-list';
 import { tagSlug } from './use-mention';
+import { motionAllowed, openRoom, useFlipPop, usePopOut, usePresence } from './motion';
 import type { MasterSwitchConfig, RichTag, RichFile } from './types';
 
 export function fmtBytes(n: number): string {
@@ -65,21 +66,41 @@ export function AttachmentChips({
 }
 
 /* ── A single toggle chip ────────────────────────────────────────────────── */
-function TagChip({ tag, on, onToggle }: { tag: RichTag; on: boolean; onToggle: (id: string) => void }) {
+function TagChip({
+  tag,
+  on,
+  onToggle,
+  suggested = false,
+  leaving = false,
+}: {
+  tag: RichTag;
+  on: boolean;
+  onToggle: (id: string) => void;
+  /** Matched in the text but not picked: a dashed outline, a tap links it. */
+  suggested?: boolean;
+  /** On its way out (see `usePresence`): shown, but no longer tappable. */
+  leaving?: boolean;
+}) {
   const label = on ? tag.label : (tag.labelOff ?? tag.label);
   const depth = Math.max(0, Math.min(tag.depth ?? 0, 4));
   return (
     <button
       type="button"
       aria-pressed={on}
+      data-motion-key={tag.id}
+      data-motion-leaving={leaving || undefined}
+      tabIndex={leaving ? -1 : undefined}
       onMouseDown={(e) => e.preventDefault()}
-      onClick={() => onToggle(tag.id)}
+      onClick={() => !leaving && onToggle(tag.id)}
       style={depth > 0 ? { marginLeft: depth * 10 } : undefined}
       className={cn(
         'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors',
+        leaving && 'pointer-events-none',
         on
           ? 'border-primary/40 bg-primary/10 text-foreground'
-          : 'border-input text-muted-foreground hover:text-foreground',
+          : suggested
+            ? 'border-dashed border-muted-foreground/50 text-muted-foreground hover:border-primary/50 hover:text-foreground'
+            : 'border-input text-muted-foreground hover:text-foreground',
       )}
     >
       {/* A nested chip announces its parent with a corner marker, so a revealed
@@ -110,6 +131,7 @@ export function MasterSwitch({
       onMouseDown={(e) => e.preventDefault()}
       onClick={onToggle}
       title={title}
+      data-motion-pill=""
       className={cn(
         'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-medium transition-colors',
         on
@@ -162,6 +184,7 @@ export function TagChips({
   expanded,
   onExpand,
   leading,
+  motion = true,
 }: {
   tags: RichTag[];
   selected: Set<string>;
@@ -175,16 +198,22 @@ export function TagChips({
   onExpand: () => void;
   /** Rendered as the first item of the row (e.g. the guidelines master switch). */
   leading?: ReactNode;
+  /** Chips that appear (a guideline's revealed children) pop in, the others
+   * glide aside for them. Default true. */
+  motion?: boolean;
 }) {
+  const rowRef = useRef<HTMLDivElement>(null);
   const shown = useMemo(() => {
     if (showMax == null || expanded) return tags;
     const hi = highlighted ?? EMPTY_SET;
     return tags.filter((t, i) => i < showMax || selected.has(t.id) || hi.has(t.id));
   }, [tags, selected, highlighted, showMax, expanded]);
+  // A guideline's children come and go with it: they pop in, and shrink out.
+  useFlipPop(rowRef, motion, { ghosts: true });
   if (tags.length === 0 && !leading) return null;
   const hidden = tags.length - shown.length;
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div ref={rowRef} className="flex flex-wrap items-center gap-1.5">
       {leading}
       {shown.map((t) => (
         <TagChip key={t.id} tag={t} on={selected.has(t.id)} onToggle={onToggle} />
@@ -194,6 +223,7 @@ export function TagChips({
           type="button"
           onMouseDown={(e) => e.preventDefault()}
           onClick={onExpand}
+          data-motion-pill=""
           className="rounded-full border border-dashed border-input px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
           +{hidden} more
@@ -331,6 +361,172 @@ export function TagScrollList({
       </div>
     </div>
   );
+}
+
+/* ── Linked + matched tags behind one link pill ──────────────────────────── */
+/**
+ * The compact stand-in for {@link TagScrollList}: no list on screen, one row
+ * holding a 🔍 link pill, the tags that are on (solid) and the ones auto-tag
+ * matched in the text (dashed — a tap links them). The link pill opens what
+ * the list's search chip opens: a filter, with the matching tags unfolding
+ * under the row; Enter links the first, Escape or leaving folds it.
+ *
+ * Nothing in the row jumps: a tag keeps the place it took when it first
+ * showed up (a matched tag tapped on stays where it is), newcomers are
+ * appended and pop in, a leaver shrinks out and its neighbours glide into
+ * the gap.
+ */
+export function TagLinkRow({
+  tags,
+  selected,
+  highlighted,
+  onToggle,
+  rows = 3,
+  label = 'Link tags',
+  motion = true,
+}: {
+  tags: RichTag[];
+  selected: Set<string>;
+  /** Tags auto-tag matched in the text, in text order — shown dashed. */
+  highlighted?: Set<string>;
+  onToggle: (id: string) => void;
+  /** Height (in chip rows) of the unfolded filter list before it scrolls. */
+  rows?: number;
+  /** The link pill's tooltip and accessible name (the pill itself is a 🔍). */
+  label?: string;
+  motion?: boolean;
+}) {
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [searching, setSearching] = useState(false);
+  const [query, setQuery] = useState('');
+
+  // Linked first (in the caller's order), then the matched ones — but only for
+  // a newcomer: whatever is on screen keeps its place.
+  const placed = useRef<string[]>([]);
+  const items = useMemo(() => {
+    const byId = new Map(tags.map((t) => [t.id, t]));
+    const want = [
+      ...tags.filter((t) => selected.has(t.id)).map((t) => t.id),
+      ...[...(highlighted ?? EMPTY_SET)].filter((id) => !selected.has(id) && byId.has(id)),
+    ];
+    const wanted = new Set(want);
+    const order = placed.current.filter((id) => wanted.has(id));
+    for (const id of want) if (!order.includes(id)) order.push(id);
+    placed.current = order;
+    return order.map((id) => byId.get(id)!);
+  }, [tags, selected, highlighted]);
+
+  const { entries, exited } = usePresence(items, (t) => t.id, motion);
+  useFlipPop(rowRef, motion);
+  usePopOut(rowRef, exited, entries);
+
+  const q = query.trim().toLowerCase();
+  const matches = useMemo(() => (q ? tags.filter((t) => tagMatches(t, q)) : tags), [tags, q]);
+
+  const close = () => {
+    setSearching(false);
+    setQuery('');
+  };
+
+  if (tags.length === 0) return null;
+
+  return (
+    <div>
+      <div ref={rowRef} className="flex flex-wrap items-center gap-1.5">
+        {searching ? (
+          <span
+            data-motion-pill=""
+            className="inline-flex items-center gap-1 rounded-full border border-ring bg-background px-2 py-1"
+          >
+            <Search className="size-3 shrink-0 text-muted-foreground" />
+            <input
+              autoFocus
+              value={query}
+              placeholder="Filter…"
+              aria-label={label}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  close();
+                } else if (e.key === 'Enter') {
+                  e.preventDefault();
+                  const first = matches.find((t) => !selected.has(t.id));
+                  if (first) onToggle(first.id);
+                  setQuery('');
+                }
+              }}
+              onBlur={close}
+              className="w-24 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
+            />
+            <button
+              type="button"
+              aria-label="Close"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={close}
+              className="inline-flex size-4 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <X className="size-3" />
+            </button>
+          </span>
+        ) : (
+          <button
+            type="button"
+            aria-label={label}
+            title={label}
+            data-motion-pill=""
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setSearching(true)}
+            className="inline-flex items-center rounded-full border border-input px-2 py-1 text-muted-foreground transition-colors hover:border-ring hover:text-foreground"
+          >
+            <Search className="size-3.5" />
+          </button>
+        )}
+        {entries.map(({ key, item, leaving }) => (
+          <TagChip
+            key={key}
+            tag={item}
+            on={selected.has(key)}
+            suggested={!selected.has(key)}
+            leaving={leaving}
+            onToggle={onToggle}
+          />
+        ))}
+      </div>
+      {searching && (
+        <Unfold motion={motion}>
+          <div
+            className="mt-1.5 overflow-y-auto rounded-lg border border-input/60 bg-background/40 p-1.5"
+            style={{ maxHeight: rows * TAG_ROW_H }}
+          >
+            <div className="flex flex-wrap gap-1.5">
+              {matches.map((t) => (
+                <TagChip key={t.id} tag={t} on={selected.has(t.id)} onToggle={onToggle} />
+              ))}
+              {q && matches.length === 0 && (
+                <span className="px-1 py-1 text-xs text-muted-foreground">
+                  Nothing matches “{query.trim()}”
+                </span>
+              )}
+            </div>
+          </div>
+        </Unfold>
+      )}
+    </div>
+  );
+}
+
+/** A box whose room glides open when it mounts (see `openRoom`). */
+function Unfold({ motion, children }: { motion: boolean; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (el && motion && motionAllowed()) openRoom(el, []);
+    // Mount only: it opens once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return <div ref={ref}>{children}</div>;
 }
 
 /* ── Mention autocomplete menu ───────────────────────────────────────────── */

@@ -8,7 +8,9 @@ import { tagSlug } from './use-mention';
  * recognises, instead of waiting for you to remember they exist.
  *
  * A tag opts in by carrying {@link RichTag.triggers}. Once the typing pauses
- * (see {@link AutoTagConfig.debounceMs}) the text is scanned for them. A hit
+ * (see {@link AutoTagConfig.debounceMs}) the text is scanned for them, and
+ * that reading stands while the typing resumes, until the next pause
+ * refreshes it — the suggestions never empty out mid-word. A hit
  * whose tag is off moves that tag to the front of the tag list (right after
  * the selected ones) and draws nothing in the text; a hit whose tag is on is
  * marked in the tag's colour, which is what makes "the word I typed" and "the
@@ -144,6 +146,36 @@ export interface AutoTagApi {
 
 const EMPTY: AutoTagMatch[] = [];
 
+/**
+ * Carry a scan of `from` over to `to`, the text as it is now. A hit before the
+ * edited stretch keeps its offsets, one after it shifts by the edit's length,
+ * and one the edit touched is dropped — so the marks stay under their words
+ * while the user types elsewhere, instead of blinking out on every keystroke.
+ */
+export function carryMatches(matches: AutoTagMatch[], from: string, to: string): AutoTagMatch[] {
+  if (from === to) return matches;
+  const max = Math.min(from.length, to.length);
+  let head = 0;
+  while (head < max && from[head] === to[head]) head++;
+  let tail = 0;
+  while (tail < max - head && from[from.length - 1 - tail] === to[to.length - 1 - tail]) tail++;
+  const shift = to.length - from.length;
+  const editEnd = from.length - tail;
+  const out: AutoTagMatch[] = [];
+  let moved = false;
+  for (const m of matches) {
+    // A hit flush against the edit can grow into a longer word ("commit" →
+    // "commits"): only one with a separator still between it and the edit survives.
+    if (m.end < head || (m.end === head && !isWordChar(to[head]))) out.push(m);
+    else if (m.start > editEnd || (m.start === editEnd && !isWordChar(to[m.start + shift - 1]))) {
+      out.push(shift ? { ...m, start: m.start + shift, end: m.end + shift } : m);
+      moved ||= shift !== 0;
+    }
+  }
+  // Typing past the last hit (the usual case) changes nothing: same array.
+  return out.length === matches.length && !moved ? matches : out;
+}
+
 export function useAutoTag({
   enabled,
   tags,
@@ -168,26 +200,41 @@ export function useAutoTag({
     return () => clearTimeout(t);
   }, [enabled, value, debounceMs]);
 
-  const all = useMemo(() => {
-    // Only ever scan text the user has stopped editing: the overlay places
-    // marks by character offset, so a scan of stale text would draw them
-    // under the wrong words. Mid-keystroke the composer simply shows none.
-    if (!enabled || settled !== value || value.trim().length < minChars) return EMPTY;
+  // The scan only ever runs on text the user has stopped editing, and its
+  // result is *kept* while they type again: what the composer shows mid-word
+  // is the last pause's reading, refreshed at the next pause — never an empty
+  // list that refills a second later, which made the tag list jump on every
+  // burst of typing.
+  const scan = useMemo(() => {
+    if (!enabled || settled.trim().length < minChars) return EMPTY;
     const candidates = tags.filter((t) => (t.triggers?.length ?? 0) > 0);
     if (candidates.length === 0) return EMPTY;
-    return findAutoTagMatches(value, candidates, { mentionPrefix });
-  }, [enabled, settled, value, minChars, tags, mentionPrefix]);
+    return findAutoTagMatches(settled, candidates, { mentionPrefix });
+  }, [enabled, settled, minChars, tags, mentionPrefix]);
 
-  const marks = useMemo(() => all.filter((m) => selected.has(m.tag.id)), [all, selected]);
+  // Emptied text (a send, a clear) drops the reading at once rather than a
+  // pause later.
+  const live = enabled && value.trim().length >= minChars;
 
+  // The marks are drawn by character offset, so they follow the live text:
+  // the scan's hits carried over the edits made since it ran.
+  const marks = useMemo(
+    () => (live ? carryMatches(scan, settled, value).filter((m) => selected.has(m.tag.id)) : EMPTY),
+    [live, scan, settled, value, selected],
+  );
+
+  // Suggestions only name tags, so the cached scan stands as is until the
+  // next pause.
   const suggestions = useMemo(
     () =>
-      all
-        .filter((m) => !selected.has(m.tag.id))
-        .sort((a, b) => b.score - a.score || a.start - b.start)
-        .slice(0, max)
-        .sort((a, b) => a.start - b.start),
-    [all, selected, max],
+      live
+        ? scan
+            .filter((m) => !selected.has(m.tag.id))
+            .sort((a, b) => b.score - a.score || a.start - b.start)
+            .slice(0, max)
+            .sort((a, b) => a.start - b.start)
+        : EMPTY,
+    [live, scan, selected, max],
   );
 
   return { marks, suggestions };

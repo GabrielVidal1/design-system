@@ -632,6 +632,8 @@ function AutoTagDemo() {
 <RichInput
   tags={tags}
   autoTag                 // or { debounceMs, max, minChars }
+  tagList="link"          // linked + matched only, the rest behind a pill
+  tagLinkLabel="Link skills"
   onTagsChange={setPicked}
 />`}
       aside={
@@ -665,11 +667,24 @@ function AutoTagDemo() {
         <span className="mono text-foreground">take a screenshot</span> beats{' '}
         <span className="mono text-foreground">screenshot</span> for the same span. A tag with no{' '}
         <span className="mono text-foreground">triggers</span> is never suggested — nothing is
-        inferred from labels.
+        inferred from labels. A reading stands while you type on and is refreshed at the next
+        pause, so the matches never empty out mid-word.
+      </Lede>
+      <Lede>
+        With <span className="mono text-foreground">tagList="link"</span> the list itself leaves
+        the screen: one row keeps a link pill (it opens the filter, every tag unfolding under it —
+        Enter links the first match, Escape folds it), the tags that are on, and the ones the text
+        matched in a <strong className="text-foreground">dashed outline</strong>. Each keeps the
+        place it took: newcomers pop in at the end, a tag that stops matching shrinks out and its
+        neighbours glide into the gap. Turn the motion off with{' '}
+        <span className="mono text-foreground">motion={'{false}'}</span> (it is always off under
+        reduced motion).
       </Lede>
       <RichInput
         tags={AUTO_TAGS}
-        autoTag={{ debounceMs: 700 }}
+        autoTag={{ debounceMs: 600 }}
+        tagList="link"
+        tagLinkLabel="Link skills"
         undoWindowMs={0}
         tagListRows={2}
         placeholder="Ask for a screenshot, a 3D model, an image…"
