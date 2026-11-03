@@ -730,3 +730,39 @@ describe('RichInput un-send lock', () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('RichInput spellcheck', () => {
+  /** jsdom has no matchMedia; answer `(pointer: coarse)` as a phone would. */
+  function stubPointer(coarse: boolean) {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: coarse && query === '(pointer: coarse)',
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+  }
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('keeps the browser spellcheck with a mouse', () => {
+    stubPointer(false);
+    render(<RichInput />);
+    expect(screen.getByRole('textbox')).toHaveAttribute('spellcheck', 'true');
+  });
+
+  it('turns it off on a touchscreen, where the misspelling menu steals the keyboard', () => {
+    stubPointer(true);
+    render(<RichInput />);
+    expect(screen.getByRole('textbox')).toHaveAttribute('spellcheck', 'false');
+  });
+
+  it('lets the caller force it either way', () => {
+    stubPointer(true);
+    const { unmount } = render(<RichInput spellCheck />);
+    expect(screen.getByRole('textbox')).toHaveAttribute('spellcheck', 'true');
+    unmount();
+    stubPointer(false);
+    render(<RichInput spellCheck={false} />);
+    expect(screen.getByRole('textbox')).toHaveAttribute('spellcheck', 'false');
+  });
+});

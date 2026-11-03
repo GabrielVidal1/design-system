@@ -13,6 +13,7 @@ import {
 import { History, Loader2, Paperclip, Upload } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
+import { useIsTouch } from '../../hooks/use-media-query';
 import { useFileDrop } from '../drop-zone/use-file-drop';
 import { DraftsMenu, SendDraftButton } from './draft-parts';
 import { useDraft } from './use-draft';
@@ -86,6 +87,16 @@ export interface RichInputProps {
    * between `minRows`/`maxRows`. Default false.
    */
   fill?: boolean;
+  /**
+   * The browser's spellcheck — the red wavy underline. Default: on with a
+   * mouse, **off on a touchscreen**. Chrome on Android opens its "Add to
+   * dictionary / Delete" menu, and drops the keyboard, on any tap that lands
+   * the caret within a character of a marked word; with a misspelled last
+   * word, every tap after it lands there, so typing could not resume. Off
+   * leaves the keyboard's own suggestions and autocorrect untouched (only
+   * `autocomplete="off"` silences those). `true`/`false` force it.
+   */
+  spellCheck?: boolean;
 
   /**
    * Fired on every text change, with the live value. The composer is
@@ -319,6 +330,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     minRows = 2,
     maxRows = 12,
     fill = false,
+    spellCheck: spellCheckProp,
     onChange,
     onSubmit,
     undoWindowMs = 3000,
@@ -361,6 +373,8 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
   const masterConfig = typeof masterSwitch === 'object' ? masterSwitch : DEFAULT_MASTER_SWITCH;
   const taRef = useRef<HTMLTextAreaElement>(null);
   const keepKeyboard = useKeepKeyboard(taRef);
+  const touch = useIsTouch();
+  const spellCheck = spellCheckProp ?? !touch;
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Everything below — selection, chips, list, `#` menu, auto-tag, the send
@@ -1018,6 +1032,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
           readOnly={heldView != null}
           disabled={disabled}
           autoFocus={autoFocus}
+          spellCheck={spellCheck}
           placeholder={placeholder}
           rows={minRows}
           onChange={(e) => {

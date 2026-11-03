@@ -217,6 +217,14 @@ last release → grouped bullets under Unreleased), then curate the prose.
   so deriving `tags` from it can't loop.
 
 ### Fixed
+- `RichInput` — **a misspelled word no longer takes the keyboard away on a
+  phone.** Chrome on Android opens its "Add to dictionary / Delete" menu, and
+  drops the keyboard, on any tap that puts the caret within a character of a
+  word it underlined. When that word was the last one typed, every tap after it
+  landed there, so the menu came back and typing never resumed. The composer
+  now turns the browser spellcheck off on a touchscreen (no red underline, no
+  menu; the keyboard's own suggestions and autocorrect still work) and keeps it
+  with a mouse. The new `spellCheck` prop forces it either way.
 - `ProgressiveText` with `catchUp` — **the next row no longer waits out the
   ramp at live speed.** The reveal reported its remaining backlog as if it
   typed at 1×, so inside a `ProgressiveList` the following row appeared up to
