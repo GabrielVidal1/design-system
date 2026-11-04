@@ -16,6 +16,13 @@ import { VirtualList } from '../virtual-list';
 import { tagSlug } from './use-mention';
 import { motionAllowed, openRoom, useFlipPop, usePopOut, usePresence } from './motion';
 import type { MasterSwitchConfig, RichTag, RichFile } from './types';
+import {
+  LINEAR_EASING,
+  curveKeyframes,
+  evalCurve,
+  type AnimationCurve,
+  type CurveEasing,
+} from '../curve-editor/curve';
 
 export function fmtBytes(n: number): string {
   if (!Number.isFinite(n) || n <= 0) return '0 B';
@@ -724,9 +731,9 @@ export function SubmitErrorBanner({
  * The sweep's start: the ease-out it has always had — most of the way across
  * in its first second, so the send reads as already on its way.
  */
-const UNSEND_EASING = 'cubic-bezier(0.25, 1, 0.5, 1)';
+const UNSEND_EASING: CurveEasing = [0.25, 1, 0.5, 1];
 /** The finish: an exponential ease-in (expo-in), the snap into the send. */
-const UNSEND_FINISH_EASING = 'cubic-bezier(0.7, 0, 0.84, 0)';
+const UNSEND_FINISH_EASING: CurveEasing = [0.7, 0, 0.84, 0];
 /** Where the sweep holds — near full, so it reads "almost gone"… */
 export const UNSEND_PLATEAU = 0.98;
 /** …reached this far into the window (the fast start's end)… */
@@ -735,89 +742,108 @@ export const UNSEND_PLATEAU_AT = 0.45;
 export const UNSEND_FINISH_AT = 0.95;
 
 /**
- * The sweep's progression, 0 → 1 over the window's fraction `f` (0 → 1): the
- * fast ease-out start up to {@link UNSEND_PLATEAU} by {@link UNSEND_PLATEAU_AT},
- * a plateau there, then an exponential finish to full from
- * {@link UNSEND_FINISH_AT} — exactly when the send fires. The plateau leaves
- * the end of the window as room to take the send back; the finish says it is
- * going *now*. A JS twin of the Web Animations keyframes (used where those are
- * missing, and in tests); the start is an ease-out quart, close to the bezier.
+ * The sweep's default progression over the window: the fast ease-out start up
+ * to {@link UNSEND_PLATEAU} by {@link UNSEND_PLATEAU_AT}, a plateau there,
+ * then an exponential finish to full from {@link UNSEND_FINISH_AT} — exactly
+ * when the send fires. The plateau leaves the end of the window as room to
+ * take the send back; the finish says it is going *now*. Any
+ * {@link AnimationCurve} can replace it (`RichInput`'s `unsendCurve`, edited
+ * with `CurveEditor`).
  */
-export function unsendProgress(f: number): number {
-  const x = Math.min(1, Math.max(0, f));
-  if (x <= UNSEND_PLATEAU_AT) {
-    const u = x / UNSEND_PLATEAU_AT;
-    return UNSEND_PLATEAU * (1 - (1 - u) ** 4);
-  }
-  if (x <= UNSEND_FINISH_AT) return UNSEND_PLATEAU;
-  const u = (x - UNSEND_FINISH_AT) / (1 - UNSEND_FINISH_AT);
-  const expoIn = u === 0 ? 0 : 2 ** (10 * u - 10);
-  return UNSEND_PLATEAU + (1 - UNSEND_PLATEAU) * expoIn;
+export const DEFAULT_UNSEND_CURVE: AnimationCurve = {
+  points: [
+    { x: 0, y: 0 },
+    { x: UNSEND_PLATEAU_AT, y: UNSEND_PLATEAU },
+    { x: UNSEND_FINISH_AT, y: UNSEND_PLATEAU },
+    { x: 1, y: 1 },
+  ],
+  easings: [UNSEND_EASING, LINEAR_EASING, UNSEND_FINISH_EASING],
+};
+
+/**
+ * The sweep's progression, 0 → 1 over the window's fraction `f` (0 → 1), on
+ * `curve` ({@link DEFAULT_UNSEND_CURVE} by default) — the JS twin of the Web
+ * Animations keyframes, used where those are missing (and in tests).
+ */
+export function unsendProgress(f: number, curve: AnimationCurve = DEFAULT_UNSEND_CURVE): number {
+  return evalCurve(curve, f);
 }
 
-/** The sweep's keyframes: start, plateau in, plateau out, full. */
-function unsendKeyframes(): Keyframe[] {
-  const at = (p: number) => `translateX(${(p - 1) * 100}%)`;
-  return [
-    { transform: at(0), offset: 0, easing: UNSEND_EASING },
-    { transform: at(UNSEND_PLATEAU), offset: UNSEND_PLATEAU_AT, easing: 'linear' },
-    { transform: at(UNSEND_PLATEAU), offset: UNSEND_FINISH_AT, easing: UNSEND_FINISH_EASING },
-    { transform: at(1), offset: 1 },
-  ];
-}
+const sweepAt = (p: number) => `translateX(${(p - 1) * 100}%)`;
 
 /**
  * The lock laid over the composer while a send waits out its un-send window:
  * the composer underneath keeps showing what went out, a primary wash sweeps
- * across it left → right as the window runs down (fast at first, holding near
- * full, then snapping into the send — {@link unsendProgress}), and a tap
+ * across it left → right as the window runs down (on `curve` — by default
+ * fast at first, holding near full, then snapping into the send), and a tap
  * anywhere on it takes the send back.
  *
  * Driven by the window's start and length rather than a ticking prop, so a
  * composer that remounts mid-window (a caller-held send outliving its
  * composer) resumes the sweep where it was. The sweep runs on the Web
  * Animations API — no keyframes to ship in a stylesheet the consumer may not
- * import.
+ * import. Pass `progress` instead of `startedAt` for a still frame (a settings
+ * preview driving it from a `CurveEditor`).
+ *
+ * @summary The composer's "Sending… tap to cancel" lock with its progress
+ * sweep — for previewing an un-send curve outside a live RichInput.
  */
 export function UnsendOverlay({
-  startedAt,
+  startedAt = 0,
   durationMs,
   onCancel,
+  curve = DEFAULT_UNSEND_CURVE,
+  progress,
 }: {
-  startedAt: number;
+  /** When the window opened (`Date.now()` ms). Ignored with `progress`. */
+  startedAt?: number;
+  /** The window's length in ms. */
   durationMs: number;
-  onCancel: () => void;
+  /** A tap on it: take the send back. */
+  onCancel?: () => void;
+  /** The sweep's timing. @default DEFAULT_UNSEND_CURVE */
+  curve?: AnimationCurve;
+  /**
+   * A still frame at this time fraction (0 → 1) of the window, for previews:
+   * no animation, no clock — the caller drives it.
+   */
+  progress?: number;
 }) {
   const sweepRef = useRef<HTMLDivElement>(null);
+  const still = progress !== undefined;
   const remaining = () => Math.max(0, startedAt + durationMs - Date.now());
   const [left, setLeft] = useState(remaining);
+  // The keyframes restart only when the curve's numbers change, not on every
+  // new object with the same ones.
+  const curveKey = JSON.stringify(curve);
 
   useEffect(() => {
+    if (still) return;
     setLeft(remaining());
     const id = setInterval(() => setLeft(remaining()), 200);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startedAt, durationMs]);
+  }, [startedAt, durationMs, still]);
 
   useLayoutEffect(() => {
     const el = sweepRef.current;
-    if (!el || durationMs <= 0) return;
+    if (!el || durationMs <= 0 || still) return;
     const elapsed = Math.min(durationMs, Math.max(0, Date.now() - startedAt));
     if (typeof el.animate !== 'function') {
       // No Web Animations (jsdom): a static snapshot of the same curve.
-      el.style.transform = `translateX(${unsendProgress(elapsed / durationMs) * 100 - 100}%)`;
+      el.style.transform = sweepAt(unsendProgress(elapsed / durationMs, curve));
       return;
     }
-    const anim = el.animate(unsendKeyframes(), {
-      duration: durationMs,
-      easing: 'linear',
-      fill: 'forwards',
-    });
+    const anim = el.animate(
+      curveKeyframes(curve, (p) => ({ transform: sweepAt(p) })),
+      { duration: durationMs, easing: 'linear', fill: 'forwards' },
+    );
     anim.currentTime = elapsed;
     return () => anim.cancel();
-  }, [startedAt, durationMs]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startedAt, durationMs, curveKey, still]);
 
-  const seconds = Math.ceil(left / 1000);
+  const seconds = Math.ceil((still ? (1 - Math.min(1, Math.max(0, progress))) * durationMs : left) / 1000);
   return (
     <button
       type="button"
@@ -827,7 +853,7 @@ export function UnsendOverlay({
       onMouseDown={(e) => e.preventDefault()}
       onClick={(e) => {
         e.stopPropagation();
-        onCancel();
+        onCancel?.();
       }}
       className="absolute inset-0 z-30 cursor-pointer overflow-hidden rounded-2xl bg-card/30 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
@@ -835,7 +861,7 @@ export function UnsendOverlay({
         ref={sweepRef}
         aria-hidden
         className="pointer-events-none absolute inset-0 border-r-2 border-primary/70 bg-primary/15"
-        style={{ transform: 'translateX(-100%)' }}
+        style={{ transform: still ? sweepAt(unsendProgress(progress, curve)) : sweepAt(0) }}
       />
       <span className="pointer-events-none absolute inset-0 flex items-center justify-center p-2">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm">
