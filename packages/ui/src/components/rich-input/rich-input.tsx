@@ -26,6 +26,7 @@ import { useKeepKeyboard } from './use-keep-keyboard';
 import { AutoTagOverlay } from './auto-tag-overlay';
 import { useSavedDrafts } from './use-saved-drafts';
 import { ReorderableToolbar, type ToolbarEntry } from './toolbar-reorder';
+import { ToolbarMenuRowButton } from './toolbar-menu-row';
 import {
   AttachmentChips,
   HistorySheet,
@@ -1206,18 +1207,36 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
                 label: it.label,
                 stashable: true,
                 node: it.node,
+                menuNode: it.menuNode,
               }))
             : toolbarExtra != null
               ? [{ id: 'extra', label: 'Extras', stashable: true, node: toolbarExtra }]
               : [];
+          // The built-ins' `+` menu rows (while stashed).
+          const attachRow = filesEnabled ? (
+            <ToolbarMenuRowButton
+              icon={files.uploading ? <Loader2 className="animate-spin" /> : <Paperclip />}
+              label="Attach files"
+              disabled={busy}
+              onClick={() => fileRef.current?.click()}
+            />
+          ) : null;
+          const historyRow = historyNode ? (
+            <ToolbarMenuRowButton
+              icon={<History />}
+              label="History"
+              value={hist.entries.length}
+              onClick={() => setSheetOpen(true)}
+            />
+          ) : null;
           const entries: ToolbarEntry[] = [
             ...(attachNode
-              ? [{ id: 'attach', label: 'Attach', stashable: true, node: attachNode }]
+              ? [{ id: 'attach', label: 'Attach', stashable: true, node: attachNode, menuNode: attachRow }]
               : []),
             ...extraEntries,
             { id: 'spacer', label: 'Spacer', stashable: true, flex: true, node: null },
             ...(historyNode
-              ? [{ id: 'history', label: 'History', stashable: true, node: historyNode }]
+              ? [{ id: 'history', label: 'History', stashable: true, node: historyNode, menuNode: historyRow }]
               : []),
             { id: 'send', label: 'Send', stashable: false, node: sendNode },
             ...(draftsNode && savedDrafts.drafts.length > 0

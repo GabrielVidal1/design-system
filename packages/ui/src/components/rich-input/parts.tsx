@@ -721,19 +721,57 @@ export function SubmitErrorBanner({
 
 /* ── Un-send overlay ─────────────────────────────────────────────────────── */
 /**
- * The sweep's progression: ease-out quart — about 80 % across in the first
- * second, then a slow last stretch to full exactly when the send fires. The
- * send reads as already on its way while the end of the window still leaves
- * room to take it back.
+ * The sweep's start: the ease-out it has always had — most of the way across
+ * in its first second, so the send reads as already on its way.
  */
 const UNSEND_EASING = 'cubic-bezier(0.25, 1, 0.5, 1)';
+/** The finish: an exponential ease-in (expo-in), the snap into the send. */
+const UNSEND_FINISH_EASING = 'cubic-bezier(0.7, 0, 0.84, 0)';
+/** Where the sweep holds — near full, so it reads "almost gone"… */
+export const UNSEND_PLATEAU = 0.98;
+/** …reached this far into the window (the fast start's end)… */
+export const UNSEND_PLATEAU_AT = 0.45;
+/** …and left this far in, for the exponential finish into the send. */
+export const UNSEND_FINISH_AT = 0.95;
+
+/**
+ * The sweep's progression, 0 → 1 over the window's fraction `f` (0 → 1): the
+ * fast ease-out start up to {@link UNSEND_PLATEAU} by {@link UNSEND_PLATEAU_AT},
+ * a plateau there, then an exponential finish to full from
+ * {@link UNSEND_FINISH_AT} — exactly when the send fires. The plateau leaves
+ * the end of the window as room to take the send back; the finish says it is
+ * going *now*. A JS twin of the Web Animations keyframes (used where those are
+ * missing, and in tests); the start is an ease-out quart, close to the bezier.
+ */
+export function unsendProgress(f: number): number {
+  const x = Math.min(1, Math.max(0, f));
+  if (x <= UNSEND_PLATEAU_AT) {
+    const u = x / UNSEND_PLATEAU_AT;
+    return UNSEND_PLATEAU * (1 - (1 - u) ** 4);
+  }
+  if (x <= UNSEND_FINISH_AT) return UNSEND_PLATEAU;
+  const u = (x - UNSEND_FINISH_AT) / (1 - UNSEND_FINISH_AT);
+  const expoIn = u === 0 ? 0 : 2 ** (10 * u - 10);
+  return UNSEND_PLATEAU + (1 - UNSEND_PLATEAU) * expoIn;
+}
+
+/** The sweep's keyframes: start, plateau in, plateau out, full. */
+function unsendKeyframes(): Keyframe[] {
+  const at = (p: number) => `translateX(${(p - 1) * 100}%)`;
+  return [
+    { transform: at(0), offset: 0, easing: UNSEND_EASING },
+    { transform: at(UNSEND_PLATEAU), offset: UNSEND_PLATEAU_AT, easing: 'linear' },
+    { transform: at(UNSEND_PLATEAU), offset: UNSEND_FINISH_AT, easing: UNSEND_FINISH_EASING },
+    { transform: at(1), offset: 1 },
+  ];
+}
 
 /**
  * The lock laid over the composer while a send waits out its un-send window:
  * the composer underneath keeps showing what went out, a primary wash sweeps
- * across it left → right as the window runs down (fast at first, easing into
- * the send — {@link UNSEND_EASING}), and a tap anywhere on it takes the send
- * back.
+ * across it left → right as the window runs down (fast at first, holding near
+ * full, then snapping into the send — {@link unsendProgress}), and a tap
+ * anywhere on it takes the send back.
  *
  * Driven by the window's start and length rather than a ticking prop, so a
  * composer that remounts mid-window (a caller-held send outliving its
@@ -766,13 +804,13 @@ export function UnsendOverlay({
     if (!el || durationMs <= 0) return;
     const elapsed = Math.min(durationMs, Math.max(0, Date.now() - startedAt));
     if (typeof el.animate !== 'function') {
-      // No Web Animations (jsdom): a static, linear snapshot is enough.
-      el.style.transform = `translateX(${(elapsed / durationMs) * 100 - 100}%)`;
+      // No Web Animations (jsdom): a static snapshot of the same curve.
+      el.style.transform = `translateX(${unsendProgress(elapsed / durationMs) * 100 - 100}%)`;
       return;
     }
-    const anim = el.animate([{ transform: 'translateX(-100%)' }, { transform: 'translateX(0)' }], {
+    const anim = el.animate(unsendKeyframes(), {
       duration: durationMs,
-      easing: UNSEND_EASING,
+      easing: 'linear',
       fill: 'forwards',
     });
     anim.currentTime = elapsed;

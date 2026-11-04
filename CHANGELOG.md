@@ -18,6 +18,16 @@ last release → grouped bullets under Unreleased), then curate the prose.
 > Confirm without leaving the page — and a hold that knows what it landed on.
 
 ### Added
+- `RichInput` — **the toolbar's `+` menu is a list of settings rows.** A
+  stashed control used to show up there as its toolbar chip with a tiny label
+  beside it, every chip a different shape. A toolbar item can now bring a
+  `menuNode` — the control as a full-width row — built from the new
+  `ToolbarMenuRowFace` (`icon  Label ……… value ▾`, the face of a select whose
+  popover trigger is the caller's), `ToolbarMenuRowButton` (an action row) and
+  `ToolbarMenuSwitch` (an on/off row with a switch). The toolbar itself keeps
+  its compact chips. Attach and History ship their own rows; an item with no
+  `menuNode` still gets a row: its label, then the control
+  (`ToolbarMenuFallbackRow`).
 - `RichInput` — **`tagList="link"`: the long tag list leaves the screen.**
   One row keeps a 🔍 link pill, the `group: 'list'` tags that are on, and the
   ones auto-tag matched in the text in a **dashed outline** (a tap turns one
@@ -108,6 +118,12 @@ last release → grouped bullets under Unreleased), then curate the prose.
   library's first Data visualization primitive.
 
 ### Changed
+- `RichInput` — **the un-send sweep holds near full, then snaps into the
+  send.** Same fast start as before, up to 98 % by 45 % of the window; it
+  holds there, and the last 5 % of the window is an exponential finish to full
+  as the send fires — the plateau is the room left to take it back, the snap
+  says it is going now. `unsendProgress(f)` is the curve in JS (and the
+  fallback where Web Animations are missing).
 - `RichInput` auto-tag — **a reading stands while you type.** The matches of
   the last pause stay put mid-word and are refreshed at the next pause, instead
   of emptying on every keystroke and coming back a second later (the list

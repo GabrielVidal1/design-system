@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { RichInput } from './rich-input';
+import { ToolbarMenuRowButton } from './toolbar-menu-row';
+import { unsendProgress, UNSEND_FINISH_AT, UNSEND_PLATEAU, UNSEND_PLATEAU_AT } from './parts';
 import type { RichTag, RichSendButtonProps, RichSendPayload } from './types';
 
 // @tanstack/react-virtual (behind the drafts dropdown's FuzzyList) measures the
@@ -558,10 +560,44 @@ describe('reorderable toolbar', () => {
     expect(menu()?.className).toContain('hidden');
     await userEvent.click(screen.getByRole('button', { name: 'Stashed controls (1)' }));
     expect(menu()?.className).not.toContain('hidden');
-    // The real control, usable from the menu.
-    expect(menu()?.querySelector('[aria-label="Attach files"]')).not.toBeNull();
+    // The control as a menu row, usable from the menu.
+    const row = [...(menu()?.querySelectorAll('button') ?? [])].find((b) =>
+      b.textContent?.includes('Attach files'),
+    );
+    expect(row?.querySelector('[data-toolbar-menu-row]')).not.toBeNull();
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => expect(menu()?.className).toContain('hidden'));
+  });
+
+  it("lists a stashed extra as its menuNode row, or its label beside the control", async () => {
+    window.localStorage.setItem(
+      orderKey,
+      JSON.stringify({ order: ['more', 'spacer', 'send'], stash: ['model', 'plain'] }),
+    );
+    render(
+      <RichInput
+        cacheKey="tb"
+        toolbarReorder="tb"
+        toolbarExtraItems={[
+          {
+            id: 'model',
+            label: 'Model',
+            node: <button type="button">opus chip</button>,
+            menuNode: <ToolbarMenuRowButton label="Model" value="Opus" chevron />,
+          },
+          { id: 'plain', label: 'Plain', node: <button type="button">plain chip</button> },
+        ]}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Stashed controls (2)' }));
+    const menu = document.querySelector('[role="group"][aria-label="Stashed controls"]')!;
+    const model = menu.querySelector('[data-toolbar-menu-item="model"]')!;
+    // The row, not the toolbar chip.
+    expect(model.textContent).toContain('Opus');
+    expect(model.textContent).not.toContain('opus chip');
+    // No menuNode: still a row — the label, then the control itself.
+    const plain = menu.querySelector('[data-toolbar-menu-item="plain"]')!;
+    expect(plain.textContent).toBe('Plainplain chip');
   });
 
   it('has no + control while nothing is benched', () => {
@@ -578,6 +614,29 @@ describe('reorderable toolbar', () => {
     );
     const { container } = render(<RichInput cacheKey="tb" toolbarReorder="tb" accept="*" />);
     expect(itemIds(container)).toContain('Send');
+  });
+});
+
+describe('un-send sweep curve', () => {
+  it('starts fast, holds near full, then snaps to full as the send fires', () => {
+    expect(unsendProgress(0)).toBe(0);
+    // The fast start: most of the way across well before the plateau.
+    expect(unsendProgress(UNSEND_PLATEAU_AT / 3)).toBeGreaterThan(0.6);
+    expect(unsendProgress(UNSEND_PLATEAU_AT)).toBeCloseTo(UNSEND_PLATEAU);
+    // The plateau.
+    expect(unsendProgress(0.7)).toBe(UNSEND_PLATEAU);
+    expect(unsendProgress(UNSEND_FINISH_AT)).toBe(UNSEND_PLATEAU);
+    // The exponential finish: barely moving at first, full at the end.
+    const mid = unsendProgress((UNSEND_FINISH_AT + 1) / 2);
+    expect(mid - UNSEND_PLATEAU).toBeLessThan((1 - UNSEND_PLATEAU) * 0.1);
+    expect(unsendProgress(1)).toBe(1);
+    // Monotonic all the way.
+    let prev = -1;
+    for (let i = 0; i <= 100; i++) {
+      const p = unsendProgress(i / 100);
+      expect(p).toBeGreaterThanOrEqual(prev);
+      prev = p;
+    }
   });
 });
 

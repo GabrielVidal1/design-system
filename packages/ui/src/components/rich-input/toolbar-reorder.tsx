@@ -6,6 +6,7 @@ import { cn } from '../../lib/utils';
 import { useLocalStorage } from '../../hooks/use-local-storage';
 import { HoldEditable } from '../hold-editable';
 import { riseIn, useFlipPop } from './motion';
+import { ToolbarMenuFallbackRow } from './toolbar-menu-row';
 
 /** One control in the reorderable toolbar — built-ins and caller extras alike. */
 export interface ToolbarEntry {
@@ -17,6 +18,9 @@ export interface ToolbarEntry {
   /** Stretch to fill the free space — the spacer that splits the clusters. */
   flex?: boolean;
   node: ReactNode;
+  /** The control as a `+` menu row while it is stashed (see
+   *  `RichToolbarItem.menuNode`); else its label beside the {@link node}. */
+  menuNode?: ReactNode;
 }
 
 const PREFIX = 'rich-input:toolbar:';
@@ -47,9 +51,11 @@ const OVERLAY_SELECTOR =
  * **Benched is not out of reach.** While anything is benched, a `+` control
  * joins the row (first seen just before send; rearrangeable like the others,
  * never benched itself). It opens a menu of the benched controls — the real
- * ones, so a chip there opens its own picker as it would in the row. The
- * menu stays mounted while closed (only hidden), so a picker one of its
- * controls opened survives the menu closing behind it.
+ * ones, so a chip there opens its own picker as it would in the row — each as
+ * a full-width settings row (its `menuNode`: `icon  Label … value ▾`, or a
+ * switch), the toolbar keeping its compact chips. The menu stays mounted
+ * while closed (only hidden), so a picker one of its controls opened
+ * survives the menu closing behind it.
  */
 export function ReorderableToolbar({
   storageKey,
@@ -226,15 +232,14 @@ export function ReorderableToolbar({
             role="group"
             aria-label="Stashed controls"
             className={cn(
-              'fixed z-50 max-h-[min(24rem,calc(100vh-1rem))] w-max max-w-[calc(100vw-1rem)] flex-col gap-0.5 overflow-y-auto rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-lg',
+              'fixed z-50 max-h-[min(24rem,calc(100vh-1rem))] w-64 max-w-[calc(100vw-1rem)] flex-col gap-1 overflow-y-auto rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-lg',
               open ? 'flex' : 'hidden',
             )}
             style={place ? { left: place.left, top: place.top } : { left: 0, top: 0, visibility: 'hidden' }}
           >
             {benched.map((e) => (
-              <div key={e.id} className="flex min-h-8 items-center gap-2 pr-1.5">
-                <div className="flex shrink-0 items-center">{e.node}</div>
-                <span className="truncate text-[11px] text-muted-foreground">{e.label}</span>
+              <div key={e.id} data-toolbar-menu-item={e.id} className="w-full">
+                {e.menuNode ?? <ToolbarMenuFallbackRow label={e.label}>{e.node}</ToolbarMenuFallbackRow>}
               </div>
             ))}
           </div>,

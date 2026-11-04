@@ -270,7 +270,15 @@ export { Slider } from './components/slider';
 export type { SliderProps } from './components/slider';
 export { Select } from './components/select';
 export type { SelectOption, SelectProps } from './components/select';
-export { RichInput, useSavedDrafts, findAutoTagMatches } from './components/rich-input';
+export {
+  RichInput,
+  useSavedDrafts,
+  findAutoTagMatches,
+  ToolbarMenuRowFace,
+  ToolbarMenuRowButton,
+  ToolbarMenuSwitch,
+  ToolbarMenuFallbackRow,
+} from './components/rich-input';
 export type {
   AutoTagConfig,
   AutoTagMatch,

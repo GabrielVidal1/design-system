@@ -177,6 +177,12 @@ export interface RichToolbarItem {
   /** Label shown on the item's stash tag while it is benched. */
   label: string;
   node: ReactNode;
+  /**
+   * The control as a row of the `+` menu, while it is stashed — a full-width
+   * select / switch row built from the `ToolbarMenuRow*` faces (`icon  Label …
+   * value ▾`). Without one the menu shows {@link label} beside {@link node}.
+   */
+  menuNode?: ReactNode;
 }
 
 /** What a custom {@link RichInputProps.renderSendButton} is handed. */

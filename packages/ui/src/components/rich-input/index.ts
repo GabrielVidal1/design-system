@@ -12,6 +12,12 @@ export type {
   ComposeInput,
   RichToolbarItem,
 } from './types';
+export {
+  ToolbarMenuRowFace,
+  ToolbarMenuRowButton,
+  ToolbarMenuSwitch,
+  ToolbarMenuFallbackRow,
+} from './toolbar-menu-row';
 export { useSavedDrafts } from './use-saved-drafts';
 export type { SavedDrafts } from './use-saved-drafts';
 export { findAutoTagMatches } from './use-auto-tag';
