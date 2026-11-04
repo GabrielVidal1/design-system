@@ -1797,6 +1797,27 @@ export function FileEditorIcon() {
 
 /** ColorPicker — the saturation/value square with its thumb wandering, and a
  * hue strip below with a drifting thumb of its own. */
+/** CurveEditor — an S-curve on a grid with its bézier handles, the playhead
+ * dot riding along it. */
+export function CurveEditorIcon() {
+  const d = 'M 50 100 C 92 100, 110 34, 170 30';
+  return (
+    <Svg>
+      <rect x="44" y="22" width="132" height="86" rx="8" stroke={DIM} strokeWidth="2" />
+      <line x1="50" y1="100" x2="92" y2="100" stroke={DIM} strokeWidth="1.5" />
+      <line x1="170" y1="30" x2="110" y2="34" stroke={DIM} strokeWidth="1.5" />
+      <circle cx="92" cy="100" r="4" fill={PAPER} stroke={DIM} strokeWidth="2" />
+      <circle cx="110" cy="34" r="4" fill={PAPER} stroke={DIM} strokeWidth="2" />
+      <path d={d} stroke={CY} strokeWidth="3" strokeLinecap="round" />
+      <rect x="45" y="95" width="10" height="10" rx="2" transform="rotate(45 50 100)" fill={CY} />
+      <rect x="165" y="25" width="10" height="10" rx="2" transform="rotate(45 170 30)" fill={CY} />
+      <circle r="5" fill={CY}>
+        <animateMotion dur="2.4s" repeatCount="indefinite" path={d} keyPoints="0;1;1" keyTimes="0;0.8;1" calcMode="spline" keySplines="0.25 1 0.5 1;0 0 1 1" />
+      </circle>
+    </Svg>
+  );
+}
+
 export function ColorPickerIcon() {
   const x0 = 62;
   const y0 = 22;

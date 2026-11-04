@@ -278,6 +278,9 @@ export {
   ToolbarMenuRowButton,
   ToolbarMenuSwitch,
   ToolbarMenuFallbackRow,
+  UnsendOverlay,
+  DEFAULT_UNSEND_CURVE,
+  unsendProgress,
 } from './components/rich-input';
 export type {
   AutoTagConfig,
@@ -338,6 +341,30 @@ export type {
 } from './components/resizable-layout';
 export { ColorPicker } from './components/color-picker';
 export type { ColorPickerProps } from './components/color-picker';
+export {
+  CurveEditor,
+  EASINGS,
+  LINEAR_EASING,
+  cubicBezierAt,
+  curveFromEasing,
+  curveKeyframes,
+  curvesEqual,
+  easingToCss,
+  evalCurve,
+  insertPoint,
+  moveHandle,
+  movePoint,
+  parseCurve,
+  removePoint,
+  roundCurve,
+} from './components/curve-editor';
+export type {
+  AnimationCurve,
+  CurveEasing,
+  CurveEditorProps,
+  CurvePoint,
+  CurvePreset,
+} from './components/curve-editor';
 export { Toolbar, ToolbarButton, ToolbarGroup, ToolbarSeparator } from './components/toolbar';
 export type { ToolbarProps, ToolbarButtonProps, ToolbarGroupProps } from './components/toolbar';
 export { InspectorPanel, InspectorRow, InspectorSection } from './components/inspector-panel';

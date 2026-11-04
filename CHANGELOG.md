@@ -18,6 +18,25 @@ last release → grouped bullets under Unreleased), then curate the prose.
 > Confirm without leaving the page — and a hold that knows what it landed on.
 
 ### Added
+- **`CurveEditor`** (Editor) — edit an animation's timing curve on a graph:
+  keyframes on a time × progress plot joined by cubic-bézier segments whose
+  handles you drag, the model of CSS `@keyframes` and the Web Animations API,
+  so what you draw plays back exactly. Touch-first (finger-sized targets,
+  double-tap the graph to add a keyframe without changing the shape, toolbar
+  add/remove), keyframes snap to the grid, the ends stay put, handles may
+  overshoot and the view grows to fit them. Optional preset chips with
+  thumbnails, a Reset to `defaultValue`, a time axis in seconds from
+  `durationMs`, and a looping playhead with `renderPreview(progress)` drawing
+  what the curve animates at the same instant. The math ships on its own:
+  `evalCurve`, `curveKeyframes` (→ `element.animate`), `cubicBezierAt`,
+  `parseCurve` (validate a stored curve), `curveFromEasing` + `EASINGS`, and
+  the editing helpers (`insertPoint`, `removePoint`, `movePoint`,
+  `moveHandle`).
+- `RichInput` — **`unsendCurve`**: the un-send sweep's timing is any
+  `AnimationCurve` now (default `DEFAULT_UNSEND_CURVE`, the ease-out →
+  plateau → snap it always had). `UnsendOverlay` is exported too, with a
+  `progress` prop for a still frame — a settings page previewing a curve with
+  the real overlay.
 - `RichInput` — **the toolbar's `+` menu is a list of settings rows.** A
   stashed control used to show up there as its toolbar chip with a tiny label
   beside it, every chip a different shape. A toolbar item can now bring a

@@ -21,4 +21,5 @@ export {
 export { useSavedDrafts } from './use-saved-drafts';
 export type { SavedDrafts } from './use-saved-drafts';
 export { findAutoTagMatches } from './use-auto-tag';
+export { UnsendOverlay, DEFAULT_UNSEND_CURVE, unsendProgress } from './parts';
 export type { AutoTagConfig, AutoTagMatch } from './use-auto-tag';

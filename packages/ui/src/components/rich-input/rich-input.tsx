@@ -52,6 +52,7 @@ import type {
   RichSendPayload,
   RichToolbarItem,
 } from './types';
+import type { AnimationCurve } from '../curve-editor/curve';
 
 const LINE_HEIGHT = 22;
 const DEFAULT_MASTER_SWITCH: MasterSwitchConfig = { label: 'Tags' };
@@ -133,6 +134,12 @@ export interface RichInputProps {
    * `setFiles`). `null` / absent: nothing held.
    */
   held?: RichHeldSend | null;
+  /**
+   * The un-send sweep's timing — keyframes + cubic-bézier segments, as edited
+   * by `CurveEditor`. Default: `DEFAULT_UNSEND_CURVE` (a fast ease-out to
+   * near full, a plateau, then a snap into the send).
+   */
+  unsendCurve?: AnimationCurve;
   /** `'enter'` (default): Enter submits, Shift+Enter newline. `'mod+enter'`: ⌘/Ctrl+Enter submits. */
   submitKey?: 'enter' | 'mod+enter';
 
@@ -336,6 +343,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
     onSubmit,
     undoWindowMs = 3000,
     held: heldProp = null,
+  unsendCurve,
     submitKey = 'enter',
     cacheKey,
     cacheLocation = 'local',
@@ -990,6 +998,7 @@ export const RichInput = forwardRef<RichInputHandle, RichInputProps>(function Ri
             startedAt={lockTiming.startedAt}
             durationMs={lockTiming.durationMs}
             onCancel={lockCancel}
+            curve={unsendCurve}
           />
         )}
 

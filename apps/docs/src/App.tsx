@@ -73,6 +73,11 @@ import {
   useNav2D,
   CharRoll,
   ColorPicker,
+  CurveEditor,
+  DEFAULT_UNSEND_CURVE,
+  EASINGS,
+  curveFromEasing,
+  easingToCss,
   InspectorPanel,
   InspectorRow,
   InspectorSection,
@@ -211,6 +216,7 @@ import {
   MenuIcon,
   FileEditorIcon,
   ColorPickerIcon,
+  CurveEditorIcon,
   ToolbarIcon,
   InspectorPanelIcon,
   EditorStageIcon,
@@ -320,6 +326,7 @@ const GROUP_OF: Record<string, Group> = {
   'inspector-panel': 'Editor',
   'editor-stage': 'Editor',
   'color-picker': 'Editor',
+  'curve-editor': 'Editor',
   hooks: 'Hooks',
   cn: 'Utilities',
   theme: 'Utilities',
@@ -411,6 +418,7 @@ const SOURCE_FILE: Record<string, string> = {
   'icon-picker': 'icon-picker.tsx',
   'palette-picker': 'palette-picker.tsx',
   'color-picker': 'color-picker.tsx',
+  'curve-editor': 'curve-editor.tsx',
   toolbar: 'toolbar.tsx',
   'inspector-panel': 'inspector-panel.tsx',
   'editor-stage': 'editor-stage.tsx',
@@ -1775,6 +1783,32 @@ if (await confirm({ title: 'Delete note?', destructive: true })) remove()
 />
 
 <ColorPicker inline value={fill} onChange={setFill} />`,
+  },
+  {
+    id: 'curve-editor',
+    name: 'CurveEditor',
+    sig: 'keyframes · bézier handles · presets · reset · live preview',
+    tag: 'editor',
+    Icon: CurveEditorIcon,
+    Demo: CurveEditorDemo,
+    code: `const [curve, setCurve] = useState(DEFAULT_UNSEND_CURVE);
+
+<CurveEditor
+  value={curve}
+  onChange={setCurve}            // every drag frame (3 decimals)
+  onCommit={save}                // once a gesture settles
+  defaultValue={DEFAULT_UNSEND_CURVE}   // shows Reset
+  presets={[{ label: 'Ease out', curve: curveFromEasing(EASINGS.easeOut) }]}
+  durationMs={3000}              // time axis in seconds, preview pace
+  renderPreview={(p) => <Bar progress={p} />}
+/>
+
+// Play it back exactly — Web Animations keyframes, one per point:
+el.animate(curveKeyframes(curve, (y) => ({ transform: \`scaleX(\${y})\` })),
+  { duration: 3000, easing: 'linear', fill: 'forwards' });
+
+// Or in JS: evalCurve(curve, t) → progress at time fraction t.
+// RichInput takes one for its un-send sweep: <RichInput unsendCurve={curve} />`,
   },
   {
     id: 'toolbar',
@@ -3761,6 +3795,46 @@ function ColorPickerDemo() {
         an eyedropper where the browser has one, and preset swatches. On phones the trigger opens
         a bottom sheet; pass <code className="mono text-xs">inline</code> to embed the panel — say,
         in an inspector.
+      </p>
+    </div>
+  );
+}
+
+const CURVE_PRESETS = [
+  { label: 'Un-send', curve: DEFAULT_UNSEND_CURVE },
+  { label: 'Ease out', curve: curveFromEasing(EASINGS.easeOut) },
+  { label: 'Ease in-out', curve: curveFromEasing(EASINGS.easeInOut) },
+  { label: 'Back', curve: curveFromEasing(EASINGS.easeOutBack) },
+  { label: 'Linear', curve: curveFromEasing(EASINGS.linear) },
+];
+
+function CurveEditorDemo() {
+  const [curve, setCurve] = useState(DEFAULT_UNSEND_CURVE);
+  return (
+    <div className="max-w-md space-y-4">
+      <CurveEditor
+        value={curve}
+        onChange={setCurve}
+        defaultValue={DEFAULT_UNSEND_CURVE}
+        presets={CURVE_PRESETS}
+        durationMs={3000}
+        renderPreview={(p) => (
+          <div className="relative h-10 overflow-hidden rounded-xl border border-border bg-card">
+            <div
+              className="absolute inset-0 border-r-2 border-primary/70 bg-primary/15"
+              style={{ transform: `translateX(${(p - 1) * 100}%)` }}
+            />
+            <span className="absolute inset-0 flex items-center justify-center font-mono text-xs tabular-nums text-muted-foreground">
+              {Math.round(p * 100)}%
+            </span>
+          </div>
+        )}
+      />
+      <p className="text-sm text-muted-foreground">
+        Drag the diamonds (keyframes) and the round handles (each segment&apos;s cubic-bézier);
+        double-tap the graph to add a keyframe, select one and press Delete — or use the toolbar — to
+        drop it. The segment you touch reads back as CSS:{' '}
+        <code className="mono text-xs">{curve.easings.map((e) => easingToCss(e)).join(' → ')}</code>
       </p>
     </div>
   );
