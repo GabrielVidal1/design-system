@@ -206,7 +206,7 @@ function CurveThumb({ curve, active }: { curve: AnimationCurve; active: boolean 
       <path
         d={d}
         fill="none"
-        stroke={active ? 'var(--primary)' : 'var(--muted-foreground)'}
+        className={active ? 'stroke-primary' : 'stroke-muted-foreground'}
         strokeWidth="1.6"
         strokeLinecap="round"
       />
@@ -220,8 +220,8 @@ function Playhead({ clock, curve, f }: { clock: Clock; curve: AnimationCurve; f:
   const dot = f.px(t, evalCurve(curve, t));
   return (
     <g pointerEvents="none" data-curve-playhead="">
-      <line x1={top.x} x2={top.x} y1={PAD.t} y2={f.h - PAD.b} stroke="var(--primary)" strokeOpacity="0.25" strokeWidth="1" />
-      <circle cx={dot.x} cy={dot.y} r="5" fill="var(--primary)" />
+      <line x1={top.x} x2={top.x} y1={PAD.t} y2={f.h - PAD.b} className="stroke-primary" strokeOpacity="0.25" strokeWidth="1" />
+      <circle cx={dot.x} cy={dot.y} r="5" className="fill-primary" />
     </g>
   );
 }
@@ -513,13 +513,13 @@ export function CurveEditor({
             const gy = f.px(0, vr[0] + g * (vr[1] - vr[0])).y;
             return (
               <g key={g} pointerEvents="none">
-                <line x1={gx} x2={gx} y1={PAD.t} y2={height - PAD.b} stroke="var(--border)" strokeWidth="1" />
-                <line x1={PAD.l} x2={width - PAD.r} y1={gy} y2={gy} stroke="var(--border)" strokeWidth="1" strokeDasharray={g === 0 || g === 1 ? undefined : '3 3'} />
-                <text x={gx} y={height - 8} textAnchor="middle" fontSize="10" fill="var(--muted-foreground)">
+                <line x1={gx} x2={gx} y1={PAD.t} y2={height - PAD.b} className="stroke-border" strokeWidth="1" />
+                <line x1={PAD.l} x2={width - PAD.r} y1={gy} y2={gy} className="stroke-border" strokeWidth="1" strokeDasharray={g === 0 || g === 1 ? undefined : '3 3'} />
+                <text x={gx} y={height - 8} textAnchor="middle" fontSize="10" className="fill-muted-foreground">
                   {durationMs ? secs(g * durationMs) : pct(g)}
                 </text>
                 {(g === 0 || g === 0.5 || g === 1) && (
-                  <text x={PAD.l - 6} y={gy + 3} textAnchor="end" fontSize="10" fill="var(--muted-foreground)">
+                  <text x={PAD.l - 6} y={gy + 3} textAnchor="end" fontSize="10" className="fill-muted-foreground">
                     {pct(g)}
                   </text>
                 )}
@@ -538,7 +538,7 @@ export function CurveEditor({
               const s = { kind: 'handle', seg, end } as const;
               return (
                 <g key={`${seg}-${end}`}>
-                  <line x1={from.x} y1={from.y} x2={h.x} y2={h.y} stroke="var(--muted-foreground)" strokeOpacity="0.6" strokeWidth="1" pointerEvents="none" />
+                  <line x1={from.x} y1={from.y} x2={h.x} y2={h.y} className="stroke-muted-foreground" strokeOpacity="0.6" strokeWidth="1" pointerEvents="none" />
                   <circle
                     cx={h.x}
                     cy={h.y}
@@ -554,14 +554,14 @@ export function CurveEditor({
                     onFocus={() => setSel(s)}
                     data-curve-handle={`${seg}-${end}`}
                   />
-                  <circle cx={h.x} cy={h.y} r={on ? 5 : 4} fill="var(--card)" stroke={on ? 'var(--primary)' : 'var(--muted-foreground)'} strokeWidth="1.5" pointerEvents="none" />
+                  <circle cx={h.x} cy={h.y} r={on ? 5 : 4} className={cn('fill-card', on ? 'stroke-primary' : 'stroke-muted-foreground')} strokeWidth="1.5" pointerEvents="none" />
                 </g>
               );
             });
           })}
 
           {/* the curve */}
-          <path d={curvePath(curve, f.px)} fill="none" stroke="var(--primary)" strokeWidth="2.25" strokeLinecap="round" pointerEvents="none" />
+          <path d={curvePath(curve, f.px)} fill="none" className="stroke-primary" strokeWidth="2.25" strokeLinecap="round" pointerEvents="none" />
 
           {preview && <Playhead clock={clock} curve={curve} f={f} />}
 
@@ -589,7 +589,7 @@ export function CurveEditor({
                   onFocus={() => setSel(sel)}
                   data-curve-point={i}
                 />
-                {on && <circle cx={s.x} cy={s.y} r="10" fill="var(--primary)" fillOpacity="0.15" pointerEvents="none" />}
+                {on && <circle cx={s.x} cy={s.y} r="10" className="fill-primary" fillOpacity="0.15" pointerEvents="none" />}
                 <rect
                   x={s.x - 5}
                   y={s.y - 5}
@@ -597,8 +597,7 @@ export function CurveEditor({
                   height="10"
                   rx="2"
                   transform={`rotate(45 ${s.x} ${s.y})`}
-                  fill={on ? 'var(--primary)' : 'var(--card)'}
-                  stroke="var(--primary)"
+                  className={cn('stroke-primary', on ? 'fill-primary' : 'fill-card')}
                   strokeWidth="2"
                   pointerEvents="none"
                 />

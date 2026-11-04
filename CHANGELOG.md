@@ -31,7 +31,9 @@ last release → grouped bullets under Unreleased), then curate the prose.
   `evalCurve`, `curveKeyframes` (→ `element.animate`), `cubicBezierAt`,
   `parseCurve` (validate a stored curve), `curveFromEasing` + `EASINGS`, and
   the editing helpers (`insertPoint`, `removePoint`, `movePoint`,
-  `moveHandle`).
+  `moveHandle`). The graph paints with Tailwind colour classes
+  (`stroke-primary`, `fill-card`…), so it follows a consumer whose tokens are
+  HSL triplets as well as raw colours.
 - `RichInput` — **`unsendCurve`**: the un-send sweep's timing is any
   `AnimationCurve` now (default `DEFAULT_UNSEND_CURVE`, the ease-out →
   plateau → snap it always had). `UnsendOverlay` is exported too, with a
